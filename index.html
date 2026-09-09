@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
+            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' data: http://127.0.0.1:8765; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
     />
     <meta
       http-equiv="X-Content-Security-Policy"
-            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
+            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' data: http://127.0.0.1:8765; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
@@ -28,7 +28,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 30px;
         }
 
         /* ─── 主容器 ─── */
@@ -36,7 +36,7 @@
             width: 1440px;
             max-width: 100%;
             height: 900px;
-            max-height: 100vh;
+            max-height: calc(100vh - 60px);
             background: #ffffff;
             border-radius: 28px;
             box-shadow: 0 25px 60px -15px rgba(0, 20, 30, 0.25);
@@ -257,6 +257,170 @@
             font-weight: 600;
         }
 
+        .friends-panel {
+            margin-bottom: 18px;
+        }
+
+        .friends-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .friends-panel-title {
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .friend-add-form {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .friend-add-form input {
+            min-width: 0;
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            color: #334155;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .friend-add-form input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
+        }
+
+        .friend-add-form button {
+            width: 34px;
+            border: 0;
+            border-radius: 9px;
+            background: #0f766e;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .friend-add-form button:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .friends-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 132px;
+            overflow-y: auto;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 9px;
+            background: #ffffff;
+            border: 1px solid #eef2f8;
+        }
+
+        .friend-avatar {
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #64748b;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .friend-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .friend-name {
+            display: block;
+            overflow: hidden;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 600;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .friend-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .friend-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #cbd5e1;
+        }
+
+        .friend-status.online {
+            color: #16a34a;
+        }
+
+        .friend-status.online .friend-status-dot {
+            background: #22c55e;
+        }
+
+        .friends-empty,
+        .friends-error {
+            color: #94a3b8;
+            font-size: 11px;
+            padding: 4px 2px;
+        }
+
+        .friends-error {
+            color: #dc2626;
+        }
+
+        .friends-section-label {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 8px 0 4px;
+        }
+
+        .friend-request-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .friend-request-actions button {
+            border: 0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 4px 6px;
+        }
+
+        .friend-accept-btn {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .friend-reject-btn {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
         /* 搜尋 / 篩選 */
         .search-box {
             position: relative;
@@ -332,7 +496,7 @@
         }
 
         .note-item.active {
-            background: #eef3ff;
+                        background: #eef3ff;
             border-color: #b9d0fd;
             box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
         }
@@ -563,9 +727,12 @@
 
         .connection-dialog-backdrop.visible {
             display: flex;
+            pointer-events: auto;
         }
 
         .connection-dialog {
+            position: relative;
+            z-index: 1;
             width: min(420px, 100%);
             padding: 24px;
             background: #ffffff;
@@ -807,6 +974,9 @@
             color: #ffffff;
             font-size: 12px;
             font-weight: 700;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
         }
 
         .user-profile-name {
@@ -845,11 +1015,100 @@
             margin-bottom: 6px;
         }
 
+        .user-profile-login-name {
+            color: #94a3b8;
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+
         .user-profile-card p {
             color: #64748b;
             font-size: 12px;
             line-height: 1.5;
             margin: 0;
+        }
+
+        .profile-settings-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 8px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: #334155;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .profile-settings-dialog {
+            width: min(430px, 100%);
+            padding: 24px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+        }
+
+        .profile-settings-dialog h2 {
+            color: #0b1a2b;
+            font-size: 20px;
+            margin-bottom: 18px;
+        }
+
+        .profile-settings-dialog label {
+            display: block;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+
+        .profile-settings-dialog input[type="text"],
+        .profile-settings-dialog input[type="file"] {
+            width: 100%;
+            margin-bottom: 16px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            color: #334155;
+            font-size: 13px;
+        }
+
+        .profile-preview {
+            width: 72px;
+            height: 72px;
+            display: block;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #0f766e;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        .profile-settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .profile-settings-actions button {
+            padding: 9px 16px;
+            border: 0;
+            border-radius: 9px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .profile-cancel-btn {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .profile-save-btn {
+            background: #3b82f6;
+            color: #ffffff;
         }
 
         /* 標題輸入 */
@@ -1003,7 +1262,7 @@
                 flex-direction: column;
                 height: auto;
                 border-radius: 20px;
-                max-height: 100vh;
+                max-height: calc(100vh - 60px);
             }
 
             .sidebar {
@@ -1030,7 +1289,7 @@
 
         @media (max-width: 500px) {
             body {
-                padding: 8px;
+                padding: 30px;
             }
 
             .app-container {
@@ -1153,6 +1412,27 @@
                 </div>
             </div>
 
+            <section class="friends-panel" aria-labelledby="friendsPanelTitle">
+                <div class="friends-panel-header">
+                    <span class="friends-panel-title" id="friendsPanelTitle">好友状态</span>
+                </div>
+                <form class="friend-add-form" id="friendAddForm">
+                    <input id="friendUsernameInput" placeholder="输入登录名添加好友" autocomplete="off" maxlength="32" />
+                    <button id="friendAddButton" type="submit" title="添加好友"><i class="fas fa-user-plus"></i></button>
+                </form>
+                <div class="friends-list" id="friendsList">
+                    <div class="friends-empty">暂无好友</div>
+                </div>
+                <div class="friends-section-label">待处理请求</div>
+                <div class="friends-list" id="friendRequestsList">
+                    <div class="friends-empty">暂无请求</div>
+                </div>
+                <div class="friends-section-label">已发送请求</div>
+                <div class="friends-list" id="friendOutgoingList">
+                    <div class="friends-empty">暂无请求</div>
+                </div>
+            </section>
+
             <!-- 搜尋 -->
             <div class="search-box">
                 <i class="fas fa-search"></i>
@@ -1197,7 +1477,9 @@
                         </button>
                         <div class="user-profile-card" role="status">
                             <strong id="userProfileCardName">用户</strong>
-                            <p>当前账号已登录<br />认证状态：正常</p>
+                            <p class="user-profile-login-name" id="userProfileLoginName">用戶登陸名: ""</p>
+                            <p id="userProfileCardTitle">团队成员</p>
+                            <button class="profile-settings-btn" id="profileSettingsBtn" type="button">个性化设置</button>
                         </div>
                     </div>
                     <button class="share-btn" id="logoutBtn" type="button"><i class="fas fa-sign-out-alt"></i> 登出</button>
@@ -1277,6 +1559,24 @@
         </div>
     </div>
 
+    <div class="delete-dialog-backdrop" id="profileSettingsDialog" role="dialog" aria-modal="true" aria-labelledby="profileSettingsTitle">
+        <form class="profile-settings-dialog" id="profileSettingsForm">
+            <h2 id="profileSettingsTitle">个性化设置</h2>
+            <div class="profile-preview" id="profilePreview" role="img" aria-label="头像预览"></div>
+            <label for="profileAvatarInput">头像图片（JPG 或 PNG）</label>
+            <input id="profileAvatarInput" type="file" accept="image/jpeg,image/png" />
+            <label for="profileDisplayName">显示名称</label>
+            <input id="profileDisplayName" type="text" maxlength="32" required />
+            <label for="profileTitle">自定义头衔</label>
+            <input id="profileTitle" type="text" maxlength="40" placeholder="例如：产品负责人" />
+            <p class="auth-error" id="profileError"></p>
+            <div class="profile-settings-actions">
+                <button class="profile-cancel-btn" id="profileCancelBtn" type="button">取消</button>
+                <button class="profile-save-btn" id="profileSaveBtn" type="submit">保存设置</button>
+            </div>
+        </form>
+    </div>
+
     <script>
         (function() {
             'use strict';
@@ -1287,6 +1587,12 @@
             const searchInput = document.getElementById('searchInput');
             const newNoteBtn = document.getElementById('newNoteBtn');
             const noteList = document.getElementById('noteList');
+            const friendAddForm = document.getElementById('friendAddForm');
+            const friendUsernameInput = document.getElementById('friendUsernameInput');
+            const friendAddButton = document.getElementById('friendAddButton');
+            const friendsList = document.getElementById('friendsList');
+            const friendRequestsList = document.getElementById('friendRequestsList');
+            const friendOutgoingList = document.getElementById('friendOutgoingList');
             const deleteDialog = document.getElementById('deleteDialog');
             const deleteDialogMessage = document.getElementById('deleteDialogMessage');
             const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
@@ -1306,6 +1612,18 @@
             const userProfileAvatar = document.getElementById('userProfileAvatar');
             const userProfileName = document.getElementById('userProfileName');
             const userProfileCardName = document.getElementById('userProfileCardName');
+            const userProfileLoginName = document.getElementById('userProfileLoginName');
+            const userProfileCardTitle = document.getElementById('userProfileCardTitle');
+            const profileSettingsBtn = document.getElementById('profileSettingsBtn');
+            const profileSettingsDialog = document.getElementById('profileSettingsDialog');
+            const profileSettingsForm = document.getElementById('profileSettingsForm');
+            const profileAvatarInput = document.getElementById('profileAvatarInput');
+            const profilePreview = document.getElementById('profilePreview');
+            const profileDisplayName = document.getElementById('profileDisplayName');
+            const profileTitle = document.getElementById('profileTitle');
+            const profileError = document.getElementById('profileError');
+            const profileCancelBtn = document.getElementById('profileCancelBtn');
+            const profileSaveBtn = document.getElementById('profileSaveBtn');
             const apiBaseUrl = window.collabNoteApi?.baseUrl || 'http://127.0.0.1:8765';
             let saveTimer;
             let pendingDeleteId;
@@ -1314,13 +1632,29 @@
             let authMode = 'login';
             let authToken = localStorage.getItem('collabNoteToken');
             let currentUsername = '';
+            let currentDisplayName = '';
+            let currentAvatarUrl = '';
+            let currentTitle = '团队成员';
 
-            function setCurrentUser(username) {
+            function setCurrentUser(username, title = '团队成员', avatarUrl = null, displayName = username) {
                 currentUsername = username;
-                const displayName = username || '用户';
+                currentDisplayName = displayName || username || '用户';
+                currentTitle = title || '团队成员';
+                currentAvatarUrl = avatarUrl || '';
+                displayName = currentDisplayName;
+                const avatar = document.getElementById('userProfileAvatar');
                 userProfileName.textContent = displayName;
                 userProfileCardName.textContent = displayName;
-                userProfileAvatar.textContent = displayName.charAt(0).toUpperCase();
+                userProfileLoginName.textContent = `用戶登陸名: "${username || ''}"`;
+                userProfileCardTitle.textContent = currentTitle;
+                if (currentAvatarUrl) {
+                    avatar.textContent = '';
+                    const avatarUrl = `${apiBaseUrl}${currentAvatarUrl}?v=${Date.now()}`;
+                    avatar.style.backgroundImage = `url("${avatarUrl}")`;
+                } else {
+                    avatar.textContent = displayName.charAt(0).toUpperCase();
+                    avatar.style.backgroundImage = '';
+                }
             }
 
             function showConnectionError() {
@@ -1647,11 +1981,145 @@
                         noteContent.value = '';
                     }
                     hideConnectionError();
+                    await loadFriends();
                 } catch (error) {
                     console.error('無法連接 Python 後端', error);
                     if (error.status === 401) showAuthScreen();
                     noteTitleInput.value = '';
                     noteContent.value = '';
+                }
+            }
+
+            function renderPersonList(list, people, emptyText, requestActions = false) {
+                list.replaceChildren();
+                if (!people.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'friends-empty';
+                    empty.textContent = emptyText;
+                    list.appendChild(empty);
+                    return;
+                }
+                people.forEach(person => {
+                    const item = document.createElement('div');
+                    item.className = 'friend-item';
+                    const avatar = document.createElement('span');
+                    avatar.className = 'friend-avatar';
+                    avatar.textContent = (person.displayName || person.username).charAt(0).toUpperCase();
+                    const info = document.createElement('div');
+                    info.className = 'friend-info';
+                    const name = document.createElement('span');
+                    name.className = 'friend-name';
+                    name.textContent = person.displayName || person.username;
+                    name.title = `${person.displayName || person.username} (${person.username})`;
+                    info.appendChild(name);
+                    if (!requestActions) {
+                        const status = document.createElement('span');
+                        status.className = `friend-status${person.online ? ' online' : ''}`;
+                        const dot = document.createElement('span');
+                        dot.className = 'friend-status-dot';
+                        status.append(dot, person.online ? '在线' : '离线');
+                        info.appendChild(status);
+                    }
+                    item.append(avatar, info);
+                    if (requestActions) {
+                        const actions = document.createElement('div');
+                        actions.className = 'friend-request-actions';
+                        const accept = document.createElement('button');
+                        accept.className = 'friend-accept-btn';
+                        accept.dataset.username = person.username;
+                        accept.dataset.action = 'accept';
+                        accept.textContent = '接受';
+                        const reject = document.createElement('button');
+                        reject.className = 'friend-reject-btn';
+                        reject.dataset.username = person.username;
+                        reject.dataset.action = 'reject';
+                        reject.textContent = '拒绝';
+                        actions.append(accept, reject);
+                        item.appendChild(actions);
+                    }
+                    list.appendChild(item);
+                });
+            }
+
+            function renderFriends(data) {
+                const friends = data?.friends || [];
+                const incomingRequests = data?.incomingRequests || [];
+                const outgoingRequests = data?.outgoingRequests || [];
+                renderPersonList(friendsList, friends, '暂无好友');
+                renderPersonList(friendRequestsList, incomingRequests, '暂无请求', true);
+                renderPersonList(friendOutgoingList, outgoingRequests, '暂无请求');
+            }
+
+            async function loadFriends() {
+                try {
+                    const friendData = await apiRequest('/api/friends');
+                    renderFriends(friendData);
+                } catch (error) {
+                    if (error.status === 401) return;
+                    friendsList.replaceChildren();
+                    const message = document.createElement('div');
+                    message.className = 'friends-error';
+                    message.textContent = '好友状态加载失败';
+                    friendsList.appendChild(message);
+                }
+            }
+
+            friendRequestsList.addEventListener('click', async function(event) {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                button.disabled = true;
+                try {
+                    await apiRequest(`/api/friends/requests/${encodeURIComponent(button.dataset.username)}/${button.dataset.action}`, {
+                        method: 'POST'
+                    });
+                    await loadFriends();
+                } catch (error) {
+                    console.error('处理好友请求失败', error);
+                    button.disabled = false;
+                }
+            });
+
+            friendAddForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const username = friendUsernameInput.value.trim();
+                if (!username) return friendUsernameInput.focus();
+                friendAddButton.disabled = true;
+                try {
+                    await apiRequest('/api/friends', {
+                        method: 'POST',
+                        body: JSON.stringify({ username })
+                    });
+                    friendUsernameInput.value = '';
+                    await loadFriends();
+                } catch (error) {
+                    const message = error.status === 404 ? '找不到该用户' : error.status === 400 ? '不能添加该用户' : '添加好友失败';
+                    friendUsernameInput.value = '';
+                    friendUsernameInput.placeholder = message;
+                } finally {
+                    friendAddButton.disabled = false;
+                }
+            });
+
+            window.setInterval(() => {
+                if (authToken) loadFriends();
+            }, 15000);
+
+            async function retryConnection() {
+                connectionRetryBtn.disabled = true;
+                connectionRetryBtn.textContent = '连接中...';
+                try {
+                    await apiRequest('/api/health');
+                    hideConnectionError();
+                    if (authToken) {
+                        await loadNotes();
+                    } else {
+                        showAuthScreen();
+                    }
+                } catch (error) {
+                    console.error('重新连接失败', error);
+                } finally {
+                    connectionRetryBtn.disabled = false;
+                    connectionRetryBtn.textContent = '重新连接';
                 }
             }
 
@@ -1673,7 +2141,7 @@
                     });
                     authToken = result.token;
                     localStorage.setItem('collabNoteToken', authToken);
-                    setCurrentUser(result.username);
+                    setCurrentUser(result.username, result.title, result.avatarUrl, result.displayName);
                     authPassword.value = '';
                     showWorkspace();
                     await loadNotes();
@@ -1695,14 +2163,83 @@
                 localStorage.removeItem('collabNoteToken');
                 notesData.splice(0, notesData.length);
                 noteList.replaceChildren();
+                renderFriends([]);
                 showAuthScreen();
+            });
+
+            profileSettingsBtn.addEventListener('click', function() {
+                profileDisplayName.value = currentDisplayName;
+                profileTitle.value = currentTitle;
+                profileError.textContent = '';
+                profileAvatarInput.value = '';
+                profilePreview.style.backgroundImage = currentAvatarUrl
+                    ? `url("${apiBaseUrl}${currentAvatarUrl}?v=${Date.now()}")`
+                    : '';
+                profilePreview.alt = `${currentUsername} 的头像预览`;
+                profileSettingsDialog.classList.add('visible');
+                profileDisplayName.focus();
+            });
+
+            profileAvatarInput.addEventListener('change', function() {
+                const file = this.files?.[0];
+                if (!file) return;
+                if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                    profileError.textContent = '头像必须是 JPG 或 PNG 图片。';
+                    this.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = () => {
+                    profilePreview.style.backgroundImage = `url("${reader.result}")`;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            profileCancelBtn.addEventListener('click', function() {
+                profileSettingsDialog.classList.remove('visible');
+            });
+
+            profileSettingsDialog.addEventListener('click', function(event) {
+                if (event.target === profileSettingsDialog) profileSettingsDialog.classList.remove('visible');
+            });
+
+            profileSettingsForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                profileError.textContent = '';
+                profileSaveBtn.disabled = true;
+                try {
+                    let avatarData;
+                    const file = profileAvatarInput.files?.[0];
+                    if (file) {
+                        avatarData = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                    const result = await apiRequest('/api/auth/profile', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            displayName: profileDisplayName.value.trim(),
+                            title: profileTitle.value.trim(),
+                            ...(avatarData ? { avatarData } : {})
+                        })
+                    });
+                    setCurrentUser(result.username, result.title, result.avatarUrl, result.displayName);
+                    profileSettingsDialog.classList.remove('visible');
+                } catch (error) {
+                    profileError.textContent = error.status ? '资料格式无效，请检查昵称、头衔或图片格式。' : '无法连接后端，请稍后重试。';
+                } finally {
+                    profileSaveBtn.disabled = false;
+                }
             });
 
             // ─── 初始化：確保顯示正確 ───
             if (authToken) {
                 apiRequest('/api/auth/me')
                     .then(user => {
-                        setCurrentUser(user.username);
+                        setCurrentUser(user.username, user.title, user.avatarUrl, user.displayName);
                         showWorkspace();
                         return loadNotes();
                     })
@@ -1716,7 +2253,7 @@
             } else {
                 showAuthScreen();
             }
-            connectionRetryBtn.addEventListener('click', loadNotes);
+            connectionRetryBtn.addEventListener('click', retryConnection);
 
             // ─── (選用) 鍵盤快捷鍵: Ctrl+Shift+N 新增 ───
             document.addEventListener('keydown', function(e) {

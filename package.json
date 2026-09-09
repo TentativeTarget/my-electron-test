@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "frontend": "electron .",
     "backend": "python3 server.py",
-    "api": "npm run backend"
+    "api": "npm run backend",
+    "launcher": "node launcher.js"
   },
   "author": "Jane Doe",
   "license": "MIT",

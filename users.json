@@ -2,6 +2,21 @@
   {
     "username": "YvLvn",
     "salt": "2ed9d6b95b0ae41ee8a8507f60304880",
-    "passwordHash": "4574d3cec809f32755837633dc3ad062e9099f1caf67c5de371d1e6976deafca"
+    "passwordHash": "4574d3cec809f32755837633dc3ad062e9099f1caf67c5de371d1e6976deafca",
+    "displayName": "YvLvn-TT",
+    "title": "作者",
+    "avatarFile": "50105f5626b13081db19184e.jpg",
+    "friends": [
+      "test"
+    ]
+  },
+  {
+    "username": "test",
+    "salt": "6258535681d2af799df9f7ab30628d61",
+    "passwordHash": "fcd6a5c2d08b821e8040927a645dc32317bd8b585bb0e958047d1c3517faa29c",
+    "friends": [
+      "YvLvn"
+    ],
+    "friendRequests": []
   }
 ]

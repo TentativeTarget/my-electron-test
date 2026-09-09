@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' data: http://127.0.0.1:8765; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
+            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' file: data: http://127.0.0.1:8765; style-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' file: https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
     />
     <meta
       http-equiv="X-Content-Security-Policy"
-            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' data: http://127.0.0.1:8765; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
+            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' file: data: http://127.0.0.1:8765; style-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' file: https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="stylesheet" href="frontend/vendor/font-awesome/all.min.css" />
     <title>多人共享筆記 · CollabNote</title>
     <style>
         /* ─── 全域重置 & 字型 ─── */
@@ -133,6 +133,33 @@
             margin: 0 0 12px;
         }
 
+        .auth-remember {
+            display: flex;
+            align-items: center;
+            margin: -6px 0 14px;
+        }
+
+        .auth-screen .auth-remember-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .auth-screen .auth-remember-label input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+            margin: 0;
+            padding: 0;
+            accent-color: #3b82f6;
+            cursor: pointer;
+        }
+
         @media (max-width: 500px) {
             .auth-screen {
                 padding: 26px 20px;
@@ -150,6 +177,266 @@
             padding: 24px 16px 20px 20px;
             overflow-y: auto;
             position: relative;
+        }
+
+        /* 好友欄（獨立停靠於右側） */
+        .friends-rail {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            bottom: 30px;
+            width: 300px;
+            z-index: 40;
+            display: none;
+            flex-direction: column;
+            background: #fafcff;
+            border: 1px solid #edf2f7;
+            border-radius: 20px;
+            box-shadow: 0 20px 45px -20px rgba(15, 23, 42, 0.35);
+            padding: 16px;
+            overflow-y: auto;
+            transition: transform 0.25s ease, opacity 0.2s ease;
+        }
+
+        body.friends-enabled .friends-rail {
+            display: flex;
+        }
+
+        body.friends-enabled {
+            padding-right: 348px;
+            transition: padding-right 0.25s ease;
+        }
+
+        body.friends-enabled.friends-minimized {
+            padding-right: 30px;
+        }
+
+        body.friends-minimized .friends-rail {
+            opacity: 0;
+            transform: translateX(calc(100% + 60px));
+            pointer-events: none;
+        }
+
+        .friends-rail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding: 0 2px;
+        }
+
+        .friends-rail-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #0b1a2b;
+        }
+
+        .friends-rail-title i {
+            color: #3b82f6;
+            font-size: 14px;
+        }
+
+        .friends-minimize-btn {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .friends-minimize-btn:hover {
+            background: #eef3ff;
+            border-color: #b9d0fd;
+            color: #2563eb;
+        }
+
+        .friends-reopen-btn {
+            position: fixed;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 45;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 44px;
+            padding: 14px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: #ffffff;
+            color: #3b82f6;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.25);
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .friends-reopen-btn:hover {
+            background: #eef3ff;
+            border-color: #b9d0fd;
+        }
+
+        .friends-reopen-btn span {
+            writing-mode: vertical-rl;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: #334155;
+        }
+
+        body.friends-enabled.friends-minimized .friends-reopen-btn {
+            display: flex;
+        }
+
+        .friends-rail .friends-panel {
+            margin: 0;
+            flex: 1;
+        }
+
+        /* 好友欄頂端的使用者狀態 */
+        .friends-rail .user-profile {
+            margin-bottom: 16px;
+        }
+
+        .friends-rail .user-profile-trigger {
+            width: 100%;
+            padding: 6px 10px 6px 6px;
+        }
+
+        .friends-rail .user-profile-name {
+            flex: 1;
+            max-width: none;
+        }
+
+        .friends-rail .user-profile-card {
+            left: 0;
+            width: auto;
+        }
+
+        /* 使用者下拉選單 */
+        .user-profile-card .profile-card-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 12px 0 6px;
+        }
+
+        .user-profile-card .profile-menu-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.12s, color 0.12s;
+        }
+
+        .user-profile-card .profile-menu-item:hover {
+            background: #f1f5f9;
+            color: #0b1a2b;
+        }
+
+        .user-profile-card .profile-menu-item i {
+            width: 18px;
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .user-profile-card .profile-menu-item.theme-toggle {
+            width: 100%;
+            height: auto;
+            border: 0;
+            background: transparent;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 500;
+            justify-content: flex-start;
+            border-radius: 9px;
+            padding: 9px 10px;
+            gap: 10px;
+            box-shadow: none;
+        }
+
+        .user-profile-card .profile-menu-item.theme-toggle:hover {
+            background: #f1f5f9;
+            color: #0b1a2b;
+            transform: none;
+        }
+
+        .user-profile-card .profile-logout-item {
+            color: #dc2626;
+        }
+
+        .user-profile-card .profile-logout-item:hover {
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .user-profile-card .profile-logout-item i {
+            color: #dc2626;
+        }
+
+        /* 好友請求折疊按鈕 */
+        .friend-add-form .friends-requests-toggle {
+            position: relative;
+            width: 34px;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .friend-add-form .friends-requests-toggle:hover {
+            background: #eef3ff;
+            border-color: #b9d0fd;
+            color: #2563eb;
+        }
+
+        .friend-add-form .friends-requests-toggle i {
+            transition: transform 0.18s ease;
+            pointer-events: none;
+        }
+
+        .friend-add-form .friends-requests-toggle.open i {
+            transform: rotate(180deg);
+        }
+
+        .friend-add-form .friends-requests-toggle .friends-requests-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 15px;
+            height: 15px;
+            padding: 0 4px;
+            border-radius: 8px;
+            background: #dc2626;
+            color: #ffffff;
+            font-size: 9px;
+            line-height: 15px;
+            text-align: center;
+            pointer-events: none;
         }
 
         /* 側邊欄 header */
@@ -863,6 +1150,24 @@
             font-size: 10px;
         }
 
+        .editor-header .left .status.saving {
+            color: #b45309;
+            background: #fffbeb;
+        }
+
+        .editor-header .left .status.offline {
+            color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .editor-header .left .status.saving .pulse {
+            background: #f59e0b;
+        }
+
+        .editor-header .left .status.offline .pulse {
+            background: #dc2626;
+        }
+
         .editor-header .left .status .pulse {
             width: 8px;
             height: 8px;
@@ -1287,6 +1592,24 @@
             }
         }
 
+        @media (max-width: 1180px) {
+            body.friends-enabled {
+                padding-right: 30px;
+            }
+
+            .friends-rail {
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: min(320px, 86vw);
+                border-radius: 0;
+            }
+
+            .friends-reopen-btn {
+                right: 14px;
+            }
+        }
+
         @media (max-width: 500px) {
             body {
                 padding: 30px;
@@ -1368,18 +1691,591 @@
         .fake-cursor.pink {
             background: #ec4899;
         }
+        /* ─── 深色模式切換按鈕 ─── */
+        #authScreen {
+            position: relative;
+        }
+
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #475569;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        }
+
+        .theme-toggle:hover {
+            background: #f1f5f9;
+            color: #0b1a2b;
+            transform: translateY(-1px);
+        }
+
+        .theme-toggle i {
+            pointer-events: none;
+        }
+
+        #authScreen .theme-toggle {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 34px;
+            height: 34px;
+        }
+
+        /* ─── 深色模式 (html[data-theme="dark"]) ─── */
+        [data-theme="dark"] body {
+            background: #0a101d;
+        }
+
+        [data-theme="dark"] .app-container,
+        [data-theme="dark"] .auth-screen,
+        [data-theme="dark"] .sidebar,
+        [data-theme="dark"] .editor-panel {
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        [data-theme="dark"] .app-container {
+            background: #0d1626;
+            border: 1px solid #1e2a42;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.55);
+        }
+
+        [data-theme="dark"] .auth-screen {
+            background: #111d31;
+            border-color: #26354f;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.55);
+        }
+
+        [data-theme="dark"] .auth-screen h1 {
+            color: #eaf1fb;
+        }
+
+        [data-theme="dark"] .auth-screen .auth-subtitle {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .auth-screen label {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .auth-screen input {
+            background: #0c172a;
+            border-color: #2a3a57;
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .auth-screen input::placeholder {
+            color: #6b7f9e;
+        }
+
+        [data-theme="dark"] .auth-screen input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+        }
+
+        [data-theme="dark"] .auth-switch {
+            color: #60a5fa;
+        }
+
+        [data-theme="dark"] .auth-error {
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .auth-screen .auth-remember-label {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .theme-toggle {
+            background: #1a2740;
+            border-color: #2b3b5c;
+            color: #93c5fd;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        [data-theme="dark"] .theme-toggle:hover {
+            background: #243355;
+            color: #bfdbfe;
+        }
+
+        [data-theme="dark"] .sidebar {
+            background: #101a2c;
+            border-right-color: #1d2940;
+        }
+
+        [data-theme="dark"] .friends-rail {
+            background: #101a2c;
+            border-color: #1d2940;
+            box-shadow: 0 20px 45px -20px rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="dark"] .friends-rail-title {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .friends-minimize-btn {
+            background: #141f34;
+            border-color: #26354f;
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .friends-minimize-btn:hover {
+            background: #1b2a45;
+            border-color: #34517f;
+            color: #bfdbfe;
+        }
+
+        [data-theme="dark"] .friends-reopen-btn {
+            background: #141f34;
+            border-color: #26354f;
+            color: #93c5fd;
+            box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="dark"] .friends-reopen-btn:hover {
+            background: #1b2a45;
+            border-color: #34517f;
+        }
+
+        [data-theme="dark"] .friends-reopen-btn span {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .friend-add-form .friends-requests-toggle {
+            background: #141f34;
+            border-color: #26354f;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .friend-add-form .friends-requests-toggle:hover {
+            background: #1b2a45;
+            border-color: #34517f;
+            color: #bfdbfe;
+        }
+
+        [data-theme="dark"] .friend-add-form .friends-requests-toggle .friends-requests-badge {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .sidebar-header h2 {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .sidebar-header h2 i {
+            color: #60a5fa;
+        }
+
+        [data-theme="dark"] .sidebar-header .badge {
+            background: #1a2b49;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .collaborators {
+            background: #141f34;
+            border-color: #22304c;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .collaborators .avatar {
+            border-color: #101a2c;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme="dark"] .collaborators .online-count {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .friends-panel-title {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .friend-add-form input {
+            background: #0c172a;
+            border-color: #26354f;
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .friend-add-form input::placeholder {
+            color: #6b7f9e;
+        }
+
+        [data-theme="dark"] .friend-add-form input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        [data-theme="dark"] .friend-item {
+            background: #141f34;
+            border-color: #22304c;
+        }
+
+        [data-theme="dark"] .friend-avatar {
+            background: #5b6b85;
+        }
+
+        [data-theme="dark"] .friend-name {
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .friend-status {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .friend-status-dot {
+            background: #3a4c6b;
+        }
+
+        [data-theme="dark"] .friends-empty,
+        [data-theme="dark"] .friends-error {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .friends-error {
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .friends-section-label {
+            color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .friend-accept-btn {
+            background: rgba(34, 197, 94, 0.16);
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .friend-reject-btn {
+            background: #22324f;
+            color: #c3cfe0;
+        }
+
+        [data-theme="dark"] .search-box input {
+            background: #0c172a;
+            border-color: #2a3a57;
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .search-box input::placeholder {
+            color: #6b7f9e;
+        }
+
+        [data-theme="dark"] .search-box input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+        }
+
+        [data-theme="dark"] .search-box i {
+            color: #7d8fa8;
+        }
+
+        [data-theme="dark"] .note-list::-webkit-scrollbar-thumb {
+            background: #2b3b58;
+        }
+
+        [data-theme="dark"] .note-item:hover {
+            background: #16233b;
+        }
+
+        [data-theme="dark"] .note-item.active {
+            background: #1b2c4d;
+            border-color: #34517f;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] .note-item .note-icon {
+            background: #1c2f52;
+            color: #6ea8fe;
+        }
+
+        [data-theme="dark"] .note-item.active .note-icon {
+            background: #23407a;
+        }
+
+        [data-theme="dark"] .note-item .note-title {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .note-item.active .note-title {
+            color: #7cb3ff;
+        }
+
+        [data-theme="dark"] .note-item .note-title .tag {
+            background-color: #1d3a5f !important;
+            color: #8ab8ff !important;
+        }
+
+        [data-theme="dark"] .note-item .note-meta {
+            color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .note-item .note-meta i {
+            color: #7d8fa8;
+        }
+
+        [data-theme="dark"] .note-item .note-actions button {
+            color: #7d8fa8;
+        }
+
+        [data-theme="dark"] .note-item .note-actions button:hover {
+            color: #e6edf6;
+            background: #24334f;
+        }
+
+        [data-theme="dark"] .delete-dialog-backdrop,
+        [data-theme="dark"] .connection-dialog-backdrop {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="dark"] .delete-dialog,
+        [data-theme="dark"] .profile-settings-dialog {
+            background: #141f36;
+            border-color: #27375a;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="dark"] .delete-dialog h2,
+        [data-theme="dark"] .profile-settings-dialog h2 {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .delete-dialog p,
+        [data-theme="dark"] .profile-settings-dialog label,
+        [data-theme="dark"] .profile-settings-dialog input[type="text"] {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .profile-settings-dialog input[type="text"],
+        [data-theme="dark"] .profile-settings-dialog input[type="file"] {
+            background: #0c172a;
+            border-color: #26354f;
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .delete-cancel-btn,
+        [data-theme="dark"] .profile-cancel-btn {
+            background: #26344f;
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .connection-dialog {
+            background: #1a1626;
+            border-color: #7f1d1d;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        [data-theme="dark"] .connection-dialog h2 {
+            color: #fca5a5;
+        }
+
+        [data-theme="dark"] .connection-dialog p {
+            color: #c3cfe0;
+        }
+
+        [data-theme="dark"] .sidebar-footer {
+            border-top-color: #1d2940;
+        }
+
+        [data-theme="dark"] .editor-panel {
+            background: #0c1422;
+        }
+
+        [data-theme="dark"] .editor-panel::-webkit-scrollbar-thumb {
+            background: #2b3b58;
+        }
+
+        [data-theme="dark"] .editor-header .left .status {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .editor-header .left .status.saving {
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.14);
+        }
+
+        [data-theme="dark"] .editor-header .left .status.offline {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.14);
+        }
+
+        [data-theme="dark"] .editor-header .right .share-btn {
+            background: #17233a;
+            color: #dbe4f1;
+        }
+
+        [data-theme="dark"] .editor-header .right .share-btn:hover {
+            background: #223148;
+        }
+
+        [data-theme="dark"] .editor-header .right .share-btn i {
+            color: #60a5fa;
+        }
+
+        [data-theme="dark"] .editor-header .right .mini-avatar {
+            border-color: #0c1422;
+        }
+
+        [data-theme="dark"] .user-profile-trigger {
+            background: #141f34;
+            border-color: #2a3a57;
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .user-profile-card {
+            background: #16233c;
+            border-color: #2a3a57;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="dark"] .user-profile-card strong {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .user-profile-login-name {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .user-profile-card p {
+            color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .profile-settings-btn {
+            background: #22314e;
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-card-divider {
+            background: #26354f;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-menu-item {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-menu-item:hover {
+            background: #22304c;
+            color: #eef3fa;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-menu-item i {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-menu-item.theme-toggle {
+            background: transparent;
+            border: 0;
+            color: #c9d5e6;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-menu-item.theme-toggle:hover {
+            background: #22304c;
+            color: #eef3fa;
+            transform: none;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-menu-item.theme-toggle i {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-logout-item,
+        [data-theme="dark"] .user-profile-card .profile-logout-item i {
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .user-profile-card .profile-logout-item:hover {
+            background: rgba(248, 113, 113, 0.12);
+            color: #fca5a5;
+        }
+
+        [data-theme="dark"] .note-title-input {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .note-title-input::placeholder {
+            color: #5f7390;
+        }
+
+        [data-theme="dark"] .toolbar {
+            border-bottom-color: #1d2940;
+        }
+
+        [data-theme="dark"] .toolbar button {
+            color: #a6b4cc;
+        }
+
+        [data-theme="dark"] .toolbar button:hover {
+            background: #1b2944;
+            color: #eef3fa;
+        }
+
+        [data-theme="dark"] .toolbar .divider {
+            background: #2a3a57;
+        }
+
+        [data-theme="dark"] .editor-content textarea {
+            color: #dbe4f1;
+        }
+
+        [data-theme="dark"] .editor-content textarea::placeholder {
+            color: #5f7390;
+        }
+
+        [data-theme="dark"] .editor-footer {
+            border-top-color: #1d2940;
+            color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .sidebar,
+        [data-theme="dark"] .editor-panel {
+            scrollbar-color: #2b3b58 transparent;
+        }
     </style>
+
+    <script>
+        // 在頁面渲染前套用已儲存的主題，避免閃爍
+        (function() {
+            try {
+                const storedTheme = localStorage.getItem('collabnote-theme');
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = storedTheme === 'light' || storedTheme === 'dark'
+                    ? storedTheme
+                    : prefersDark ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (error) {
+                // localStorage 不可用時使用預設淺色模式
+            }
+        })();
+    </script>
   </head>
 <body>
 
     <section class="auth-screen" id="authScreen">
+        <button class="theme-toggle" type="button" aria-label="切換到深色模式" title="切換到深色模式">
+            <i class="fas fa-moon" aria-hidden="true"></i>
+        </button>
         <h1>CollabNote</h1>
         <p class="auth-subtitle" id="authSubtitle">登录后管理你的团队笔记</p>
         <form id="authForm">
             <label for="authUsername">用户名</label>
-            <input id="authUsername" name="username" autocomplete="username" required minlength="3" maxlength="32" />
+            <input id="authUsername" name="username" list="recentUsersList" autocomplete="username" required minlength="3" maxlength="32" />
+            <datalist id="recentUsersList"></datalist>
             <label for="authPassword">密码</label>
             <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="6" />
+            <div class="auth-remember" id="authRememberRow">
+                <label class="auth-remember-label">
+                    <input type="checkbox" id="authRememberCheckbox" />
+                    <span>记住密码</span>
+                </label>
+            </div>
             <p class="auth-error" id="authError" role="alert"></p>
             <button class="auth-submit" id="authSubmit" type="submit">登录</button>
         </form>
@@ -1412,27 +2308,6 @@
                 </div>
             </div>
 
-            <section class="friends-panel" aria-labelledby="friendsPanelTitle">
-                <div class="friends-panel-header">
-                    <span class="friends-panel-title" id="friendsPanelTitle">好友状态</span>
-                </div>
-                <form class="friend-add-form" id="friendAddForm">
-                    <input id="friendUsernameInput" placeholder="输入登录名添加好友" autocomplete="off" maxlength="32" />
-                    <button id="friendAddButton" type="submit" title="添加好友"><i class="fas fa-user-plus"></i></button>
-                </form>
-                <div class="friends-list" id="friendsList">
-                    <div class="friends-empty">暂无好友</div>
-                </div>
-                <div class="friends-section-label">待处理请求</div>
-                <div class="friends-list" id="friendRequestsList">
-                    <div class="friends-empty">暂无请求</div>
-                </div>
-                <div class="friends-section-label">已发送请求</div>
-                <div class="friends-list" id="friendOutgoingList">
-                    <div class="friends-empty">暂无请求</div>
-                </div>
-            </section>
-
             <!-- 搜尋 -->
             <div class="search-box">
                 <i class="fas fa-search"></i>
@@ -1458,8 +2333,8 @@
                 <div class="left">
                     <div class="status">
                         <span class="pulse"></span>
-                        已同步
-                        <i class="fas fa-check-circle" style="font-size:12px;"></i>
+                        <span id="syncStatusText">已同步</span>
+                        <i id="syncStatusIcon" class="fas fa-check-circle" style="font-size:12px;"></i>
                     </div>
                 </div>
                 <div class="right">
@@ -1468,21 +2343,6 @@
                         <div class="mini-avatar m2" title="Bob 檢視中">B</div>
                         <div class="mini-avatar m3" title="Carol 檢視中">C</div>
                     </div>
-                    <button class="share-btn"><i class="fas fa-share-alt"></i> 分享</button>
-                    <div class="user-profile">
-                        <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
-                            <span class="user-profile-avatar" id="userProfileAvatar">?</span>
-                            <span class="user-profile-name" id="userProfileName">用户</span>
-                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
-                        </button>
-                        <div class="user-profile-card" role="status">
-                            <strong id="userProfileCardName">用户</strong>
-                            <p class="user-profile-login-name" id="userProfileLoginName">用戶登陸名: ""</p>
-                            <p id="userProfileCardTitle">团队成员</p>
-                            <button class="profile-settings-btn" id="profileSettingsBtn" type="button">个性化设置</button>
-                        </div>
-                    </div>
-                    <button class="share-btn" id="logoutBtn" type="button"><i class="fas fa-sign-out-alt"></i> 登出</button>
                 </div>
             </div>
 
@@ -1537,6 +2397,70 @@
 
         </main>
     </div>
+
+    <!-- ===== 好友欄：獨立固定於右側 ===== -->
+        <aside class="friends-rail" aria-label="好友状态">
+            <div class="friends-rail-header">
+                <span class="friends-rail-title"><i class="fas fa-user-friends" aria-hidden="true"></i> 好友</span>
+                <button class="friends-minimize-btn" id="friendsMinimizeBtn" type="button" title="收起好友欄" aria-label="收起好友欄">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="user-profile">
+                <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
+                    <span class="user-profile-avatar" id="userProfileAvatar">?</span>
+                    <span class="user-profile-name" id="userProfileName">用户</span>
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="user-profile-card" role="status">
+                    <strong id="userProfileCardName">用户</strong>
+                    <p class="user-profile-login-name" id="userProfileLoginName">用戶登陸名: ""</p>
+                    <p id="userProfileCardTitle">团队成员</p>
+                    <button class="profile-settings-btn" id="profileSettingsBtn" type="button">个性化设置</button>
+                    <div class="profile-card-divider"></div>
+                    <button class="profile-menu-item theme-toggle" type="button" aria-label="切換到深色模式" title="切換到深色模式">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
+                        <span class="theme-toggle-text">深色模式</span>
+                    </button>
+                    <button class="profile-menu-item profile-logout-item" id="logoutBtn" type="button">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+                        <span>登出</span>
+                    </button>
+                </div>
+            </div>
+            <section class="friends-panel" aria-labelledby="friendsPanelTitle">
+                <div class="friends-panel-header">
+                    <span class="friends-panel-title" id="friendsPanelTitle">好友状态</span>
+                </div>
+                <form class="friend-add-form" id="friendAddForm">
+                    <input id="friendUsernameInput" placeholder="输入登录名添加好友" autocomplete="off" maxlength="32" />
+                    <button id="friendAddButton" type="submit" title="添加好友"><i class="fas fa-user-plus"></i></button>
+                    <button class="friends-requests-toggle" id="friendRequestsToggle" type="button" title="展开好友请求" aria-expanded="false" aria-controls="friendRequestsSection">
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        <span class="friends-requests-badge" id="friendRequestsBadge" hidden>0</span>
+                    </button>
+                </form>
+                <div class="friends-list" id="friendsList">
+                    <div class="friends-empty">暂无好友</div>
+                </div>
+                <div class="friends-requests" id="friendRequestsSection" hidden>
+                    <div class="friends-section-label">待处理请求</div>
+                    <div class="friends-list" id="friendRequestsList">
+                        <div class="friends-empty">暂无请求</div>
+                    </div>
+                    <div class="friends-section-label">已发送请求</div>
+                    <div class="friends-list" id="friendOutgoingList">
+                        <div class="friends-empty">暂无请求</div>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+    <!-- ===== 好友欄重新展開按鈕 ===== -->
+    <button class="friends-reopen-btn" id="friendsReopenBtn" type="button" title="展開好友欄" aria-label="展開好友欄">
+        <i class="fas fa-user-friends" aria-hidden="true"></i>
+        <span>好友</span>
+    </button>
 
     <div class="delete-dialog-backdrop" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
         <div class="delete-dialog">
@@ -1607,6 +2531,12 @@
             const authSubmit = document.getElementById('authSubmit');
             const authSwitch = document.getElementById('authSwitch');
             const authSubtitle = document.getElementById('authSubtitle');
+            const authRememberRow = document.getElementById('authRememberRow');
+            const authRememberCheckbox = document.getElementById('authRememberCheckbox');
+            const recentUsersList = document.getElementById('recentUsersList');
+            const credentialsApi = window.collabNoteApi?.credentials || null;
+            const recentUsersStorageKey = 'collabnoteRecentUsers';
+            let savedCredentialMap = null;
             const appContainer = document.querySelector('.app-container');
             const logoutBtn = document.getElementById('logoutBtn');
             const userProfileAvatar = document.getElementById('userProfileAvatar');
@@ -1626,6 +2556,12 @@
             const profileSaveBtn = document.getElementById('profileSaveBtn');
             const apiBaseUrl = window.collabNoteApi?.baseUrl || 'http://127.0.0.1:8765';
             let saveTimer;
+            const syncStatusBadge = document.querySelector('.editor-header .left .status');
+            const syncStatusText = document.getElementById('syncStatusText');
+            const syncStatusIcon = document.getElementById('syncStatusIcon');
+            let serverConnected = true;
+            let savePending = false;
+            let connectionMonitorTimer = null;
             let pendingDeleteId;
             let dialogCloseTimer;
             let connectionDialogVisible = false;
@@ -1670,14 +2606,18 @@
             }
 
             function showAuthScreen() {
+                stopConnectionMonitor();
                 appContainer.classList.remove('authenticated');
                 authScreen.style.display = 'block';
+                renderRecentUsers();
                 authUsername.focus();
+                restoreSavedCredentials();
             }
 
             function showWorkspace() {
                 authScreen.style.display = 'none';
                 appContainer.classList.add('authenticated');
+                startConnectionMonitor();
             }
 
             function setAuthMode(mode) {
@@ -1687,7 +2627,142 @@
                 authSubmit.textContent = registering ? '注册并登录' : '登录';
                 authSwitch.textContent = registering ? '已有账号？返回登录' : '还没有账号？注册';
                 authPassword.autocomplete = registering ? 'new-password' : 'current-password';
+                authRememberRow.style.display = registering ? 'none' : 'flex';
+                if (registering) authRememberCheckbox.checked = false;
                 authError.textContent = '';
+                if (!registering) fillSavedPassword(authUsername.value.trim());
+            }
+
+            // ─── 歷史登入用戶與系統密碼保存 ───
+            function getRecentUsers() {
+                try {
+                    const users = JSON.parse(localStorage.getItem(recentUsersStorageKey) || '[]');
+                    return Array.isArray(users) ? users : [];
+                } catch {
+                    return [];
+                }
+            }
+
+            function renderRecentUsers() {
+                if (!recentUsersList) return;
+                recentUsersList.replaceChildren();
+                getRecentUsers().forEach(username => {
+                    const option = document.createElement('option');
+                    option.value = username;
+                    recentUsersList.appendChild(option);
+                });
+            }
+
+            function rememberUser(username) {
+                if (!username) return;
+                const users = getRecentUsers().filter(name => name !== username);
+                users.unshift(username);
+                try {
+                    localStorage.setItem(recentUsersStorageKey, JSON.stringify(users.slice(0, 10)));
+                } catch (error) {
+                    console.error('保存用户历史失败', error);
+                }
+                renderRecentUsers();
+            }
+
+            async function loadSavedCredentials() {
+                if (!credentialsApi) return {};
+                if (savedCredentialMap) return savedCredentialMap;
+                try {
+                    savedCredentialMap = (await credentialsApi.load()) || {};
+                } catch (error) {
+                    console.error('读取系统密码失败', error);
+                    savedCredentialMap = {};
+                }
+                return savedCredentialMap;
+            }
+
+            async function fillSavedPassword(username, options = {}) {
+                if (!username || authMode === 'register') return;
+                const map = await loadSavedCredentials();
+                if (!map[username]) return;
+                if (!options.force && authPassword.value) return;
+                authPassword.value = map[username];
+                authRememberCheckbox.checked = true;
+            }
+
+            async function restoreSavedCredentials() {
+                renderRecentUsers();
+                if (authMode === 'register') return;
+                const map = await loadSavedCredentials();
+                if (!Object.keys(map).length) return;
+                const currentName = authUsername.value.trim();
+                const targetName = map[currentName] ? currentName : Object.keys(map)[0];
+                if (!targetName) return;
+                if (!authUsername.value.trim()) authUsername.value = targetName;
+                if (!authPassword.value) {
+                    authPassword.value = map[targetName];
+                    authRememberCheckbox.checked = true;
+                }
+            }
+
+            async function handleRememberedLogin(username, password) {
+                if (!credentialsApi) return;
+                try {
+                    if (authRememberCheckbox.checked) {
+                        const saved = await credentialsApi.save(username, password);
+                        if (!saved) authError.textContent = '系统密码库不可用，本次未保存密码。';
+                    } else {
+                        await credentialsApi.remove(username);
+                    }
+                    savedCredentialMap = null;
+                } catch (error) {
+                    console.error('保存密码失败', error);
+                }
+            }
+
+            // ─── 編輯器同步狀態與連線監測 ───
+            function setEditorStatus(state) {
+                if (!syncStatusBadge || !syncStatusText) return;
+                syncStatusBadge.classList.remove('synced', 'saving', 'offline');
+                syncStatusBadge.classList.add(state);
+                if (state === 'saving') {
+                    syncStatusText.textContent = '保存中…';
+                    syncStatusIcon.className = 'fas fa-circle-notch fa-spin';
+                } else if (state === 'offline') {
+                    syncStatusText.textContent = '已斷開';
+                    syncStatusIcon.className = 'fas fa-unlink';
+                } else {
+                    syncStatusText.textContent = '已同步';
+                    syncStatusIcon.className = 'fas fa-check-circle';
+                }
+            }
+
+            async function checkServerHealth() {
+                if (document.hidden) return;
+                try {
+                    const response = await fetch(`${apiBaseUrl}/api/health`, { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`health ${response.status}`);
+                    if (!serverConnected || connectionDialogVisible) {
+                        serverConnected = true;
+                        hideConnectionError();
+                        setEditorStatus('synced');
+                        if (authToken) loadNotes();
+                    } else if (!savePending) {
+                        setEditorStatus('synced');
+                    }
+                } catch (error) {
+                    if (serverConnected) serverConnected = false;
+                    setEditorStatus('offline');
+                }
+            }
+
+            function startConnectionMonitor() {
+                stopConnectionMonitor();
+                checkServerHealth();
+                connectionMonitorTimer = window.setInterval(checkServerHealth, 3000);
+            }
+
+            function stopConnectionMonitor() {
+                if (connectionMonitorTimer !== null) {
+                    clearInterval(connectionMonitorTimer);
+                    connectionMonitorTimer = null;
+                }
             }
 
             async function apiRequest(path, options = {}, attempts = 8) {
@@ -1709,6 +2784,10 @@
                     return response.json();
                 } catch (error) {
                     const networkError = error.name === 'TypeError' || error.message === 'fetch failed';
+                    if (networkError) {
+                        serverConnected = false;
+                        setEditorStatus('offline');
+                    }
                     if (attempts <= 1 || !networkError) {
                         if (networkError) showConnectionError();
                         throw error;
@@ -1723,13 +2802,26 @@
                 if (!data) return;
                 clearTimeout(saveTimer);
                 saveTimer = setTimeout(async () => {
+                    savePending = true;
+                    setEditorStatus('saving');
                     try {
                         await apiRequest(`/api/notes/${data.id}`, {
                             method: 'PUT',
                             body: JSON.stringify({ title: data.title, content: data.content })
                         });
+                        serverConnected = true;
+                        setEditorStatus('synced');
                     } catch (error) {
+                        const networkError = error.name === 'TypeError' || error.message === 'fetch failed';
+                        if (networkError) {
+                            serverConnected = false;
+                            setEditorStatus('offline');
+                        } else {
+                            setEditorStatus('synced');
+                        }
                         console.error('筆記儲存失敗', error);
+                    } finally {
+                        savePending = false;
                     }
                 }, 350);
             }
@@ -2110,6 +3202,8 @@
                 try {
                     await apiRequest('/api/health');
                     hideConnectionError();
+                    serverConnected = true;
+                    setEditorStatus('synced');
                     if (authToken) {
                         await loadNotes();
                     } else {
@@ -2127,6 +3221,10 @@
                 setAuthMode(authMode === 'login' ? 'register' : 'login');
             });
 
+            authUsername.addEventListener('change', function() {
+                if (authMode === 'login') fillSavedPassword(authUsername.value.trim());
+            });
+
             authForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
                 authError.textContent = '';
@@ -2142,6 +3240,8 @@
                     authToken = result.token;
                     localStorage.setItem('collabNoteToken', authToken);
                     setCurrentUser(result.username, result.title, result.avatarUrl, result.displayName);
+                    rememberUser(result.username);
+                    await handleRememberedLogin(result.username, authPassword.value);
                     authPassword.value = '';
                     showWorkspace();
                     await loadNotes();
@@ -2236,6 +3336,10 @@
             });
 
             // ─── 初始化：確保顯示正確 ───
+            if (!credentialsApi && authRememberRow) {
+                authRememberRow.style.display = 'none';
+            }
+
             if (authToken) {
                 apiRequest('/api/auth/me')
                     .then(user => {
@@ -2264,6 +3368,123 @@
             });
 
             console.log('📝 CollabNote UI 已啟動 — 多人共享筆記介面');
+        })();
+    </script>
+
+    <script>
+        // ─── 深色 / 淺色模式切換 ───
+        (function() {
+            'use strict';
+
+            const root = document.documentElement;
+            const toggles = Array.from(document.querySelectorAll('.theme-toggle'));
+            const textDark = '切換到淺色模式';
+            const textLight = '切換到深色模式';
+
+            function syncThemeUI() {
+                const isDark = root.getAttribute('data-theme') === 'dark';
+                toggles.forEach(toggle => {
+                    const icon = toggle.querySelector('i');
+                    if (icon) icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+                    toggle.setAttribute('aria-label', isDark ? textDark : textLight);
+                    toggle.title = isDark ? textDark : textLight;
+                    toggle.querySelectorAll('.theme-toggle-text').forEach(label => {
+                        label.textContent = isDark ? '淺色模式' : '深色模式';
+                    });
+                });
+            }
+
+            toggles.forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    const nextTheme = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                    root.setAttribute('data-theme', nextTheme);
+                    try {
+                        localStorage.setItem('collabnote-theme', nextTheme);
+                    } catch (error) {
+                        // 忽略儲存失敗，僅在本次會話內生效
+                    }
+                    syncThemeUI();
+                });
+            });
+
+            syncThemeUI();
+        })();
+    </script>
+
+    <script>
+        // ─── 好友請求：折疊展開與徽章計數 ───
+        (function() {
+            'use strict';
+
+            const toggleBtn = document.getElementById('friendRequestsToggle');
+            const section = document.getElementById('friendRequestsSection');
+            const badge = document.getElementById('friendRequestsBadge');
+            const incomingList = document.getElementById('friendRequestsList');
+            const outgoingList = document.getElementById('friendOutgoingList');
+            if (!toggleBtn || !section) return;
+
+            function setExpanded(expanded) {
+                section.hidden = !expanded;
+                toggleBtn.classList.toggle('open', expanded);
+                toggleBtn.setAttribute('aria-expanded', String(expanded));
+                toggleBtn.setAttribute('aria-label', expanded ? '收起好友请求' : '展开好友请求');
+            }
+
+            function updateBadge() {
+                const incomingCount = incomingList?.querySelectorAll('.friend-item').length || 0;
+                const outgoingCount = outgoingList?.querySelectorAll('.friend-item').length || 0;
+                if (badge) {
+                    badge.hidden = incomingCount === 0;
+                    badge.textContent = incomingCount > 99 ? '99+' : String(incomingCount);
+                }
+                const summaryParts = [];
+                if (incomingCount) summaryParts.push(`${incomingCount} 条待处理`);
+                if (outgoingCount) summaryParts.push(`${outgoingCount} 条已发送`);
+                toggleBtn.title = summaryParts.length ? `好友请求：${summaryParts.join('，')}` : '好友请求';
+            }
+
+            toggleBtn.addEventListener('click', () => setExpanded(section.hidden));
+
+            const observer = new MutationObserver(updateBadge);
+            if (incomingList) observer.observe(incomingList, { childList: true, subtree: true });
+            if (outgoingList) observer.observe(outgoingList, { childList: true, subtree: true });
+            updateBadge();
+
+            const logoutButton = document.getElementById('logoutBtn');
+            logoutButton?.addEventListener('click', () => {
+                setTimeout(() => logoutButton.blur(), 0);
+            });
+        })();
+    </script>
+
+    <script>
+        // ─── 好友欄：獨立停靠與最小化 ───
+        (function() {
+            'use strict';
+
+            const body = document.body;
+            const appContainer = document.querySelector('.app-container');
+            const minimizeBtn = document.getElementById('friendsMinimizeBtn');
+            const reopenBtn = document.getElementById('friendsReopenBtn');
+
+            function syncFriendsVisibility() {
+                const authenticated = Boolean(appContainer?.classList.contains('authenticated'));
+                body.classList.toggle('friends-enabled', authenticated);
+                if (!authenticated) {
+                    body.classList.remove('friends-minimized');
+                }
+            }
+
+            minimizeBtn?.addEventListener('click', () => body.classList.add('friends-minimized'));
+            reopenBtn?.addEventListener('click', () => body.classList.remove('friends-minimized'));
+
+            if (appContainer) {
+                new MutationObserver(syncFriendsVisibility).observe(appContainer, {
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+            }
+            syncFriendsVisibility();
         })();
     </script>
 

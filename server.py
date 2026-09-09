@@ -1,64 +1,19 @@
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import sys
+from tempfile import NamedTemporaryFile
+from threading import Lock
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 DATA_FILE = Path(__file__).with_name("notes.json")
-
-DEFAULT_NOTES = [
-    {
-        "id": 1,
-        "title": "產品願景與策略",
-        "tag": "重要",
-        "tagStyle": "background:#dbeafe;color:#2563eb;",
-        "content": "## 產品願景\n\n建立一個讓團隊無縫協作的筆記平台，將**靈感**與**執行**連結在一起。\n\n### 核心目標\n- 即時同步，零延遲\n- 直覺的編輯體驗\n- 強大的搜尋與標籤",
-        "time": "10 分鐘前",
-        "editors": ["green", "purple"],
-    },
-    {
-        "id": 2,
-        "title": "Q4 行銷計劃",
-        "tag": "進行中",
-        "tagStyle": "background:#fef3c7;color:#b45309;",
-        "content": "## Q4 行銷計劃\n\n目標：提升品牌知名度與用戶轉化。",
-        "time": "1 小時前",
-        "editors": ["yellow", "blue", "pink"],
-    },
-    {
-        "id": 3,
-        "title": "設計系統 2.0",
-        "tag": "已完成",
-        "tagStyle": "background:#d1fae5;color:#065f46;",
-        "content": "## 設計系統 2.0\n\n已完成設計系統的全面升級。",
-        "time": "昨天",
-        "editors": ["green"],
-    },
-    {
-        "id": 4,
-        "title": "使用者訪談彙整",
-        "tag": "回饋",
-        "tagStyle": "background:#e0e7ff;color:#3730a3;",
-        "content": "## 使用者訪談彙整\n\n共訪談 12 位使用者，歸納出以下痛點。",
-        "time": "2 天前",
-        "editors": ["purple", "blue"],
-    },
-    {
-        "id": 5,
-        "title": "工程架構決策",
-        "tag": "待定",
-        "tagStyle": "background:#fee2e2;color:#991b1b;",
-        "content": "## 工程架構決策\n\n討論新的微服務架構與資料庫選擇。",
-        "time": "3 天前",
-        "editors": ["green", "yellow", "pink"],
-    },
-]
-
+DATA_LOCK = Lock()
 
 def load_notes():
     if not DATA_FILE.exists():
-        save_notes(DEFAULT_NOTES)
+        save_notes(list(DEFAULT_NOTES))
     try:
         return json.loads(DATA_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -66,7 +21,12 @@ def load_notes():
 
 
 def save_notes(notes):
-    DATA_FILE.write_text(json.dumps(notes, ensure_ascii=False, indent=2), encoding="utf-8")
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile("w", encoding="utf-8", dir=DATA_FILE.parent, delete=False) as temp_file:
+        json.dump(notes, temp_file, ensure_ascii=False, indent=2)
+        temp_file.write("\n")
+        temp_path = Path(temp_file.name)
+    os.replace(temp_path, DATA_FILE)
 
 
 class NotesHandler(BaseHTTPRequestHandler):
@@ -90,7 +50,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         if self.path == "/api/health":
             self.send_json(200, {"ok": True})
         elif self.path == "/api/notes":
-            self.send_json(200, load_notes())
+            with DATA_LOCK:
+                self.send_json(200, load_notes())
         else:
             self.send_json(404, {"error": "Not found"})
 
@@ -99,18 +60,19 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_json(404, {"error": "Not found"})
             return
         payload = self.read_payload()
-        notes = load_notes()
-        note = {
-            "id": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "title": payload.get("title", "未命名筆記"),
-            "tag": "草稿",
-            "tagStyle": "background:#f1f5f9;color:#475569;",
-            "content": payload.get("content", "開始撰寫你的筆記…"),
-            "time": "剛剛",
-            "editors": ["green"],
-        }
-        notes.insert(0, note)
-        save_notes(notes)
+        with DATA_LOCK:
+            notes = load_notes()
+            note = {
+                "id": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "title": payload.get("title", "未命名筆記"),
+                "tag": "草稿",
+                "tagStyle": "background:#f1f5f9;color:#475569;",
+                "content": payload.get("content", "開始撰寫你的筆記…"),
+                "time": "剛剛",
+                "editors": ["green"],
+            }
+            notes.insert(0, note)
+            save_notes(notes)
         self.send_json(201, note)
 
     def do_PUT(self):
@@ -123,13 +85,14 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_json(400, {"error": "Invalid note id"})
             return
         payload = self.read_payload()
-        notes = load_notes()
-        for note in notes:
-            if note["id"] == note_id:
-                note.update({key: payload[key] for key in ("title", "content") if key in payload})
-                save_notes(notes)
-                self.send_json(200, note)
-                return
+        with DATA_LOCK:
+            notes = load_notes()
+            for note in notes:
+                if note["id"] == note_id:
+                    note.update({key: payload[key] for key in ("title", "content") if key in payload})
+                    save_notes(notes)
+                    self.send_json(200, note)
+                    return
         self.send_json(404, {"error": "Note not found"})
 
     def read_payload(self):

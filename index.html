@@ -1086,6 +1086,17 @@
                 }, 350);
             }
 
+            function saveActiveNoteImmediately() {
+                const data = notesData.find(d => d.id === activeId);
+                if (!data) return;
+                fetch(`${apiBaseUrl}/api/notes/${data.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: data.title, content: data.content }),
+                    keepalive: true
+                }).catch(error => console.error('關閉前儲存失敗', error));
+            }
+
             // ─── 模擬筆記資料 ───
             const notesData = [{
                 id: 1,
@@ -1346,6 +1357,8 @@
                     saveActiveNote();
                 }
             });
+
+            window.addEventListener('pagehide', saveActiveNoteImmediately);
 
             // ─── 初始化：確保顯示正確 ───
             apiRequest('/api/notes')

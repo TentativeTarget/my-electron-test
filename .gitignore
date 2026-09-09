@@ -5,6 +5,8 @@
 node_modules/
 __pycache__/
 *.pyc
+user_avatars/
+.collabnote-pids.json
 
 # Logs
 logs

@@ -193,8 +193,7 @@
             border: 1px solid #edf2f7;
             border-radius: 20px;
             box-shadow: 0 20px 45px -20px rgba(15, 23, 42, 0.35);
-            padding: 16px;
-            overflow-y: auto;
+            overflow: hidden;
             transition: transform 0.25s ease, opacity 0.2s ease;
         }
 
@@ -221,8 +220,52 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 14px;
-            padding: 0 2px;
+            gap: 10px;
+            flex-shrink: 0;
+            padding: 14px 16px;
+            border-bottom: 1px solid #eef2f8;
+        }
+
+        .friends-rail-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .friends-rail-stats {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 30px;
+            background: #eef3ff;
+            color: #2563eb;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .friends-rail-stats i {
+            color: #22c55e;
+            font-size: 8px;
+        }
+
+        .friends-rail-stats.no-online i {
+            color: #cbd5e1;
+        }
+
+        .friends-rail-stats-sep {
+            color: #93c5fd;
+        }
+
+        .friends-rail-body {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            padding: 14px 16px 16px;
         }
 
         .friends-rail-title {
@@ -267,33 +310,25 @@
             transform: translateY(-50%);
             z-index: 45;
             display: none;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            width: 44px;
-            padding: 14px 0;
+            width: 36px;
+            height: 36px;
+            padding: 0;
             border: 1px solid #e2e8f0;
-            border-radius: 18px;
+            border-radius: 50%;
             background: #ffffff;
             color: #3b82f6;
             font-size: 15px;
             cursor: pointer;
             box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.25);
-            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s ease;
         }
 
         .friends-reopen-btn:hover {
             background: #eef3ff;
             border-color: #b9d0fd;
-        }
-
-        .friends-reopen-btn span {
-            writing-mode: vertical-rl;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            color: #334155;
+            transform: translateY(-50%) scale(1.08);
         }
 
         body.friends-enabled.friends-minimized .friends-reopen-btn {
@@ -302,12 +337,11 @@
 
         .friends-rail .friends-panel {
             margin: 0;
-            flex: 1;
         }
 
         /* 好友欄頂端的使用者狀態 */
         .friends-rail .user-profile {
-            margin-bottom: 16px;
+            margin-bottom: 0;
         }
 
         .friends-rail .user-profile-trigger {
@@ -544,6 +578,10 @@
             font-weight: 600;
         }
 
+        .collaborators .online-count.no-online span {
+            color: #94a3b8;
+        }
+
         .friends-panel {
             margin-bottom: 18px;
         }
@@ -601,32 +639,39 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
-            max-height: 132px;
-            overflow-y: auto;
         }
 
         .friend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 8px;
-            border-radius: 9px;
+            gap: 9px;
+            padding: 7px 9px;
+            border-radius: 10px;
             background: #ffffff;
             border: 1px solid #eef2f8;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .friend-item:hover {
+            background: #f8fafc;
+            border-color: #d9e4f4;
         }
 
         .friend-avatar {
-            width: 25px;
-            height: 25px;
+            width: 28px;
+            height: 28px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
             background: #64748b;
             color: #ffffff;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             flex-shrink: 0;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
         }
 
         .friend-info {
@@ -671,7 +716,8 @@
         .friends-error {
             color: #94a3b8;
             font-size: 11px;
-            padding: 4px 2px;
+            text-align: center;
+            padding: 12px 4px;
         }
 
         .friends-error {
@@ -682,7 +728,13 @@
             color: #64748b;
             font-size: 11px;
             font-weight: 600;
-            margin: 8px 0 4px;
+            margin: 4px 2px 6px;
+        }
+
+        .friends-requests {
+            border-top: 1px dashed #dce4f0;
+            padding-top: 10px;
+            margin-top: 4px;
         }
 
         .friend-request-actions {
@@ -1101,7 +1153,7 @@
             flex-direction: column;
             background: #ffffff;
             padding: 28px 36px 30px 36px;
-            overflow-y: auto;
+            overflow: hidden;
             min-width: 0;
         }
 
@@ -1250,6 +1302,15 @@
         }
         .editor-header .right .avatar-stack .mini-avatar.m3 {
             background: #ec4899;
+        }
+        .editor-header .right .avatar-stack .mini-avatar.m4 {
+            background: #f59e0b;
+        }
+        .editor-header .right .avatar-stack .mini-avatar.m5 {
+            background: #10b981;
+        }
+        .editor-header .right .avatar-stack .mini-avatar.avatar-more {
+            background: #475569;
         }
 
         .user-profile {
@@ -1416,6 +1477,72 @@
             color: #ffffff;
         }
 
+        /* 歷史版本對話框 */
+        .history-dialog .history-hint {
+            color: #94a3b8;
+            font-size: 12px;
+            margin: -8px 0 12px;
+        }
+
+        .history-dialog .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 260px;
+            overflow-y: auto;
+            margin: 4px 0 18px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1px solid #eef2f8;
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+
+        .history-item .history-time {
+            flex-shrink: 0;
+            min-width: 96px;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        .history-item .history-preview {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #475569;
+            font-size: 12px;
+        }
+
+        .history-item .history-restore-btn {
+            flex-shrink: 0;
+            border: 0;
+            border-radius: 8px;
+            padding: 5px 10px;
+            background: #3b82f6;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.15s;
+        }
+
+        .history-item .history-restore-btn:hover {
+            background: #2563eb;
+        }
+
+        .history-dialog .history-empty {
+            color: #94a3b8;
+            font-size: 12px;
+            text-align: center;
+            padding: 16px 4px 20px;
+        }
+
         /* 標題輸入 */
         .note-title-input {
             border: none;
@@ -1475,19 +1602,42 @@
             margin: 0 4px;
         }
 
+        .toolbar .toolbar-select-wrap select {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 5px 4px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.12s, background 0.12s;
+        }
+
+        .toolbar .toolbar-select-wrap select:hover {
+            border-color: #b9d0fd;
+            background: #f8fafc;
+        }
+
+        .toolbar .toolbar-select-wrap select:focus {
+            border-color: #3b82f6;
+        }
+
         /* 編輯內容 */
         .editor-content {
             flex: 1;
-            min-height: 240px;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
         }
 
-        .editor-content textarea {
+        .editor-content .note-editor {
+            flex: 1 1 auto;
             width: 100%;
-            height: 100%;
-            min-height: 300px;
+            min-height: 0;
             border: none;
             outline: none;
-            resize: none;
             font-size: 16px;
             line-height: 1.7;
             color: #1e293b;
@@ -1495,11 +1645,100 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             padding: 4px 0;
             letter-spacing: 0.1px;
+            overflow: auto;
+            word-break: break-word;
+            scrollbar-width: thin;
+            scrollbar-color: #d1d9e6 transparent;
         }
 
-        .editor-content textarea::placeholder {
+        .editor-content .note-editor::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .editor-content .note-editor::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .editor-content .note-editor::-webkit-scrollbar-thumb {
+            background: #d1d9e6;
+            border-radius: 10px;
+        }
+
+        .editor-content .note-editor:empty::before {
+            content: attr(data-placeholder);
             color: #cbd5e1;
             font-weight: 400;
+            pointer-events: none;
+        }
+
+        .editor-content .note-editor ul,
+        .editor-content .note-editor ol {
+            padding-left: 24px;
+            margin: 6px 0;
+        }
+
+        .editor-content .note-editor blockquote {
+            margin: 8px 0;
+            padding: 4px 12px;
+            border-left: 3px solid #cbd5e1;
+            color: #64748b;
+        }
+
+        .editor-content .note-editor table {
+            border-collapse: collapse;
+            margin: 8px 0;
+            max-width: 100%;
+        }
+
+        .editor-content .note-editor th,
+        .editor-content .note-editor td {
+            border: 1px solid #d7e0ee;
+            padding: 4px 10px;
+            font-size: 14px;
+        }
+
+        .editor-content .note-editor a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        .editor-content .note-editor img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .editor-content .note-editor img.image-selected {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+            cursor: default;
+        }
+
+        .image-resize-label {
+            position: fixed;
+            z-index: 80;
+            padding: 3px 8px;
+            border-radius: 8px;
+            background: #0b1a2b;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        }
+
+        .image-resize-grip {
+            position: fixed;
+            z-index: 81;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            background: #2563eb;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.35);
+            cursor: nwse-resize;
+            touch-action: none;
         }
 
         /* 編輯器底部資訊 */
@@ -1551,6 +1790,13 @@
             display: inline-block;
         }
 
+        .editor-footer .right-info .cursor-indicator > span:last-child {
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .cursor-dot.c1 {
             background: #3b82f6;
         }
@@ -1559,6 +1805,12 @@
         }
         .cursor-dot.c3 {
             background: #ec4899;
+        }
+        .cursor-dot.c4 {
+            background: #f59e0b;
+        }
+        .cursor-dot.c5 {
+            background: #10b981;
         }
 
         /* ─── 響應式 ─── */
@@ -1581,6 +1833,17 @@
 
             .editor-panel {
                 padding: 22px 20px 24px 20px;
+                overflow-y: auto;
+            }
+
+            .editor-content {
+                flex: none;
+                min-height: 320px;
+            }
+
+            .editor-content .note-editor {
+                flex: none;
+                min-height: 0;
             }
 
             .note-title-input {
@@ -1817,8 +2080,25 @@
             box-shadow: 0 20px 45px -20px rgba(0, 0, 0, 0.6);
         }
 
+        [data-theme="dark"] .friends-rail-header {
+            border-bottom-color: #1d2940;
+        }
+
         [data-theme="dark"] .friends-rail-title {
             color: #e6edf6;
+        }
+
+        [data-theme="dark"] .friends-rail-stats {
+            background: #16233c;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .friends-rail-stats.no-online i {
+            color: #3a4c6b;
+        }
+
+        [data-theme="dark"] .friends-rail-stats-sep {
+            color: #3d5480;
         }
 
         [data-theme="dark"] .friends-minimize-btn {
@@ -1843,10 +2123,6 @@
         [data-theme="dark"] .friends-reopen-btn:hover {
             background: #1b2a45;
             border-color: #34517f;
-        }
-
-        [data-theme="dark"] .friends-reopen-btn span {
-            color: #c9d5e6;
         }
 
         [data-theme="dark"] .friend-add-form .friends-requests-toggle {
@@ -1918,6 +2194,11 @@
             border-color: #22304c;
         }
 
+        [data-theme="dark"] .friend-item:hover {
+            background: #1b2a45;
+            border-color: #2b3c5e;
+        }
+
         [data-theme="dark"] .friend-avatar {
             background: #5b6b85;
         }
@@ -1945,6 +2226,10 @@
 
         [data-theme="dark"] .friends-section-label {
             color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .friends-requests {
+            border-top-color: #22304c;
         }
 
         [data-theme="dark"] .friend-accept-btn {
@@ -2063,6 +2348,29 @@
         [data-theme="dark"] .profile-cancel-btn {
             background: #26344f;
             color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .history-item {
+            background: #0f1a2e;
+            border-color: #26354f;
+        }
+
+        [data-theme="dark"] .history-item .history-time,
+        [data-theme="dark"] .history-dialog .history-hint,
+        [data-theme="dark"] .history-dialog .history-empty {
+            color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .history-item .history-preview {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .history-item .history-restore-btn {
+            background: #2563eb;
+        }
+
+        [data-theme="dark"] .history-item .history-restore-btn:hover {
+            background: #3b82f6;
         }
 
         [data-theme="dark"] .connection-dialog {
@@ -2221,12 +2529,38 @@
             background: #2a3a57;
         }
 
-        [data-theme="dark"] .editor-content textarea {
-            color: #dbe4f1;
+        [data-theme="dark"] .toolbar .toolbar-select-wrap select {
+            background: #141f34;
+            border-color: #26354f;
+            color: #d7e0ee;
         }
 
-        [data-theme="dark"] .editor-content textarea::placeholder {
+        [data-theme="dark"] .toolbar .toolbar-select-wrap select:hover {
+            background: #1b2a45;
+            border-color: #34517f;
+        }
+
+        [data-theme="dark"] .editor-content .note-editor {
+            color: #dbe4f1;
+            scrollbar-color: #2b3b58 transparent;
+        }
+
+        [data-theme="dark"] .editor-content .note-editor::-webkit-scrollbar-thumb {
+            background: #2b3b58;
+        }
+
+        [data-theme="dark"] .editor-content .note-editor:empty::before {
             color: #5f7390;
+        }
+
+        [data-theme="dark"] .editor-content .note-editor blockquote {
+            border-left-color: #3a4c6b;
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .editor-content .note-editor th,
+        [data-theme="dark"] .editor-content .note-editor td {
+            border-color: #2b3c5e;
         }
 
         [data-theme="dark"] .editor-footer {
@@ -2296,15 +2630,9 @@
 
             <!-- 協作者 -->
             <div class="collaborators">
-                <div class="avatar-group">
-                    <div class="avatar a1" title="Alice (編輯中)">A</div>
-                    <div class="avatar a2" title="Bob">B</div>
-                    <div class="avatar a3" title="Carol">C</div>
-                    <div class="avatar a4" title="Dave">D</div>
-                    <div class="avatar a5" title="Eve">E</div>
-                </div>
+                <div class="avatar-group"></div>
                 <div class="online-count">
-                    <span>●</span> 5 位線上
+                    <span>●</span> <span id="onlineCount">0</span> 位線上
                 </div>
             </div>
 
@@ -2338,11 +2666,7 @@
                     </div>
                 </div>
                 <div class="right">
-                    <div class="avatar-stack">
-                        <div class="mini-avatar m1" title="Alice 正在編輯">A</div>
-                        <div class="mini-avatar m2" title="Bob 檢視中">B</div>
-                        <div class="mini-avatar m3" title="Carol 檢視中">C</div>
-                    </div>
+                    <div class="avatar-stack" id="presenceAvatarStack" aria-label="正在此筆記協作的使用者"></div>
                 </div>
             </div>
 
@@ -2351,48 +2675,49 @@
 
             <!-- 工具列 -->
             <div class="toolbar">
-                <button title="粗體"><i class="fas fa-bold"></i></button>
-                <button title="斜體"><i class="fas fa-italic"></i></button>
-                <button title="底線"><i class="fas fa-underline"></i></button>
-                <button title="刪除線"><i class="fas fa-strikethrough"></i></button>
+                <button type="button" data-format="bold" title="粗體"><i class="fas fa-bold"></i></button>
+                <button type="button" data-format="italic" title="斜體"><i class="fas fa-italic"></i></button>
+                <button type="button" data-format="underline" title="底線"><i class="fas fa-underline"></i></button>
+                <button type="button" data-format="strikethrough" title="刪除線"><i class="fas fa-strikethrough"></i></button>
+                <span class="toolbar-select-wrap" title="字號">
+                    <select id="fontSizeSelect" aria-label="字號">
+                        <option value="clear">默認</option>
+                        <option value="12">12</option>
+                        <option value="14">14</option>
+                        <option value="16">16</option>
+                        <option value="18">18</option>
+                        <option value="20">20</option>
+                        <option value="24">24</option>
+                        <option value="28">28</option>
+                        <option value="32">32</option>
+                        <option value="40">40</option>
+                    </select>
+                </span>
                 <span class="divider"></span>
-                <button title="項目符號"><i class="fas fa-list-ul"></i></button>
-                <button title="編號列表"><i class="fas fa-list-ol"></i></button>
+                <button type="button" data-format="bullet-list" title="項目符號"><i class="fas fa-list-ul"></i></button>
+                <button type="button" data-format="number-list" title="編號列表"><i class="fas fa-list-ol"></i></button>
                 <span class="divider"></span>
-                <button title="連結"><i class="fas fa-link"></i></button>
-                <button title="圖片"><i class="fas fa-image"></i></button>
-                <button title="表格"><i class="fas fa-table"></i></button>
+                <button type="button" data-format="link" title="插入連結"><i class="fas fa-link"></i></button>
+                <button type="button" data-format="image" title="插入圖片"><i class="fas fa-image"></i></button>
+                <button type="button" data-format="table" title="插入表格"><i class="fas fa-table"></i></button>
                 <span class="divider"></span>
-                <button title="註解"><i class="fas fa-comment"></i></button>
-                <button title="歷史"><i class="fas fa-history"></i></button>
+                <button type="button" data-format="comment" title="插入註解"><i class="fas fa-comment"></i></button>
+                <button type="button" data-format="history" title="筆記歷史"><i class="fas fa-history"></i></button>
             </div>
 
             <!-- 編輯內容 -->
             <div class="editor-content">
-                <textarea id="noteContent" placeholder="開始撰寫筆記… 支援 Markdown 語法"></textarea>
+                <div id="noteContent" class="note-editor" contenteditable="true" data-placeholder="開始撰寫筆記…" spellcheck="false"></div>
             </div>
 
             <!-- 底部資訊 -->
             <div class="editor-footer">
                 <div class="left-info">
-                    <span><i class="far fa-save"></i> 自動儲存中</span>
-                    <span><i class="far fa-eye"></i> 3 人檢視</span>
-                    <span><i class="far fa-edit"></i> 1 人編輯</span>
+                    <span><i class="far fa-save"></i> <span id="footerSaveStatus">自動儲存開啟</span></span>
+                    <span><i class="far fa-eye"></i> <b id="footerViewCount">0</b> 人檢視</span>
+                    <span><i class="far fa-edit"></i> <b id="footerEditCount">0</b> 人編輯</span>
                 </div>
-                <div class="right-info">
-                    <div class="cursor-indicator">
-                        <span class="cursor-dot c1"></span>
-                        <span>Alice 正在編輯</span>
-                    </div>
-                    <div class="cursor-indicator">
-                        <span class="cursor-dot c2"></span>
-                        <span>Bob 檢視</span>
-                    </div>
-                    <div class="cursor-indicator">
-                        <span class="cursor-dot c3"></span>
-                        <span>Carol 檢視</span>
-                    </div>
-                </div>
+                <div class="right-info" id="footerPeopleList" aria-label="正在此筆記的使用者"></div>
             </div>
 
         </main>
@@ -2402,10 +2727,19 @@
         <aside class="friends-rail" aria-label="好友状态">
             <div class="friends-rail-header">
                 <span class="friends-rail-title"><i class="fas fa-user-friends" aria-hidden="true"></i> 好友</span>
-                <button class="friends-minimize-btn" id="friendsMinimizeBtn" type="button" title="收起好友欄" aria-label="收起好友欄">
-                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
-                </button>
+                <div class="friends-rail-actions">
+                    <span class="friends-rail-stats" id="friendsRailStats" title="在线好友 / 全部好友">
+                        <i class="fas fa-circle" aria-hidden="true"></i>
+                        <b id="friendsOnlineCount">0</b>
+                        <span class="friends-rail-stats-sep">/</span>
+                        <span id="friendsTotalCount">0</span>
+                    </span>
+                    <button class="friends-minimize-btn" id="friendsMinimizeBtn" type="button" title="收起好友欄" aria-label="收起好友欄">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
+            <div class="friends-rail-body">
             <div class="user-profile">
                 <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
                     <span class="user-profile-avatar" id="userProfileAvatar">?</span>
@@ -2454,12 +2788,12 @@
                     </div>
                 </div>
             </section>
+            </div>
         </aside>
 
     <!-- ===== 好友欄重新展開按鈕 ===== -->
     <button class="friends-reopen-btn" id="friendsReopenBtn" type="button" title="展開好友欄" aria-label="展開好友欄">
-        <i class="fas fa-user-friends" aria-hidden="true"></i>
-        <span>好友</span>
+        <i class="fas fa-chevron-left" aria-hidden="true"></i>
     </button>
 
     <div class="delete-dialog-backdrop" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
@@ -2499,6 +2833,44 @@
                 <button class="profile-save-btn" id="profileSaveBtn" type="submit">保存设置</button>
             </div>
         </form>
+    </div>
+
+    <div class="delete-dialog-backdrop" id="insertDialog" role="dialog" aria-modal="true" aria-labelledby="insertDialogTitle">
+        <form class="profile-settings-dialog" id="insertForm">
+            <h2 id="insertDialogTitle">插入連結</h2>
+            <label for="insertInput" id="insertLabel">網址</label>
+            <input id="insertInput" type="text" autocomplete="off" placeholder="https://…" />
+            <div class="profile-settings-actions">
+                <button class="profile-cancel-btn" id="insertCancelBtn" type="button">取消</button>
+                <button class="profile-save-btn" type="submit">插入</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="delete-dialog-backdrop" id="historyDialog" role="dialog" aria-modal="true" aria-labelledby="historyDialogTitle">
+        <div class="profile-settings-dialog history-dialog">
+            <h2 id="historyDialogTitle">版本歷史</h2>
+            <p class="history-hint">本次工作階段自動暫存的內容快照，重新啟動後清除。</p>
+            <div class="history-list" id="historyList"></div>
+            <div class="history-empty" id="historyEmpty">暫無歷史版本</div>
+            <div class="profile-settings-actions">
+                <button class="profile-cancel-btn" id="historyCloseBtn" type="button">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="imageFileInput" accept="image/jpeg,image/png" hidden />
+    <div class="image-resize-label" id="imageResizeLabel" hidden></div>
+    <div class="image-resize-grip" id="imageResizeGrip" hidden></div>
+
+    <div class="delete-dialog-backdrop" id="messageDialog" role="alertdialog" aria-modal="true" aria-labelledby="messageDialogTitle">
+        <div class="delete-dialog">
+            <h2 id="messageDialogTitle">提示</h2>
+            <p id="messageDialogText"></p>
+            <div class="delete-dialog-actions">
+                <button class="delete-cancel-btn" id="messageOkBtn" type="button">確定</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2607,6 +2979,8 @@
 
             function showAuthScreen() {
                 stopConnectionMonitor();
+                stopPresenceMonitor();
+                renderPresenceRoster([]);
                 appContainer.classList.remove('authenticated');
                 authScreen.style.display = 'block';
                 renderRecentUsers();
@@ -2731,6 +3105,7 @@
                     syncStatusText.textContent = '已同步';
                     syncStatusIcon.className = 'fas fa-check-circle';
                 }
+                updateFooterSaveStatus(state);
             }
 
             async function checkServerHealth() {
@@ -2842,6 +3217,31 @@
             // ─── 狀態 ───
             let activeId = 1;
 
+            // ─── 編輯內容：HTML ⇄ 純文字 ───
+            function escapeHtmlText(text) {
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            function plainTextToHtml(text) {
+                const escaped = escapeHtmlText(text || '');
+                return escaped.split('\n').map(line => line || '<br>').join('<br>');
+            }
+
+            function htmlToPlainText(html) {
+                const temp = document.createElement('div');
+                temp.innerHTML = typeof html === 'string' ? html : '';
+                return temp.textContent || '';
+            }
+
+            function setEditorContent(value) {
+                clearImageSelection();
+                const text = typeof value === 'string' ? value : '';
+                noteContent.innerHTML = /^\s*</.test(text) ? text : plainTextToHtml(text);
+            }
+
             // ─── 函式：切換筆記 ───
             function switchNote(id) {
                 // 更新 active 樣式
@@ -2858,7 +3258,8 @@
 
                 activeId = id;
                 noteTitleInput.value = data.title;
-                noteContent.value = data.content;
+                setEditorContent(data.content);
+                if (authToken) sendPresenceBeat();
 
                 // 可選：更新標題旁的 tag (但我們保留靜態 UI，不強制更新)
                 // 此處僅做內容與標題同步
@@ -2902,7 +3303,7 @@
                         if (activeId !== undefined) switchNote(activeId);
                         else {
                             noteTitleInput.value = '';
-                            noteContent.value = '';
+                            noteContent.innerHTML = '';
                         }
                     }
                 } catch (error) {
@@ -2991,13 +3392,14 @@
                 // 更新狀態
                 activeId = newId;
                 noteTitleInput.value = '未命名筆記';
-                noteContent.value = '開始撰寫你的筆記…';
+                setEditorContent('開始撰寫你的筆記…');
 
                 item.scrollIntoView({ block: 'nearest' });
 
                 // 自動聚焦標題
                 noteTitleInput.focus();
                 noteTitleInput.select();
+                sendPresenceBeat();
             });
 
             cancelDeleteBtn.addEventListener('click', closeDeleteDialog);
@@ -3033,6 +3435,7 @@
                 const data = notesData.find(d => d.id === activeId);
                 if (data) {
                     data.title = val;
+                    captureHistorySnapshot();
                     saveActiveNote();
                 }
             });
@@ -3041,11 +3444,543 @@
             noteContent.addEventListener('input', function() {
                 const data = notesData.find(d => d.id === activeId);
                 if (data) {
-                    data.content = this.value;
+                    data.content = noteContent.innerHTML;
+                    captureHistorySnapshot();
                     saveActiveNote();
                 }
             });
 
+            // ─── 歷史快照：本次工作階段內每支筆記的內容版本 ───
+            let historyRestoring = false;
+            let lastHistoryCapture = 0;
+            const noteHistory = new Map();
+
+            function captureHistorySnapshot() {
+                if (historyRestoring) return;
+                const data = notesData.find(item => item.id === activeId);
+                if (!data) return;
+                const now = Date.now();
+                if (now - lastHistoryCapture < 1000) return;
+                lastHistoryCapture = now;
+                let list = noteHistory.get(data.id);
+                if (!list) {
+                    list = [];
+                    noteHistory.set(data.id, list);
+                }
+                const last = list[list.length - 1];
+                if (last && last.content === data.content && last.title === data.title) return;
+                list.push({ time: new Date(now), title: data.title, content: data.content });
+                if (list.length > 20) list.shift();
+            }
+
+            // ─── 工具列：WYSIWYG 格式化與插入 ───
+            const insertDialog = document.getElementById('insertDialog');
+            const insertForm = document.getElementById('insertForm');
+            const insertDialogTitle = document.getElementById('insertDialogTitle');
+            const insertLabel = document.getElementById('insertLabel');
+            const insertInput = document.getElementById('insertInput');
+            const insertCancelBtn = document.getElementById('insertCancelBtn');
+            const historyDialog = document.getElementById('historyDialog');
+            const historyCloseBtn = document.getElementById('historyCloseBtn');
+            const historyList = document.getElementById('historyList');
+            const historyEmpty = document.getElementById('historyEmpty');
+            const imageFileInput = document.getElementById('imageFileInput');
+            const messageDialog = document.getElementById('messageDialog');
+            const messageDialogTitle = document.getElementById('messageDialogTitle');
+            const messageDialogText = document.getElementById('messageDialogText');
+            const messageOkBtn = document.getElementById('messageOkBtn');
+            const toolbar = document.querySelector('.toolbar');
+            const fontSizeSelect = document.getElementById('fontSizeSelect');
+            let pendingInsert = null;
+            let pendingFontRange = null;
+
+            const formatCommands = {
+                bold: 'bold',
+                italic: 'italic',
+                underline: 'underline',
+                strikethrough: 'strikeThrough',
+                'bullet-list': 'insertUnorderedList',
+                'number-list': 'insertOrderedList'
+            };
+
+            function runFormatCommand(format) {
+                const command = formatCommands[format];
+                if (!command) return;
+                noteContent.focus();
+                document.execCommand(command, false, null);
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            function toggleBlockquote() {
+                noteContent.focus();
+                const block = String(document.queryCommandValue('formatBlock') || '').toLowerCase();
+                const isQuote = block === 'blockquote' || block === 'quote';
+                document.execCommand('formatBlock', false, isQuote ? 'div' : 'blockquote');
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            function insertTable() {
+                const html = '<table><tr><th>標題</th><th>內容</th></tr><tr><td>示例</td><td>示例</td></tr></table>';
+                noteContent.focus();
+                document.execCommand('insertHTML', false, html);
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            function promptForInsert(kind) {
+                const selection = window.getSelection();
+                const range = selection && selection.rangeCount > 0 && noteContent.contains(selection.anchorNode)
+                    ? selection.getRangeAt(0).cloneRange()
+                    : null;
+                const label = range ? range.toString().trim() : '';
+                pendingInsert = { kind, label, range };
+                const isLink = kind === 'link';
+                insertDialogTitle.textContent = isLink ? '插入連結' : '插入圖片';
+                insertLabel.textContent = isLink ? '網址' : '圖片網址';
+                insertInput.placeholder = isLink ? 'https://example.com' : 'https://example.com/image.png';
+                insertInput.value = '';
+                insertDialog.classList.add('visible');
+                insertInput.focus();
+            }
+
+            function applyPendingInsert(rawUrl) {
+                if (!pendingInsert || pendingInsert.kind !== 'link') return;
+                const { label, range } = pendingInsert;
+                pendingInsert = null;
+                const url = /^[a-z][a-z0-9+.-]*:/i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+                noteContent.focus();
+                const selection = window.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    if (range) selection.addRange(range);
+                }
+                if (range && !range.collapsed) {
+                    document.execCommand('createLink', false, url);
+                } else {
+                    const text = label || '連結文字';
+                    document.execCommand('insertHTML', false,
+                        `<a href="${url.replace(/"/g, '&quot;')}">${escapeHtmlText(text)}</a>`);
+                }
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            function openMessage(title, text) {
+                messageDialogTitle.textContent = title;
+                messageDialogText.textContent = text;
+                messageDialog.classList.add('visible');
+                messageOkBtn.focus();
+            }
+
+            async function uploadImageFile(file) {
+                const response = await fetch(`${apiBaseUrl}/api/images/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': file.type
+                    },
+                    body: file
+                });
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (error) {
+                    // 非 JSON 響應
+                }
+                if (!response.ok) {
+                    throw new Error(data && data.error ? data.error : `上傳失敗（${response.status}）`);
+                }
+                return data;
+            }
+
+            function startImageInsert() {
+                const selection = window.getSelection();
+                const range = selection && selection.rangeCount > 0 && noteContent.contains(selection.anchorNode)
+                    ? selection.getRangeAt(0).cloneRange()
+                    : null;
+                const label = range ? range.toString().trim() : '';
+                pendingInsert = { kind: 'image', label, range };
+                imageFileInput.value = '';
+                imageFileInput.click();
+            }
+
+            imageFileInput.addEventListener('change', async function() {
+                const file = this.files && this.files[0];
+                this.value = '';
+                if (!file || !pendingInsert || pendingInsert.kind !== 'image') return;
+                const { label, range } = pendingInsert;
+                try {
+                    const result = await uploadImageFile(file);
+                    noteContent.focus();
+                    const selection = window.getSelection();
+                    if (selection) {
+                        selection.removeAllRanges();
+                        if (range) selection.addRange(range);
+                    }
+                    const src = `${apiBaseUrl}${result.url}`;
+                    const alt = label || '';
+                    document.execCommand('insertHTML', false,
+                        `<img src="${src.replace(/"/g, '&quot;')}" alt="${alt.replace(/"/g, '&quot;')}" />`);
+                    noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+                    const images = noteContent.querySelectorAll('img');
+                    const insertedImage = images[images.length - 1];
+                    if (insertedImage) selectImageForResize(insertedImage);
+                } catch (error) {
+                    openMessage('圖片上傳失敗', error && error.message ? error.message : '無法上傳圖片，請確認後端已啟動。');
+                } finally {
+                    pendingInsert = null;
+                }
+            });
+
+            messageOkBtn.addEventListener('click', function() {
+                messageDialog.classList.remove('visible');
+            });
+
+            messageDialog.addEventListener('click', function(event) {
+                if (event.target === messageDialog) messageDialog.classList.remove('visible');
+            });
+
+            insertForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const url = insertInput.value.trim();
+                if (!url) {
+                    insertInput.focus();
+                    return;
+                }
+                insertDialog.classList.remove('visible');
+                applyPendingInsert(url);
+            });
+
+            insertCancelBtn.addEventListener('click', function() {
+                pendingInsert = null;
+                insertDialog.classList.remove('visible');
+                noteContent.focus();
+            });
+
+            insertDialog.addEventListener('click', function(event) {
+                if (event.target === insertDialog) {
+                    pendingInsert = null;
+                    insertDialog.classList.remove('visible');
+                }
+            });
+
+            function formatHistoryTime(date) {
+                const pad = value => String(value).padStart(2, '0');
+                const item = new Date(date);
+                return `${item.getMonth() + 1}/${item.getDate()} ${pad(item.getHours())}:${pad(item.getMinutes())}`;
+            }
+
+            function openHistoryDialog() {
+                const list = noteHistory.get(activeId) || [];
+                historyList.replaceChildren();
+                historyEmpty.hidden = list.length > 0;
+                [...list].reverse().forEach((snap, reversedIndex) => {
+                    const row = document.createElement('div');
+                    row.className = 'history-item';
+                    const time = document.createElement('span');
+                    time.className = 'history-time';
+                    time.textContent = formatHistoryTime(snap.time);
+                    const preview = document.createElement('span');
+                    preview.className = 'history-preview';
+                    const plain = htmlToPlainText(snap.content);
+                    const firstLine = plain.split('\n')[0] || '';
+                    preview.textContent = firstLine ? `${snap.title} — ${firstLine}` : snap.title;
+                    preview.title = plain;
+                    const restore = document.createElement('button');
+                    restore.type = 'button';
+                    restore.className = 'history-restore-btn';
+                    restore.textContent = '復原';
+                    restore.dataset.index = String(list.length - 1 - reversedIndex);
+                    row.append(time, preview, restore);
+                    historyList.appendChild(row);
+                });
+                historyDialog.classList.add('visible');
+            }
+
+            function restoreHistorySnapshot(index) {
+                const list = noteHistory.get(activeId);
+                const snap = list ? list[index] : null;
+                const data = notesData.find(item => item.id === activeId);
+                if (!snap || !data) return;
+                historyRestoring = true;
+                data.title = snap.title;
+                data.content = snap.content;
+                noteTitleInput.value = snap.title;
+                noteContent.innerHTML = snap.content;
+                noteTitleInput.dispatchEvent(new Event('input', { bubbles: true }));
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+                historyRestoring = false;
+                historyDialog.classList.remove('visible');
+                noteContent.focus();
+            }
+
+            historyList.addEventListener('click', function(event) {
+                const button = event.target.closest('.history-restore-btn');
+                if (button) restoreHistorySnapshot(Number(button.dataset.index));
+            });
+
+            historyCloseBtn.addEventListener('click', function() {
+                historyDialog.classList.remove('visible');
+            });
+
+            historyDialog.addEventListener('click', function(event) {
+                if (event.target === historyDialog) historyDialog.classList.remove('visible');
+            });
+
+            toolbar.addEventListener('mousedown', function(event) {
+                const button = event.target.closest('button[data-format]');
+                if (button) event.preventDefault();
+            });
+
+            toolbar.addEventListener('click', function(event) {
+                const button = event.target.closest('button[data-format]');
+                if (!button) return;
+                const format = button.dataset.format;
+                if (formatCommands[format]) {
+                    runFormatCommand(format);
+                } else if (format === 'comment') {
+                    toggleBlockquote();
+                } else if (format === 'table') {
+                    insertTable();
+                } else if (format === 'link') {
+                    promptForInsert('link');
+                } else if (format === 'image') {
+                    startImageInsert();
+                } else if (format === 'history') {
+                    openHistoryDialog();
+                }
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key !== 'Escape') return;
+                if (messageDialog.classList.contains('visible')) {
+                    messageDialog.classList.remove('visible');
+                } else if (insertDialog.classList.contains('visible')) {
+                    pendingInsert = null;
+                    insertDialog.classList.remove('visible');
+                    noteContent.focus();
+                } else if (historyDialog.classList.contains('visible')) {
+                    historyDialog.classList.remove('visible');
+                }
+            });
+
+            // ─── 圖片點擊調整大小 ───
+            const imageResizeLabel = document.getElementById('imageResizeLabel');
+            const imageResizeGrip = document.getElementById('imageResizeGrip');
+            let selectedImage = null;
+            let imageDrag = null;
+
+            function clearImageSelection() {
+                if (!selectedImage) return;
+                selectedImage.classList.remove('image-selected');
+                selectedImage = null;
+                imageResizeLabel.hidden = true;
+                imageResizeGrip.hidden = true;
+            }
+
+            function selectImageForResize(image) {
+                clearImageSelection();
+                selectedImage = image;
+                selectedImage.classList.add('image-selected');
+                updateImageResizeTool();
+            }
+
+            function updateImageResizeTool() {
+                if (!selectedImage || !selectedImage.isConnected) {
+                    clearImageSelection();
+                    return;
+                }
+                const rect = selectedImage.getBoundingClientRect();
+                const viewportWidth = document.documentElement.clientWidth;
+                imageResizeLabel.textContent = `${Math.round(rect.width)}px`;
+                imageResizeLabel.hidden = false;
+                imageResizeLabel.style.left = `${Math.max(8, Math.min(rect.right - imageResizeLabel.offsetWidth, viewportWidth - 76))}px`;
+                imageResizeLabel.style.top = `${rect.bottom + 12}px`;
+                imageResizeGrip.style.left = `${rect.right - 8}px`;
+                imageResizeGrip.style.top = `${rect.bottom - 8}px`;
+                imageResizeGrip.hidden = false;
+            }
+
+            function removeSelectedImage() {
+                if (!selectedImage) return;
+                const image = selectedImage;
+                clearImageSelection();
+                image.remove();
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+                noteContent.focus();
+            }
+
+            noteContent.addEventListener('click', function(event) {
+                const image = event.target.closest ? event.target.closest('img') : null;
+                if (image && noteContent.contains(image)) {
+                    selectImageForResize(image);
+                    event.preventDefault();
+                } else {
+                    clearImageSelection();
+                }
+            });
+
+            noteContent.addEventListener('click', function(event) {
+                const link = event.target.closest ? event.target.closest('a[href]') : null;
+                if (!link) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const url = link.getAttribute('href') || '';
+                if (url && window.collabNoteApi && typeof window.collabNoteApi.openExternal === 'function') {
+                    window.collabNoteApi.openExternal(url);
+                }
+            });
+
+            noteContent.addEventListener('load', function(event) {
+                if (event.target === selectedImage && event.target.tagName === 'IMG') {
+                    updateImageResizeTool();
+                }
+            }, true);
+
+            imageResizeGrip.addEventListener('mousedown', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!selectedImage) return;
+                const rect = selectedImage.getBoundingClientRect();
+                imageDrag = {
+                    img: selectedImage,
+                    startX: event.clientX,
+                    startWidth: rect.width
+                };
+            });
+
+            document.addEventListener('mousemove', function(event) {
+                if (!imageDrag) return;
+                const width = Math.max(28, Math.round(imageDrag.startWidth + event.clientX - imageDrag.startX));
+                imageDrag.img.style.width = `${width}px`;
+                imageDrag.img.style.height = 'auto';
+                updateImageResizeTool();
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (!imageDrag) return;
+                imageDrag = null;
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
+            document.addEventListener('keydown', function(event) {
+                if (!selectedImage) return;
+                if (event.key === 'Escape') {
+                    clearImageSelection();
+                    return;
+                }
+                const focused = document.activeElement;
+                if (focused !== noteContent && !noteContent.contains(focused)) return;
+                if (event.key === 'Delete' || event.key === 'Backspace') {
+                    event.preventDefault();
+                    removeSelectedImage();
+                }
+            });
+
+            // ─── 字號調整 ───
+            function editorBlockFor(node) {
+                let current = node && node.nodeType === 1 ? node : (node ? node.parentNode : null);
+                while (current && current !== noteContent) {
+                    if (/^(DIV|P|LI|BLOCKQUOTE|H[1-6]|PRE|TD|TH)$/i.test(current.tagName)) return current;
+                    current = current.parentNode;
+                }
+                return null;
+            }
+
+            function applyFontSize(value, range) {
+                const px = Number(value);
+                if (value !== 'clear' && (!Number.isFinite(px) || px <= 0)) return;
+                noteContent.focus();
+                let activeRange = range || null;
+                if (!activeRange) {
+                    const selection = window.getSelection();
+                    if (selection && selection.rangeCount > 0 && noteContent.contains(selection.anchorNode)) {
+                        activeRange = selection.getRangeAt(0).cloneRange();
+                    }
+                }
+                if (!activeRange) return;
+                if (activeRange.collapsed) {
+                    const block = editorBlockFor(activeRange.startContainer) || noteContent;
+                    if (value === 'clear') {
+                        block.style.removeProperty('font-size');
+                    } else {
+                        block.style.fontSize = `${px}px`;
+                    }
+                    noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+                    return;
+                }
+                const box = document.createElement('div');
+                box.appendChild(activeRange.cloneContents());
+                if (box.querySelector('div,p,li,blockquote,h1,h2,h3,h4,h5,h6,pre,table,tr,td,th')) {
+                    const block = editorBlockFor(activeRange.startContainer) || noteContent;
+                    if (value === 'clear') {
+                        block.style.removeProperty('font-size');
+                    } else {
+                        block.style.fontSize = `${px}px`;
+                    }
+                    noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+                    return;
+                }
+                if (value === 'clear') {
+                    const sizedNodes = Array.from(box.querySelectorAll('*')).filter(el => el.style && el.style.fontSize);
+                    sizedNodes.forEach(el => {
+                        if (!el.parentNode) return;
+                        while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+                        el.remove();
+                    });
+                }
+                const html = box.innerHTML;
+                if (!html.trim()) return;
+                const insertedHtml = value === 'clear' ? html : `<span style="font-size:${px}px">${html}</span>`;
+                const selection = window.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(activeRange);
+                }
+                document.execCommand('insertHTML', false, insertedHtml);
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            toolbar.addEventListener('mousedown', function(event) {
+                if (!event.target.closest('#fontSizeSelect')) return;
+                const selection = window.getSelection();
+                if (selection && selection.rangeCount > 0 && noteContent.contains(selection.anchorNode)) {
+                    pendingFontRange = selection.getRangeAt(0).cloneRange();
+                } else {
+                    pendingFontRange = null;
+                }
+            });
+
+            fontSizeSelect.addEventListener('change', function() {
+                const value = this.value;
+                const range = pendingFontRange;
+                pendingFontRange = null;
+                if (!value) return;
+                applyFontSize(value, range);
+            });
+
+            function currentInlineFontSize() {
+                const selection = window.getSelection();
+                if (!selection || selection.rangeCount === 0) return '';
+                const anchor = selection.anchorNode;
+                if (!anchor || !noteContent.contains(anchor)) return '';
+                let node = anchor.nodeType === 1 ? anchor : anchor.parentNode;
+                while (node && node !== noteContent) {
+                    if (node.style && node.style.fontSize) {
+                        const match = String(node.style.fontSize).match(/^([\d.]+)px$/);
+                        if (match) return String(Math.round(Number(match[1])));
+                    }
+                    node = node.parentNode;
+                }
+                return '';
+            }
+
+            function syncFontSizeDisplay() {
+                if (!fontSizeSelect) return;
+                fontSizeSelect.value = currentInlineFontSize() || 'clear';
+            }
+
+            noteContent.addEventListener('keyup', syncFontSizeDisplay);
+            noteContent.addEventListener('mouseup', syncFontSizeDisplay);
+            noteContent.addEventListener('focus', syncFontSizeDisplay);
             window.addEventListener('pagehide', saveActiveNoteImmediately);
 
             async function loadNotes() {
@@ -3070,15 +4005,16 @@
                     if (activeId !== undefined) switchNote(activeId);
                     else {
                         noteTitleInput.value = '';
-                        noteContent.value = '';
+                        noteContent.innerHTML = '';
                     }
                     hideConnectionError();
                     await loadFriends();
+                    startPresenceMonitor();
                 } catch (error) {
                     console.error('無法連接 Python 後端', error);
                     if (error.status === 401) showAuthScreen();
                     noteTitleInput.value = '';
-                    noteContent.value = '';
+                    noteContent.innerHTML = '';
                 }
             }
 
@@ -3096,13 +4032,19 @@
                     item.className = 'friend-item';
                     const avatar = document.createElement('span');
                     avatar.className = 'friend-avatar';
-                    avatar.textContent = (person.displayName || person.username).charAt(0).toUpperCase();
+                    const displayName = person.displayName || person.username;
+                    if (person.avatarUrl) {
+                        avatar.textContent = '';
+                        avatar.style.backgroundImage = `url("${apiBaseUrl}${person.avatarUrl}")`;
+                    } else {
+                        avatar.textContent = displayName.charAt(0).toUpperCase();
+                    }
                     const info = document.createElement('div');
                     info.className = 'friend-info';
                     const name = document.createElement('span');
                     name.className = 'friend-name';
-                    name.textContent = person.displayName || person.username;
-                    name.title = `${person.displayName || person.username} (${person.username})`;
+                    name.textContent = displayName;
+                    name.title = `${displayName} (${person.username})`;
                     info.appendChild(name);
                     if (!requestActions) {
                         const status = document.createElement('span');
@@ -3134,12 +4076,52 @@
             }
 
             function renderFriends(data) {
-                const friends = data?.friends || [];
+                const friends = (data?.friends || []).slice().sort((a, b) => Number(b.online) - Number(a.online));
                 const incomingRequests = data?.incomingRequests || [];
                 const outgoingRequests = data?.outgoingRequests || [];
                 renderPersonList(friendsList, friends, '暂无好友');
                 renderPersonList(friendRequestsList, incomingRequests, '暂无请求', true);
                 renderPersonList(friendOutgoingList, outgoingRequests, '暂无请求');
+                renderCollaborators(friends);
+                const onlineFriends = friends.filter(person => person.online).length;
+                const onlineStat = document.getElementById('friendsOnlineCount');
+                const totalStat = document.getElementById('friendsTotalCount');
+                const statsWrap = document.getElementById('friendsRailStats');
+                if (onlineStat) onlineStat.textContent = onlineFriends;
+                if (totalStat) totalStat.textContent = friends.length;
+                if (statsWrap) statsWrap.classList.toggle('no-online', onlineFriends === 0);
+            }
+
+            function renderCollaborators(friends) {
+                const avatarGroup = document.querySelector('.collaborators .avatar-group');
+                const onlineCount = document.getElementById('onlineCount');
+                const onlineCountWrap = onlineCount?.closest('.online-count');
+                if (!avatarGroup || !onlineCount) return;
+                const online = [];
+                if (currentUsername) {
+                    online.push({ username: currentUsername, displayName: currentDisplayName, avatarUrl: currentAvatarUrl, self: true });
+                }
+                (friends || []).forEach(person => {
+                    if (person.online) online.push(person);
+                });
+                avatarGroup.replaceChildren();
+                online.slice(0, 5).forEach((person, index) => {
+                    const avatar = document.createElement('div');
+                    avatar.className = `avatar a${(index % 5) + 1}`;
+                    const name = person.displayName || person.username;
+                    avatar.title = person.self ? `${name}（我）` : name;
+                    const avatarUrl = person.avatarUrl ? `${apiBaseUrl}${person.avatarUrl}${person.self ? `?v=${Date.now()}` : ''}` : '';
+                    if (avatarUrl) {
+                        avatar.style.backgroundImage = `url("${avatarUrl}")`;
+                        avatar.style.backgroundSize = 'cover';
+                        avatar.style.backgroundPosition = 'center';
+                    } else {
+                        avatar.textContent = name.charAt(0).toUpperCase();
+                    }
+                    avatarGroup.appendChild(avatar);
+                });
+                onlineCount.textContent = online.length;
+                if (onlineCountWrap) onlineCountWrap.classList.toggle('no-online', online.length === 0);
             }
 
             async function loadFriends() {
@@ -3155,6 +4137,142 @@
                     friendsList.appendChild(message);
                 }
             }
+
+            // ─── 即時協作者：editor-footer 與 avatar-stack ───
+            const presenceAvatarStack = document.getElementById('presenceAvatarStack');
+            const footerPeopleList = document.getElementById('footerPeopleList');
+            let presenceTimer = null;
+
+            function updateFooterSaveStatus(state) {
+                const element = document.getElementById('footerSaveStatus');
+                if (!element) return;
+                element.textContent = state === 'saving' ? '儲存中…' : state === 'offline' ? '連線中斷' : '自動儲存開啟';
+            }
+
+            function presenceColorIndex(username) {
+                const value = String(username || '');
+                let hash = 0;
+                for (let i = 0; i < value.length; i++) {
+                    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+                }
+                return (hash % 5) + 1;
+            }
+
+            function presencePersonName(person) {
+                return person.displayName || person.username || '';
+            }
+
+            function presenceStatusText(person) {
+                return person.mode === 'editing' ? '正在編輯' : '檢視中';
+            }
+
+            function presencePersonTitle(person) {
+                const name = presencePersonName(person);
+                const selfMark = person.username === currentUsername ? '（我）' : '';
+                return `${name}${selfMark} ${presenceStatusText(person)}`.trim();
+            }
+
+            function applyPresenceFace(avatar, person) {
+                const name = presencePersonName(person) || '?';
+                if (person.avatarUrl) {
+                    avatar.style.backgroundImage = `url("${apiBaseUrl}${person.avatarUrl}")`;
+                    avatar.style.backgroundSize = 'cover';
+                    avatar.style.backgroundPosition = 'center';
+                } else {
+                    avatar.textContent = name.charAt(0).toUpperCase();
+                }
+            }
+
+            function renderPresenceRoster(people) {
+                const roster = Array.isArray(people) ? people.filter(person => person && person.username) : [];
+                roster.sort((a, b) => {
+                    const aEditing = a.mode === 'editing' ? 0 : 1;
+                    const bEditing = b.mode === 'editing' ? 0 : 1;
+                    if (aEditing !== bEditing) return aEditing - bEditing;
+                    return presencePersonName(a).localeCompare(presencePersonName(b), 'zh');
+                });
+                const editors = roster.filter(person => person.mode === 'editing').length;
+                const viewers = roster.length - editors;
+
+                if (presenceAvatarStack) {
+                    presenceAvatarStack.replaceChildren();
+                    roster.slice(0, 5).forEach(person => {
+                        const avatar = document.createElement('span');
+                        avatar.className = `mini-avatar m${presenceColorIndex(person.username)}`;
+                        avatar.title = presencePersonTitle(person);
+                        applyPresenceFace(avatar, person);
+                        presenceAvatarStack.appendChild(avatar);
+                    });
+                    if (roster.length > 5) {
+                        const more = document.createElement('span');
+                        more.className = 'mini-avatar avatar-more';
+                        more.textContent = `+${roster.length - 5}`;
+                        more.title = roster.slice(5).map(presencePersonName).join('、');
+                        presenceAvatarStack.appendChild(more);
+                    }
+                }
+
+                const footerViewCount = document.getElementById('footerViewCount');
+                const footerEditCount = document.getElementById('footerEditCount');
+                if (footerViewCount) footerViewCount.textContent = viewers;
+                if (footerEditCount) footerEditCount.textContent = editors;
+
+                if (footerPeopleList) {
+                    footerPeopleList.replaceChildren();
+                    roster.forEach(person => {
+                        const chip = document.createElement('div');
+                        chip.className = 'cursor-indicator';
+                        const dot = document.createElement('span');
+                        dot.className = `cursor-dot c${presenceColorIndex(person.username)}`;
+                        const label = document.createElement('span');
+                        label.textContent = `${presencePersonName(person)} ${presenceStatusText(person)}`;
+                        label.title = presencePersonTitle(person);
+                        chip.append(dot, label);
+                        footerPeopleList.appendChild(chip);
+                    });
+                }
+            }
+
+            async function sendPresenceBeat() {
+                if (!authToken) return;
+                if (document.hidden) return;
+                if (activeId === undefined || activeId === null) return;
+                const activeElement = document.activeElement;
+                const editing = activeElement === noteTitleInput || activeElement === noteContent ||
+                    (activeElement && activeElement.nodeType === 1 && noteContent.contains(activeElement));
+                try {
+                    const response = await fetch(`${apiBaseUrl}/api/presence`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ noteId: activeId, mode: editing ? 'editing' : 'viewing' })
+                    });
+                    if (!response.ok) return;
+                    if (!authToken) return;
+                    const data = await response.json();
+                    renderPresenceRoster(data.people || []);
+                } catch (error) {
+                    // 心跳為 best-effort，連線狀態由 checkServerHealth 統一處理
+                }
+            }
+
+            function startPresenceMonitor() {
+                if (presenceTimer !== null) return;
+                sendPresenceBeat();
+                presenceTimer = window.setInterval(sendPresenceBeat, 4000);
+            }
+
+            function stopPresenceMonitor() {
+                if (presenceTimer !== null) {
+                    clearInterval(presenceTimer);
+                    presenceTimer = null;
+                }
+            }
+
+            noteContent.addEventListener('focus', sendPresenceBeat);
+            noteTitleInput.addEventListener('focus', sendPresenceBeat);
 
             friendRequestsList.addEventListener('click', async function(event) {
                 const button = event.target.closest('button[data-action]');
@@ -3470,9 +4588,7 @@
             function syncFriendsVisibility() {
                 const authenticated = Boolean(appContainer?.classList.contains('authenticated'));
                 body.classList.toggle('friends-enabled', authenticated);
-                if (!authenticated) {
-                    body.classList.remove('friends-minimized');
-                }
+                body.classList.toggle('friends-minimized', authenticated);
             }
 
             minimizeBtn?.addEventListener('click', () => body.classList.add('friends-minimized'));

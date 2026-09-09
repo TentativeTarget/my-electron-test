@@ -4,7 +4,7 @@
     "title": "這是測試的新筆記",
     "tag": "草稿",
     "tagStyle": "background:#f1f5f9;color:#475569;",
-    "content": "這裡是測試保存的數據,基於Electron的前端與Python的後端編輯器\n目前測試非常滿意:)\n真正的秒存,服務器爆炸者:)\n前端和後段已分離,目前測試存儲\n添加了頭像以及名稱的更改\n修復重新連結失敗的問題\n新增了添加好友的功能\n將好友欄目單獨出側邊欄目\n目前使用側邊欄縮放\n",
+    "content": "<span style=\"font-size:32px\"><b>這裡是測試保存的數據</b></span><br><div>基於<u>Electron</u>的前端與<u>Python</u>的後端編輯器<br><i>目前測試非常滿意:)</i><br><u>真正的秒存,服務器爆炸者:)</u><br><strike>前端和後段已分離,目前測試存儲</strike><div><img src=\"http://127.0.0.1:8765/api/images/956cb708f606cc039ee85391c9a78ecc.jpg\" alt=\"\" class=\"\" style=\"width: 161px; height: auto;\"><strike><br></strike><div><a href=\"https://space.bilibili.com/667658087?spm_id_from=888.153433.0.0\">竟然是我的b站麼</a><br><table><tbody><tr><th>我是語言</th><th>內容</th></tr><tr><td>wow</td><td>這個功能是好的<br></td></tr></tbody></table><ul><li>添加了頭像以及名稱的更改</li><li>修復重新連結失敗的問題</li><li>新增了添加好友的功能</li></ul><blockquote>真的要寫注釋麼()</blockquote><ol><li>將好友欄目單獨出側邊欄目</li><li>目前使用側邊欄縮放</li></ol><br></div></div></div>",
     "time": "剛剛",
     "editors": [
       "green"

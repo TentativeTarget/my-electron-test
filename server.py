@@ -11,13 +11,15 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
 DATA_FILE = Path(__file__).with_name("notes.json")
 DATA_LOCK = Lock()
 
+
 def load_notes():
     if not DATA_FILE.exists():
-        save_notes(list(DEFAULT_NOTES))
+        save_notes([])
     try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        notes = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+        return notes if isinstance(notes, list) else []
     except (OSError, json.JSONDecodeError):
-        return list(DEFAULT_NOTES)
+        return []
 
 
 def save_notes(notes):
@@ -42,14 +44,12 @@ class NotesHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def do_GET(self):
-        if self.path == "/api/health":
-            self.send_json(200, {"ok": True})
-        elif self.path == "/api/notes":
+        if self.path == "/api/notes":
             with DATA_LOCK:
                 self.send_json(200, load_notes())
         else:
@@ -94,6 +94,25 @@ class NotesHandler(BaseHTTPRequestHandler):
                     self.send_json(200, note)
                     return
         self.send_json(404, {"error": "Note not found"})
+
+    def do_DELETE(self):
+        if not self.path.startswith("/api/notes/"):
+            self.send_json(404, {"error": "Not found"})
+            return
+        try:
+            note_id = int(self.path.rsplit("/", 1)[1])
+        except ValueError:
+            self.send_json(400, {"error": "Invalid note id"})
+            return
+
+        with DATA_LOCK:
+            notes = load_notes()
+            remaining_notes = [note for note in notes if note["id"] != note_id]
+            if len(remaining_notes) == len(notes):
+                self.send_json(404, {"error": "Note not found"})
+                return
+            save_notes(remaining_notes)
+        self.send_json(200, {"deleted": note_id})
 
     def read_payload(self):
         length = int(self.headers.get("Content-Length", 0))

@@ -364,6 +364,97 @@
             background: #e2e8f0;
         }
 
+        .delete-dialog-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.35);
+            z-index: 10;
+        }
+
+        .delete-dialog-backdrop.visible {
+            display: flex;
+            animation: delete-dialog-fade-in 180ms ease-out both;
+        }
+
+        .delete-dialog-backdrop.closing {
+            display: flex;
+            pointer-events: none;
+            animation: delete-dialog-fade-out 180ms ease-in both;
+        }
+
+        @keyframes delete-dialog-fade-in {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes delete-dialog-fade-out {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        .delete-dialog {
+            width: min(400px, 100%);
+            padding: 24px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+        }
+
+        .delete-dialog h2 {
+            color: #0b1a2b;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .delete-dialog p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .delete-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .delete-dialog-actions button {
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 9px 16px;
+        }
+
+        .delete-cancel-btn {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .delete-confirm-btn {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        .delete-dialog-actions button:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
         /* 側邊欄底部 - 新增筆記 */
         .sidebar-footer {
             padding-top: 16px;
@@ -831,120 +922,7 @@
             </div>
 
             <!-- 筆記列表 -->
-            <div class="note-list" id="noteList">
-
-                <!-- 筆記 1 - 啟用中 -->
-                <div class="note-item active" data-id="1">
-                    <div class="note-icon"><i class="fas fa-file-alt"></i></div>
-                    <div class="note-content">
-                        <div class="note-title">
-                            產品願景與策略
-                            <span class="tag">重要</span>
-                        </div>
-                        <div class="note-meta">
-                            <span><i class="far fa-clock"></i> 10 分鐘前</span>
-                            <span class="editors">
-                                <i class="fas fa-user-edit"></i>
-                                <span class="dot green"></span>
-                                <span class="dot purple"></span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="note-actions">
-                        <button title="更多"><i class="fas fa-ellipsis-v"></i></button>
-                    </div>
-                </div>
-
-                <!-- 筆記 2 -->
-                <div class="note-item" data-id="2">
-                    <div class="note-icon"><i class="fas fa-file-alt"></i></div>
-                    <div class="note-content">
-                        <div class="note-title">
-                            Q4 行銷計劃
-                            <span class="tag" style="background:#fef3c7;color:#b45309;">進行中</span>
-                        </div>
-                        <div class="note-meta">
-                            <span><i class="far fa-clock"></i> 1 小時前</span>
-                            <span class="editors">
-                                <i class="fas fa-user-edit"></i>
-                                <span class="dot yellow"></span>
-                                <span class="dot blue"></span>
-                                <span class="dot pink"></span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="note-actions">
-                        <button title="更多"><i class="fas fa-ellipsis-v"></i></button>
-                    </div>
-                </div>
-
-                <!-- 筆記 3 -->
-                <div class="note-item" data-id="3">
-                    <div class="note-icon"><i class="fas fa-file-alt"></i></div>
-                    <div class="note-content">
-                        <div class="note-title">
-                            設計系統 2.0
-                            <span class="tag" style="background:#d1fae5;color:#065f46;">已完成</span>
-                        </div>
-                        <div class="note-meta">
-                            <span><i class="far fa-clock"></i> 昨天</span>
-                            <span class="editors">
-                                <i class="fas fa-user-edit"></i>
-                                <span class="dot green"></span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="note-actions">
-                        <button title="更多"><i class="fas fa-ellipsis-v"></i></button>
-                    </div>
-                </div>
-
-                <!-- 筆記 4 -->
-                <div class="note-item" data-id="4">
-                    <div class="note-icon"><i class="fas fa-file-alt"></i></div>
-                    <div class="note-content">
-                        <div class="note-title">
-                            使用者訪談彙整
-                            <span class="tag" style="background:#e0e7ff;color:#3730a3;">回饋</span>
-                        </div>
-                        <div class="note-meta">
-                            <span><i class="far fa-clock"></i> 2 天前</span>
-                            <span class="editors">
-                                <i class="fas fa-user-edit"></i>
-                                <span class="dot purple"></span>
-                                <span class="dot blue"></span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="note-actions">
-                        <button title="更多"><i class="fas fa-ellipsis-v"></i></button>
-                    </div>
-                </div>
-
-                <!-- 筆記 5 -->
-                <div class="note-item" data-id="5">
-                    <div class="note-icon"><i class="fas fa-file-alt"></i></div>
-                    <div class="note-content">
-                        <div class="note-title">
-                            工程架構決策
-                            <span class="tag" style="background:#fee2e2;color:#991b1b;">待定</span>
-                        </div>
-                        <div class="note-meta">
-                            <span><i class="far fa-clock"></i> 3 天前</span>
-                            <span class="editors">
-                                <i class="fas fa-user-edit"></i>
-                                <span class="dot green"></span>
-                                <span class="dot yellow"></span>
-                                <span class="dot pink"></span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="note-actions">
-                        <button title="更多"><i class="fas fa-ellipsis-v"></i></button>
-                    </div>
-                </div>
-
-            </div>
+            <div class="note-list" id="noteList"></div>
 
             <!-- 新增按鈕 -->
             <div class="sidebar-footer">
@@ -977,7 +955,7 @@
             </div>
 
             <!-- 標題 -->
-            <input type="text" class="note-title-input" value="產品願景與策略" placeholder="輸入筆記標題..." id="noteTitleInput" />
+            <input type="text" class="note-title-input" placeholder="輸入筆記標題..." id="noteTitleInput" />
 
             <!-- 工具列 -->
             <div class="toolbar">
@@ -999,21 +977,7 @@
 
             <!-- 編輯內容 -->
             <div class="editor-content">
-                <textarea id="noteContent" placeholder="開始撰寫筆記… 支援 Markdown 語法">## 產品願景
-
-                建立一個讓團隊無縫協作的筆記平台，將**靈感**與**執行**連結在一起。
-
-                ### 核心目標
-                - 即時同步，零延遲
-                - 直覺的編輯體驗
-                - 強大的搜尋與標籤
-
-                ### 下一步行動
-                1. 完成 UI 原型設計
-                2. 定義 API 規格
-                3. 實作即時協作引擎
-
-                > 參考：Notion + Figma 的混合體驗</textarea>
+                <textarea id="noteContent" placeholder="開始撰寫筆記… 支援 Markdown 語法"></textarea>
             </div>
 
             <!-- 底部資訊 -->
@@ -1042,18 +1006,35 @@
         </main>
     </div>
 
+    <div class="delete-dialog-backdrop" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
+        <div class="delete-dialog">
+            <h2 id="deleteDialogTitle">確認刪除筆記？</h2>
+            <p id="deleteDialogMessage">刪除後將無法恢復這篇筆記。</p>
+            <div class="delete-dialog-actions">
+                <button class="delete-cancel-btn" id="cancelDeleteBtn" type="button">取消</button>
+                <button class="delete-confirm-btn" id="confirmDeleteBtn" type="button">刪除</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function() {
             'use strict';
 
             // ─── DOM 參考 ───
-            const noteItems = document.querySelectorAll('.note-item');
             const noteTitleInput = document.getElementById('noteTitleInput');
             const noteContent = document.getElementById('noteContent');
             const searchInput = document.getElementById('searchInput');
             const newNoteBtn = document.getElementById('newNoteBtn');
+            const noteList = document.getElementById('noteList');
+            const deleteDialog = document.getElementById('deleteDialog');
+            const deleteDialogMessage = document.getElementById('deleteDialogMessage');
+            const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             const apiBaseUrl = window.collabNoteApi?.baseUrl || 'http://127.0.0.1:8765';
             let saveTimer;
+            let pendingDeleteId;
+            let dialogCloseTimer;
 
             async function apiRequest(path, options = {}, attempts = 8) {
                 try {
@@ -1061,10 +1042,13 @@
                         headers: { 'Content-Type': 'application/json' },
                         ...options
                     });
-                    if (!response.ok) throw new Error(`API ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`API ${response.status}`);
+                    }
                     return response.json();
                 } catch (error) {
-                    if (attempts <= 1) throw error;
+                    const networkError = error.name === 'TypeError' || error.message === 'fetch failed';
+                    if (attempts <= 1 || !networkError) throw error;
                     await new Promise(resolve => setTimeout(resolve, 100));
                     return apiRequest(path, options, attempts - 1);
                 }
@@ -1097,107 +1081,7 @@
                 }).catch(error => console.error('關閉前儲存失敗', error));
             }
 
-            // ─── 模擬筆記資料 ───
-            const notesData = [{
-                id: 1,
-                title: '產品願景與策略',
-                tag: '重要',
-                tagStyle: 'background:#dbeafe;color:#2563eb;',
-                content: `## 產品願景
-
-                建立一個讓團隊無縫協作的筆記平台，將**靈感**與**執行**連結在一起。
-
-                ### 核心目標
-                - 即時同步，零延遲
-                - 直覺的編輯體驗
-                - 強大的搜尋與標籤
-
-                ### 下一步行動
-                1. 完成 UI 原型設計
-                2. 定義 API 規格
-                3. 實作即時協作引擎
-
-                > 參考：Notion + Figma 的混合體驗`,
-                time: '10 分鐘前',
-                editors: ['green', 'purple']
-            }, {
-                id: 2,
-                title: 'Q4 行銷計劃',
-                tag: '進行中',
-                tagStyle: 'background:#fef3c7;color:#b45309;',
-                content: `## Q4 行銷計劃
-
-                目標：提升品牌知名度與用戶轉化。
-
-                ### 行銷渠道
-                - 社群媒體 (IG, LinkedIn)
-                - 內容行銷 (部落格、電子報)
-                - 付費廣告 (Google Ads)
-
-                ### 時程
-                - 10月：策略制定
-                - 11月：內容生產
-                - 12月：投放與優化`,
-                time: '1 小時前',
-                editors: ['yellow', 'blue', 'pink']
-            }, {
-                id: 3,
-                title: '設計系統 2.0',
-                tag: '已完成',
-                tagStyle: 'background:#d1fae5;color:#065f46;',
-                content: `## 設計系統 2.0
-
-                已完成設計系統的全面升級。
-
-                ### 更新內容
-                - 色彩系統 (新的主要色調)
-                - 字體排版 (Inter 字族)
-                - 元件庫 (按鈕、卡片、表單)
-
-                ### 下一步
-                推廣至所有產品團隊，建立使用規範。`,
-                time: '昨天',
-                editors: ['green']
-            }, {
-                id: 4,
-                title: '使用者訪談彙整',
-                tag: '回饋',
-                tagStyle: 'background:#e0e7ff;color:#3730a3;',
-                content: `## 使用者訪談彙整
-
-                共訪談 12 位使用者，歸納出以下痛點：
-
-                ### 主要發現
-                1. 學習曲線過高
-                2. 協作功能不夠直覺
-                3. 行動端體驗不佳
-
-                ### 建議
-                優先改善 onboarding 流程，並提供更多教學資源。`,
-                time: '2 天前',
-                editors: ['purple', 'blue']
-            }, {
-                id: 5,
-                title: '工程架構決策',
-                tag: '待定',
-                tagStyle: 'background:#fee2e2;color:#991b1b;',
-                content: `## 工程架構決策
-
-                討論新的微服務架構與資料庫選擇。
-
-                ### 選項
-                - 方案 A：Monorepo + GraphQL
-                - 方案 B：多倉庫 + REST
-
-                ### 決策因子
-                - 開發效率
-                - 部署複雜度
-                - 團隊熟悉度
-
-                預計下週做最終決定。`,
-                time: '3 天前',
-                editors: ['green', 'yellow', 'pink']
-            }];
+            const notesData = [];
 
             // ─── 狀態 ───
             let activeId = 1;
@@ -1224,22 +1108,72 @@
                 // 此處僅做內容與標題同步
             }
 
-            // ─── 事件：點擊筆記項目 ───
-            noteItems.forEach(item => {
-                item.addEventListener('click', function(e) {
-                    // 如果點擊的是 action 按鈕，不切換
-                    if (e.target.closest('.note-actions')) return;
-                    const id = parseInt(this.dataset.id);
-                    if (!isNaN(id) && id !== activeId) {
-                        switchNote(id);
+            function openDeleteDialog(id) {
+                const note = notesData.find(item => item.id === id);
+                if (!note) return;
+                pendingDeleteId = id;
+                clearTimeout(dialogCloseTimer);
+                deleteDialog.classList.remove('closing');
+                deleteDialogMessage.textContent = `確定要刪除「${note.title}」嗎？刪除後將無法恢復。`;
+                deleteDialog.classList.add('visible');
+                confirmDeleteBtn.focus();
+            }
+
+            function closeDeleteDialog() {
+                pendingDeleteId = undefined;
+                deleteDialog.classList.remove('visible');
+                deleteDialog.classList.add('closing');
+                clearTimeout(dialogCloseTimer);
+                dialogCloseTimer = setTimeout(() => {
+                    deleteDialog.classList.remove('closing');
+                }, 180);
+            }
+
+            async function deleteNote() {
+                if (pendingDeleteId === undefined) return;
+                const noteId = pendingDeleteId;
+                const noteItem = noteList.querySelector(`[data-id="${noteId}"]`);
+                confirmDeleteBtn.disabled = true;
+                try {
+                    await apiRequest(`/api/notes/${noteId}`, { method: 'DELETE' });
+                    const deletedIndex = notesData.findIndex(note => note.id === noteId);
+                    notesData.splice(deletedIndex, 1);
+                    noteItem?.remove();
+                    closeDeleteDialog();
+
+                    if (activeId === noteId) {
+                        activeId = notesData[0]?.id;
+                        if (activeId !== undefined) switchNote(activeId);
+                        else {
+                            noteTitleInput.value = '';
+                            noteContent.value = '';
+                        }
                     }
-                });
+                } catch (error) {
+                    console.error('刪除筆記失敗', error);
+                    deleteDialogMessage.textContent = '刪除失敗，請確認 Python 後端是否正在執行。';
+                } finally {
+                    confirmDeleteBtn.disabled = false;
+                }
+            }
+
+            // ─── 事件：點擊筆記項目 ───
+            noteList.addEventListener('click', function(e) {
+                const actionButton = e.target.closest('.note-actions button');
+                if (actionButton) {
+                    e.stopPropagation();
+                    openDeleteDialog(parseInt(e.target.closest('.note-item')?.dataset.id));
+                    return;
+                }
+                const item = e.target.closest('.note-item');
+                const id = parseInt(item?.dataset.id);
+                if (!isNaN(id) && id !== activeId) switchNote(id);
             });
 
             // ─── 事件：搜尋過濾 ───
             searchInput.addEventListener('input', function() {
                 const keyword = this.value.trim().toLowerCase();
-                noteItems.forEach(item => {
+                document.querySelectorAll('.note-item').forEach(item => {
                     const title = item.querySelector('.note-title')?.textContent?.toLowerCase() || '';
                     const match = title.includes(keyword);
                     item.style.display = match ? '' : 'none';
@@ -1288,7 +1222,7 @@
                         </div>
                     </div>
                     <div class="note-actions">
-                        <button title="更多"><i class="fas fa-ellipsis-v"></i></button>
+                            <button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 `;
 
@@ -1303,22 +1237,20 @@
                 noteTitleInput.value = '未命名筆記';
                 noteContent.value = '開始撰寫你的筆記…';
 
-                // 綁定點擊事件
-                item.addEventListener('click', function(e) {
-                    if (e.target.closest('.note-actions')) return;
-                    const id = parseInt(this.dataset.id);
-                    if (!isNaN(id) && id !== activeId) {
-                        switchNote(id);
-                    }
-                });
-
-                // 搜尋過濾時要保留
-                // 滾動到新項目
-                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                item.scrollIntoView({ block: 'nearest' });
 
                 // 自動聚焦標題
                 noteTitleInput.focus();
                 noteTitleInput.select();
+            });
+
+            cancelDeleteBtn.addEventListener('click', closeDeleteDialog);
+            confirmDeleteBtn.addEventListener('click', deleteNote);
+            deleteDialog.addEventListener('click', function(e) {
+                if (e.target === deleteDialog) closeDeleteDialog();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && deleteDialog.classList.contains('visible')) closeDeleteDialog();
             });
 
             // ─── 事件：編輯標題即時更新列表 ───
@@ -1375,19 +1307,16 @@
                                 <div class="note-title">${note.title}<span class="tag" style="${note.tagStyle}">${note.tag}</span></div>
                                 <div class="note-meta"><span><i class="far fa-clock"></i> ${note.time}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
                             </div>
-                            <div class="note-actions"><button title="更多"><i class="fas fa-ellipsis-v"></i></button></div>`;
-                        item.addEventListener('click', function(e) {
-                            if (e.target.closest('.note-actions')) return;
-                            const id = parseInt(this.dataset.id);
-                            if (!isNaN(id) && id !== activeId) switchNote(id);
-                        });
+                            <div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>`;
                         document.getElementById('noteList').appendChild(item);
                     });
-                    switchNote(activeId);
+                    activeId = serverNotes[0]?.id;
+                    if (activeId !== undefined) switchNote(activeId);
                 })
                 .catch(error => {
-                    console.error('無法連接 Python 後端，使用頁面預設資料', error);
-                    switchNote(1);
+                    console.error('無法連接 Python 後端', error);
+                    noteTitleInput.value = '';
+                    noteContent.value = '';
                 });
 
             // ─── (選用) 鍵盤快捷鍵: Ctrl+Shift+N 新增 ───

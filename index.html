@@ -45,6 +45,100 @@
             transition: all 0.2s ease;
         }
 
+        .app-container {
+            display: none;
+        }
+
+        .app-container.authenticated {
+            display: flex;
+        }
+
+        .auth-screen {
+            width: min(420px, 100%);
+            padding: 34px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            box-shadow: 0 25px 60px -15px rgba(0, 20, 30, 0.25);
+        }
+
+        .auth-screen h1 {
+            color: #0b1a2b;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .auth-screen .auth-subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 26px;
+        }
+
+        .auth-screen label {
+            display: block;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+
+        .auth-screen input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            color: #0b1a2b;
+            font-size: 14px;
+            margin-bottom: 16px;
+            outline: none;
+        }
+
+        .auth-screen input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .auth-submit {
+            width: 100%;
+            padding: 12px;
+            border: 0;
+            border-radius: 10px;
+            background: #3b82f6;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .auth-submit:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .auth-switch {
+            display: block;
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+
+        .auth-error {
+            min-height: 20px;
+            color: #dc2626;
+            font-size: 13px;
+            margin: 0 0 12px;
+        }
+
+        @media (max-width: 500px) {
+            .auth-screen {
+                padding: 26px 20px;
+            }
+        }
+
         /* ─── 側邊欄 ─── */
         .sidebar {
             width: 320px;
@@ -455,6 +549,64 @@
             opacity: 0.6;
         }
 
+        .connection-dialog-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.35);
+            z-index: 20;
+            animation: delete-dialog-fade-in 180ms ease-out both;
+        }
+
+        .connection-dialog-backdrop.visible {
+            display: flex;
+        }
+
+        .connection-dialog {
+            width: min(420px, 100%);
+            padding: 24px;
+            background: #ffffff;
+            border: 1px solid #fecaca;
+            border-radius: 18px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+        }
+
+        .connection-dialog h2 {
+            color: #991b1b;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .connection-dialog p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .connection-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .connection-retry-btn {
+            border: 0;
+            border-radius: 10px;
+            background: #dc2626;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 9px 16px;
+        }
+
+        .connection-retry-btn:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
         /* 側邊欄底部 - 新增筆記 */
         .sidebar-footer {
             padding-top: 16px;
@@ -626,6 +778,78 @@
         }
         .editor-header .right .avatar-stack .mini-avatar.m3 {
             background: #ec4899;
+        }
+
+        .user-profile {
+            position: relative;
+        }
+
+        .user-profile-trigger {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #334155;
+            cursor: pointer;
+            padding: 4px 10px 4px 5px;
+        }
+
+        .user-profile-avatar {
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #0f766e;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .user-profile-name {
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .user-profile-card {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            z-index: 5;
+            display: none;
+            width: 220px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #ffffff;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.15);
+        }
+
+        .user-profile:hover .user-profile-card,
+        .user-profile:focus-within .user-profile-card {
+            display: block;
+            animation: delete-dialog-fade-in 150ms ease-out both;
+        }
+
+        .user-profile-card strong {
+            display: block;
+            color: #0b1a2b;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .user-profile-card p {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.5;
+            margin: 0;
         }
 
         /* 標題輸入 */
@@ -889,6 +1113,20 @@
   </head>
 <body>
 
+    <section class="auth-screen" id="authScreen">
+        <h1>CollabNote</h1>
+        <p class="auth-subtitle" id="authSubtitle">登录后管理你的团队笔记</p>
+        <form id="authForm">
+            <label for="authUsername">用户名</label>
+            <input id="authUsername" name="username" autocomplete="username" required minlength="3" maxlength="32" />
+            <label for="authPassword">密码</label>
+            <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="6" />
+            <p class="auth-error" id="authError" role="alert"></p>
+            <button class="auth-submit" id="authSubmit" type="submit">登录</button>
+        </form>
+        <button class="auth-switch" id="authSwitch" type="button">还没有账号？注册</button>
+    </section>
+
     <div class="app-container">
         <!-- ===== 左側邊欄 ===== -->
         <aside class="sidebar">
@@ -951,6 +1189,18 @@
                         <div class="mini-avatar m3" title="Carol 檢視中">C</div>
                     </div>
                     <button class="share-btn"><i class="fas fa-share-alt"></i> 分享</button>
+                    <div class="user-profile">
+                        <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
+                            <span class="user-profile-avatar" id="userProfileAvatar">?</span>
+                            <span class="user-profile-name" id="userProfileName">用户</span>
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <div class="user-profile-card" role="status">
+                            <strong id="userProfileCardName">用户</strong>
+                            <p>当前账号已登录<br />认证状态：正常</p>
+                        </div>
+                    </div>
+                    <button class="share-btn" id="logoutBtn" type="button"><i class="fas fa-sign-out-alt"></i> 登出</button>
                 </div>
             </div>
 
@@ -1017,6 +1267,16 @@
         </div>
     </div>
 
+    <div class="connection-dialog-backdrop" id="connectionDialog" role="alertdialog" aria-modal="true" aria-labelledby="connectionDialogTitle">
+        <div class="connection-dialog">
+            <h2 id="connectionDialogTitle">後端連接失敗</h2>
+            <p id="connectionDialogMessage">目前無法連接 Python 後端，筆記資料尚未載入。請確認後端服務正在執行。</p>
+            <div class="connection-dialog-actions">
+                <button class="connection-retry-btn" id="connectionRetryBtn" type="button">重新連接</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function() {
             'use strict';
@@ -1031,24 +1291,94 @@
             const deleteDialogMessage = document.getElementById('deleteDialogMessage');
             const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            const connectionDialog = document.getElementById('connectionDialog');
+            const connectionRetryBtn = document.getElementById('connectionRetryBtn');
+            const authScreen = document.getElementById('authScreen');
+            const authForm = document.getElementById('authForm');
+            const authUsername = document.getElementById('authUsername');
+            const authPassword = document.getElementById('authPassword');
+            const authError = document.getElementById('authError');
+            const authSubmit = document.getElementById('authSubmit');
+            const authSwitch = document.getElementById('authSwitch');
+            const authSubtitle = document.getElementById('authSubtitle');
+            const appContainer = document.querySelector('.app-container');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const userProfileAvatar = document.getElementById('userProfileAvatar');
+            const userProfileName = document.getElementById('userProfileName');
+            const userProfileCardName = document.getElementById('userProfileCardName');
             const apiBaseUrl = window.collabNoteApi?.baseUrl || 'http://127.0.0.1:8765';
             let saveTimer;
             let pendingDeleteId;
             let dialogCloseTimer;
+            let connectionDialogVisible = false;
+            let authMode = 'login';
+            let authToken = localStorage.getItem('collabNoteToken');
+            let currentUsername = '';
+
+            function setCurrentUser(username) {
+                currentUsername = username;
+                const displayName = username || '用户';
+                userProfileName.textContent = displayName;
+                userProfileCardName.textContent = displayName;
+                userProfileAvatar.textContent = displayName.charAt(0).toUpperCase();
+            }
+
+            function showConnectionError() {
+                if (connectionDialogVisible) return;
+                connectionDialogVisible = true;
+                connectionDialog.classList.add('visible');
+                connectionRetryBtn.focus();
+            }
+
+            function hideConnectionError() {
+                connectionDialogVisible = false;
+                connectionDialog.classList.remove('visible');
+            }
+
+            function showAuthScreen() {
+                appContainer.classList.remove('authenticated');
+                authScreen.style.display = 'block';
+                authUsername.focus();
+            }
+
+            function showWorkspace() {
+                authScreen.style.display = 'none';
+                appContainer.classList.add('authenticated');
+            }
+
+            function setAuthMode(mode) {
+                authMode = mode;
+                const registering = mode === 'register';
+                authSubtitle.textContent = registering ? '创建账号后开始使用团队笔记' : '登录后管理你的团队笔记';
+                authSubmit.textContent = registering ? '注册并登录' : '登录';
+                authSwitch.textContent = registering ? '已有账号？返回登录' : '还没有账号？注册';
+                authPassword.autocomplete = registering ? 'new-password' : 'current-password';
+                authError.textContent = '';
+            }
 
             async function apiRequest(path, options = {}, attempts = 8) {
                 try {
+                    const requestHeaders = {
+                        'Content-Type': 'application/json',
+                        ...(options.headers || {})
+                    };
+                    if (authToken) requestHeaders.Authorization = `Bearer ${authToken}`;
                     const response = await fetch(`${apiBaseUrl}${path}`, {
-                        headers: { 'Content-Type': 'application/json' },
-                        ...options
+                        ...options,
+                        headers: requestHeaders
                     });
                     if (!response.ok) {
-                        throw new Error(`API ${response.status}`);
+                        const error = new Error(`API ${response.status}`);
+                        error.status = response.status;
+                        throw error;
                     }
                     return response.json();
                 } catch (error) {
                     const networkError = error.name === 'TypeError' || error.message === 'fetch failed';
-                    if (attempts <= 1 || !networkError) throw error;
+                    if (attempts <= 1 || !networkError) {
+                        if (networkError) showConnectionError();
+                        throw error;
+                    }
                     await new Promise(resolve => setTimeout(resolve, 100));
                     return apiRequest(path, options, attempts - 1);
                 }
@@ -1292,12 +1622,12 @@
 
             window.addEventListener('pagehide', saveActiveNoteImmediately);
 
-            // ─── 初始化：確保顯示正確 ───
-            apiRequest('/api/notes')
-                .then(serverNotes => {
+            async function loadNotes() {
+                try {
+                    const serverNotes = await apiRequest('/api/notes');
                     notesData.splice(0, notesData.length, ...serverNotes);
+                    noteList.replaceChildren();
                     serverNotes.forEach(note => {
-                        if (document.querySelector(`.note-item[data-id="${note.id}"]`)) return;
                         const item = document.createElement('div');
                         item.className = 'note-item';
                         item.dataset.id = note.id;
@@ -1308,16 +1638,85 @@
                                 <div class="note-meta"><span><i class="far fa-clock"></i> ${note.time}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
                             </div>
                             <div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>`;
-                        document.getElementById('noteList').appendChild(item);
+                        noteList.appendChild(item);
                     });
                     activeId = serverNotes[0]?.id;
                     if (activeId !== undefined) switchNote(activeId);
-                })
-                .catch(error => {
+                    else {
+                        noteTitleInput.value = '';
+                        noteContent.value = '';
+                    }
+                    hideConnectionError();
+                } catch (error) {
                     console.error('無法連接 Python 後端', error);
+                    if (error.status === 401) showAuthScreen();
                     noteTitleInput.value = '';
                     noteContent.value = '';
-                });
+                }
+            }
+
+            authSwitch.addEventListener('click', function() {
+                setAuthMode(authMode === 'login' ? 'register' : 'login');
+            });
+
+            authForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                authError.textContent = '';
+                authSubmit.disabled = true;
+                try {
+                    const result = await apiRequest(`/api/auth/${authMode}`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            username: authUsername.value.trim(),
+                            password: authPassword.value
+                        })
+                    });
+                    authToken = result.token;
+                    localStorage.setItem('collabNoteToken', authToken);
+                    setCurrentUser(result.username);
+                    authPassword.value = '';
+                    showWorkspace();
+                    await loadNotes();
+                } catch (error) {
+                    authError.textContent = error.status ? '用户名或密码不正确，或注册信息无效。' : '无法连接后端，请稍后重试。';
+                } finally {
+                    authSubmit.disabled = false;
+                }
+            });
+
+            logoutBtn.addEventListener('click', async function() {
+                try {
+                    await apiRequest('/api/auth/logout', { method: 'POST' });
+                } catch (error) {
+                    console.error('登出请求失败', error);
+                }
+                authToken = null;
+                setCurrentUser('');
+                localStorage.removeItem('collabNoteToken');
+                notesData.splice(0, notesData.length);
+                noteList.replaceChildren();
+                showAuthScreen();
+            });
+
+            // ─── 初始化：確保顯示正確 ───
+            if (authToken) {
+                apiRequest('/api/auth/me')
+                    .then(user => {
+                        setCurrentUser(user.username);
+                        showWorkspace();
+                        return loadNotes();
+                    })
+                    .catch(error => {
+                        if (error.status === 401) {
+                            authToken = null;
+                            localStorage.removeItem('collabNoteToken');
+                        }
+                        showAuthScreen();
+                    });
+            } else {
+                showAuthScreen();
+            }
+            connectionRetryBtn.addEventListener('click', loadNotes);
 
             // ─── (選用) 鍵盤快捷鍵: Ctrl+Shift+N 新增 ───
             document.addEventListener('keydown', function(e) {

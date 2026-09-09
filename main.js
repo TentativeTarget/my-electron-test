@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, safeStorage } = require('electron/main')
+const { shell } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -45,6 +46,16 @@ const createWindow = () => {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('collabnote:open-external', async (_event, url) => {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return false
+    try {
+      await shell.openExternal(url)
+      return true
+    } catch {
+      return false
+    }
+  })
+
   ipcMain.handle('collabnote:credentials:load', () => {
     if (!safeStorage.isEncryptionAvailable()) return {}
     const store = readCredentialStore()

@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import secrets
 import sys
+import time
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 from threading import Lock
@@ -22,8 +23,13 @@ PORT = int(os.environ.get("COLLABNOTE_PORT", sys.argv[1] if len(sys.argv) > 1 el
 DATA_FILE = Path(__file__).with_name("notes.json")
 USERS_FILE = Path(__file__).with_name("users.json")
 AVATAR_DIR = Path(__file__).with_name("frontend") / "assets" / "avatars"
+IMAGE_DIR = Path(__file__).with_name("frontend") / "assets" / "images"
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
 DATA_LOCK = Lock()
 SESSIONS = {}
+PRESENCE = {}
+PRESENCE_LOCK = Lock()
+PRESENCE_TIMEOUT = 12.0
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{3,32}$")
 
 
@@ -96,6 +102,35 @@ def is_user_online(username):
     return any(session["username"] == username for session in SESSIONS.values())
 
 
+def presence_people_for(note_id, username):
+    """Live roster for a note, limited to the current user and their friends."""
+    with PRESENCE_LOCK:
+        now = time.monotonic()
+        for token, presence in list(PRESENCE.items()):
+            if token not in SESSIONS or now - presence["ts"] > PRESENCE_TIMEOUT:
+                PRESENCE.pop(token, None)
+        user = find_user(username)
+        if not user:
+            return []
+        friend_names = set(user.get("friends", []))
+        latest_by_user = {}
+        for presence in PRESENCE.values():
+            if presence.get("noteId") != note_id:
+                continue
+            if presence["username"] != username and presence["username"] not in friend_names:
+                continue
+            seen = latest_by_user.get(presence["username"])
+            if seen is None or presence["ts"] >= seen["ts"]:
+                latest_by_user[presence["username"]] = presence
+        people = []
+        for presence in latest_by_user.values():
+            person = find_user(presence["username"])
+            if not person:
+                continue
+            people.append({**public_user(person), "mode": presence["mode"]})
+        return people
+
+
 def public_user(user):
     return {
         "username": user["username"],
@@ -133,6 +168,8 @@ class NotesHandler(BaseHTTPRequestHandler):
                 self.send_json(401, {"error": "Authentication required"})
         elif self.path == "/api/friends":
             self.list_friends()
+        elif urlsplit(self.path).path.startswith("/api/images/"):
+            self.send_note_image()
         elif urlsplit(self.path).path.startswith("/api/users/") and urlsplit(self.path).path.endswith("/avatar"):
             self.send_avatar()
         elif self.path == "/api/notes" and self.current_user():
@@ -155,6 +192,12 @@ class NotesHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/auth/profile":
             self.update_profile()
+            return
+        if self.path == "/api/images/upload":
+            self.upload_note_image()
+            return
+        if self.path == "/api/presence":
+            self.post_presence()
             return
         if self.path == "/api/friends":
             self.request_friend()
@@ -232,6 +275,36 @@ class NotesHandler(BaseHTTPRequestHandler):
     def read_payload(self):
         length = int(self.headers.get("Content-Length", 0))
         return json.loads(self.rfile.read(length) or b"{}")
+
+    def post_presence(self):
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        authorization = self.headers.get("Authorization", "")
+        token = authorization.removeprefix("Bearer ").strip()
+        payload = self.read_payload()
+        note_id = payload.get("noteId")
+        mode = "editing" if payload.get("mode") == "editing" else "viewing"
+        if note_id is None:
+            with PRESENCE_LOCK:
+                PRESENCE.pop(token, None)
+            self.send_json(200, {"noteId": None, "people": []})
+            return
+        try:
+            note_id = int(note_id)
+        except (TypeError, ValueError):
+            self.send_json(400, {"error": "Invalid note id"})
+            return
+        with PRESENCE_LOCK:
+            PRESENCE[token] = {
+                "username": session["username"],
+                "noteId": note_id,
+                "mode": mode,
+                "ts": time.monotonic(),
+            }
+        people = presence_people_for(note_id, session["username"])
+        self.send_json(200, {"noteId": note_id, "people": people})
 
     def current_user(self):
         authorization = self.headers.get("Authorization", "")
@@ -356,6 +429,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         authorization = self.headers.get("Authorization", "")
         token = authorization.removeprefix("Bearer ").strip()
         SESSIONS.pop(token, None)
+        with PRESENCE_LOCK:
+            PRESENCE.pop(token, None)
         self.send_json(200, {"ok": True})
 
     def update_profile(self):
@@ -427,6 +502,63 @@ class NotesHandler(BaseHTTPRequestHandler):
                     self.wfile.write(body)
                     return
         self.send_json(404, {"error": "Avatar not found"})
+
+    def upload_note_image(self):
+        if not self.current_user():
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type not in ("image/jpeg", "image/png"):
+            self.send_json(400, {"error": "仅支持 JPG 或 PNG 图片"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            self.send_json(400, {"error": "Invalid Content-Length"})
+            return
+        if length <= 0 or length > MAX_IMAGE_BYTES:
+            self.send_json(413, {"error": "图片为空或超过 10MB 上限"})
+            return
+        raw = self.rfile.read(length)
+        try:
+            with Image.open(BytesIO(raw)) as image:
+                if image.format not in ("JPEG", "PNG"):
+                    raise ValueError
+        except (ValueError, OSError, UnidentifiedImageError):
+            self.send_json(400, {"error": "图片数据无效"})
+            return
+        extension = ".jpg" if content_type == "image/jpeg" else ".png"
+        filename = f"{secrets.token_hex(16)}{extension}"
+        try:
+            IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+            with NamedTemporaryFile("wb", dir=IMAGE_DIR, delete=False) as temp_file:
+                temp_file.write(raw)
+                temp_path = Path(temp_file.name)
+            os.replace(temp_path, IMAGE_DIR / filename)
+        except OSError:
+            self.send_json(500, {"error": "圖片存儲失敗"})
+            return
+        self.send_json(201, {"url": f"/api/images/{filename}"})
+
+    def send_note_image(self):
+        image_path = unquote(urlsplit(self.path).path)
+        filename = image_path.removeprefix("/api/images/")
+        if not filename or filename != Path(filename).name or ".." in filename:
+            self.send_json(404, {"error": "Not found"})
+            return
+        image_file = IMAGE_DIR / filename
+        if not image_file.is_file():
+            self.send_json(404, {"error": "Image not found"})
+            return
+        extension = image_file.suffix.lower()
+        content_type = "image/jpeg" if extension in (".jpg", ".jpeg") else "image/png" if extension == ".png" else "application/octet-stream"
+        body = image_file.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
 
     def log_message(self, format, *args):
         return

@@ -1,51 +1,41 @@
 # CollabNote
 
-一个基于 Electron 和 Python 的多人共享笔记应用。Electron 前端与 Python 后端是两个独立进程，所有业务数据通过 HTTP API 传输。
+一个基于 Electron 与 Python 的多人共享笔记应用。Electron 前端与 Python 后端是两个独立进程，界面不直接读取数据文件，所有业务数据通过 HTTP API 传输。
 
-## 功能
+## 功能特性
 
-- 用户注册、登录、登出和 Bearer Token 会话认证。
-- 密码使用 PBKDF2-SHA256 和随机盐保存，不保存明文密码。
-- 笔记读取、新建、编辑、自动保存和删除。
+**账号与安全**
+
+- 用户注册、登录、登出，使用 Bearer Token 会话认证。
+- 密码以 PBKDF2-SHA256 加随机盐保存，不保存明文密码。
+- 记住最近登录用户并自动填写；勾选后经系统密码库（macOS 钥匙串 / Windows DPAPI）加密保存密码。
+
+**笔记编辑**
+
+- 笔记读取、新建、编辑、自动保存、搜索与删除。
+- 编辑器顶部实时显示同步状态：已同步 / 保存中… / 服务器断开时显示已断开。
 - 删除笔记前显示确认弹窗。
-- 好友申请、接受或拒绝申请，以及双向好友关系。
+
+**好友与社交**
+
+- 好友申请、接受或拒绝，以及双向好友关系。
 - 好友在线/离线状态，每 15 秒刷新一次。
-- 用户昵称、个性化头衔和头像设置。
-- JPG/PNG 头像由后端裁剪、压缩为 `256x256` JPEG。
+- 好友栏停靠主窗口右侧，可一键收起或重新展开。
+
+**界面与个性化**
+
+- 深色/浅色主题切换，登录页与笔记工作区均可操作，偏好保存在本地。
+- 昵称、自定义头衔与 JPG/PNG 头像设置，头像由后端裁剪压缩为 `256x256` JPEG。
 - 后端不可用时显示连接错误窗口，并支持重新连接。
 
-## 架构
+## 快速开始
 
-```text
-launcher.js
-├── Electron 前端
-│   ├── main.js       窗口和 Electron 生命周期
-│   ├── preload.js    API 地址桥接
-│   └── index.html    界面、样式和 HTTP 客户端
-└── Python 后端
-    └── server.py     HTTP API、认证、好友、笔记和头像处理
-```
-
-Electron 与 Python 是两个独立进程，前端不直接读取数据文件，只通过 HTTP API 通信。
-
-### 请求流程
-
-1. 用户注册或登录，后端返回会话 Token。
-2. 前端将 Token 保存在 `localStorage`。
-3. 后续业务请求携带 `Authorization: Bearer <token>`。
-4. 后端验证会话后读写 JSON 数据或头像文件。
-5. 后端重启后内存会话清空，用户需要重新登录。
-
-## 环境要求
-
-安装依赖：
+需要 Node.js（含 npm）与 Python 3。安装依赖：
 
 ```bash
 npm install
 python3 -m pip install -r requirements.txt
 ```
-
-## 启动方式
 
 ### 一键启动
 
@@ -63,7 +53,7 @@ npm run launcher -- restart all
 npm run launcher -- stop all
 ```
 
-启动器会记录前后端 PID，并在启动后端时等待 API 端口就绪。
+启动器会记录前后端 PID，启动后端时会等待 API 端口就绪后再继续。
 
 ### 独立启动
 
@@ -90,13 +80,7 @@ npm run launcher -- stop frontend
 
 ## 网络配置
 
-后端默认监听：
-
-```text
-http://127.0.0.1:8765
-```
-
-修改 Python 后端监听地址和端口：
+后端默认监听 `http://127.0.0.1:8765`。可通过环境变量修改后端监听地址和端口：
 
 ```bash
 COLLABNOTE_HOST=0.0.0.0 COLLABNOTE_PORT=8766 npm run backend
@@ -108,6 +92,59 @@ COLLABNOTE_HOST=0.0.0.0 COLLABNOTE_PORT=8766 npm run backend
 COLLABNOTE_API_URL=http://127.0.0.1:8766 npm run frontend
 ```
 
+## 项目结构
+
+```text
+my-electron-app/
+├── index.html                 Electron 页面：界面、样式与前端逻辑
+├── main.js                    Electron 主进程：窗口生命周期与凭据存取
+├── preload.js                 安全桥接，向页面暴露 API 地址
+├── server.py                  Python HTTP 后端：API、认证、好友、笔记、头像
+├── launcher.js                前后端进程启动器
+├── package.json               npm 脚本与 Electron 依赖
+├── requirements.txt           Python 依赖
+├── notes.json                 笔记数据文件
+├── users.json                 用户账号与好友关系数据文件
+└── frontend/
+    └── assets/avatars/        头像资源目录（Git 可见）
+```
+
+Electron 与 Python 是两个独立进程，前端不直接读取数据文件，只通过 HTTP API 通信。业务请求流程如下：
+
+1. 用户注册或登录，后端返回会话 Token。
+2. 前端将 Token 保存在 `localStorage`。
+3. 后续业务请求携带 `Authorization: Bearer <token>`。
+4. 后端验证会话后读写 JSON 数据或头像文件。
+5. 后端重启后内存会话清空，用户需要重新登录。
+
+## 使用指南
+
+### 注册与登录
+
+1. 启动后端和前端，在登录页切换到注册模式。
+2. 输入 3-32 位用户名和至少 6 位密码。
+3. 注册成功后自动进入笔记工作区，已有账号直接登录。
+
+### 管理笔记
+
+1. 从左侧列表选择笔记，编辑右侧标题或正文，内容会自动保存。
+2. 点击「新增笔记」创建笔记。
+3. 点击笔记右侧删除按钮，确认后删除。
+4. 使用搜索框按标题筛选。
+
+### 添加好友
+
+1. 在主界面右侧的好友栏「好友状态」中输入对方登录名，点击添加按钮发送好友请求。
+2. 点击「添加好友」旁的请求按钮展开请求区，可在「待处理请求」中接受或拒绝。
+3. 接受后双方都会看到彼此的名称和在线状态。
+4. 请求按钮上的红点提示待处理数量，「已发送请求」显示尚未处理的请求。
+
+### 修改个人资料
+
+1. 点击右侧用户入口，打开「个性化设置」。
+2. 修改显示名称、自定义头衔或上传 JPG/PNG 头像。
+3. 保存后后端会裁剪并压缩头像为 `256x256` JPEG。
+
 ## 数据文件
 
 - `notes.json`：笔记数据。
@@ -115,64 +152,7 @@ COLLABNOTE_API_URL=http://127.0.0.1:8766 npm run frontend
 - `frontend/assets/avatars/`：处理后的头像文件，统一为 `256x256` JPEG，并纳入 Git 副本。
 - `.collabnote-pids.json`：启动器运行时 PID 文件，不应提交到版本库。
 
-密码只保存为 PBKDF2-SHA256 哈希和随机盐，不保存明文密码。
-
-## 使用流程
-
-### 注册和登录
-
-1. 启动后端和前端。
-2. 在登录页切换到注册模式。
-3. 输入 3-32 位用户名和至少 6 位密码。
-4. 注册成功后自动进入笔记工作区。
-5. 已有账号直接登录。
-
-### 管理笔记
-
-1. 从左侧列表选择笔记。
-2. 编辑右侧标题或正文，内容会自动保存。
-3. 点击“新增笔记”创建笔记。
-4. 点击笔记右侧删除按钮，确认后删除。
-5. 使用搜索框按标题筛选。
-
-### 添加好友
-
-1. 在侧栏“好友状态”中输入对方登录名。
-2. 点击添加按钮发送好友请求。
-3. 对方在“待处理请求”中选择接受或拒绝。
-4. 接受后双方都会看到彼此的名称和在线状态。
-5. “已发送请求”显示尚未处理的请求。
-
-### 修改个人资料
-
-1. 点击右侧用户入口。
-2. 打开“个性化设置”。
-3. 修改显示名称、自定义头衔或 JPG/PNG 头像。
-4. 保存后后端会裁剪并压缩头像为 `256x256` JPEG。
-
-## 项目文件
-
-```text
-index.html                  Electron 页面、样式和前端逻辑
-main.js                     Electron 主进程
-preload.js                  安全暴露 API 地址
-server.py                   Python HTTP 后端
-launcher.js                 前后端进程启动器
-notes.json                  笔记持久化文件
-users.json                  用户和好友关系持久化文件
-frontend/assets/avatars/    Git 可见的头像资源目录
-requirements.txt            Python 依赖
-package.json                npm 脚本和 Electron 依赖
-```
-
-## 数据安全边界
-
-- 密码只保存 PBKDF2-SHA256 哈希和随机盐。
-- 当前会话存储在 Python 内存中，后端重启后失效。
-- JSON 文件和头像目录应定期备份。
-- 当前实现适合本地或受信任局域网；生产部署还应增加 HTTPS、持久化会话、访问控制和更严格的输入限制。
-
-## 主要 API
+## API 参考
 
 认证：
 
@@ -202,7 +182,7 @@ POST /api/friends/requests/:username/accept
 POST /api/friends/requests/:username/reject
 ```
 
-头像和服务状态：
+头像与服务状态：
 
 ```text
 GET /api/users/:username/avatar
@@ -214,6 +194,13 @@ GET /api/health
 ```text
 Authorization: Bearer <token>
 ```
+
+## 安全边界
+
+- 密码只保存 PBKDF2-SHA256 哈希和随机盐。
+- 当前会话存储在 Python 内存中，后端重启后失效。
+- JSON 文件和头像目录应定期备份。
+- 当前实现适合本地或受信任局域网；生产部署还应增加 HTTPS、持久化会话、访问控制和更严格的输入限制。
 
 ## 开发备注
 

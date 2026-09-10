@@ -302,9 +302,24 @@
         }
 
         .friends-rail .collaborators .avatar {
-            width: 28px;
-            height: 28px;
-            font-size: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            margin-left: -6px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+            cursor: default;
+            transition: transform 0.15s;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+            overflow: hidden;
         }
 
         .friends-rail .collaborators .online-count {
@@ -513,16 +528,11 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
             cursor: default;
             transition: transform 0.15s;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: cover;
+            overflow: hidden;
         }
-
-        .collaborators .avatar:first-child {
-            margin-left: 0;
-        }
-
-        .collaborators .avatar:hover {
-            transform: translateY(-2px);
-        }
-
         .collaborators .avatar.a1 {
             background: #3b82f6;
         }
@@ -650,6 +660,7 @@
             background-position: center;
             background-repeat: no-repeat;
             background-size: cover;
+            overflow: hidden;
         }
 
         .friend-info {
@@ -1399,6 +1410,31 @@
             font-size: 12px;
         }
 
+        /* Tint swatches (light-mode only): inserted into .user-profile-card */
+        .tint-swatch-container {
+            display: flex;
+            gap: 8px;
+            padding-bottom: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tint-swatch {
+            width: 28px;
+            height: 20px;
+            border-radius: 6px;
+            border: 1px solid rgba(0,0,0,0.08);
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+        }
+
+        .tint-swatch.selected { box-shadow: 0 0 0 3px rgba(59,130,246,0.18); }
+
+        /* Hide/disable swatches in dark mode */
+        html[data-theme="dark"] .tint-swatch-container { display: none !important; pointer-events: none !important; opacity: 0 !important; }
+
         .profile-settings-dialog {
             width: min(430px, 100%);
             padding: 24px;
@@ -2127,8 +2163,10 @@
         }
 
         [data-theme="dark"] .collaborators .avatar {
-            border-color: #101a2c;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            /* ensure avatars remain visible against dark backgrounds */
+            border-color: rgba(255,255,255,0.06);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+            color: #ffffff;
         }
 
         [data-theme="dark"] .collaborators .online-count {
@@ -2170,6 +2208,8 @@
 
         [data-theme="dark"] .friend-avatar {
             background: #5b6b85;
+            color: #ffffff;
+            border: 2px solid rgba(255,255,255,0.06);
         }
 
         [data-theme="dark"] .friend-name {
@@ -2541,6 +2581,15 @@
         [data-theme="dark"] .editor-panel {
             scrollbar-color: #2b3b58 transparent;
         }
+
+        .collaborators .avatar,
+        .friend-avatar,
+        .user-profile-avatar {
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            background-size: cover !important;
+            overflow: hidden !important;
+        }
     </style>
 
     <script>
@@ -2556,6 +2605,74 @@
             } catch (error) {
                 // localStorage 不可用時使用預設淺色模式
             }
+        })();
+    </script>
+    <style>
+    /* Light mode: map backgrounds to user-selectable --theme-tint */
+    :root { --theme-tint: #FFFFFF; }
+    html:not([data-theme="dark"]) body,
+    html:not([data-theme="dark"]) .app-container,
+    html:not([data-theme="dark"]) .sidebar,
+    html:not([data-theme="dark"]) .editor-panel,
+    html:not([data-theme="dark"]) .friends-rail,
+    html:not([data-theme="dark"]) .friends-rail .friends-panel,
+    html:not([data-theme="dark"]) .user-profile-card {
+        background-color: var(--theme-tint) !important;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    </style>
+
+    <script>
+        // Insert tint swatches into the user profile dropdown (light-mode only)
+        (function(){
+            'use strict';
+            const SWATCHES = ['#FFFFFF','#DAE4EE','#D8E8E0','#EAD8D6','#E4DAEE','#EAE2D0'];
+            const KEY = 'collabnote-tint';
+
+            function applyTint(c){
+                if (document.documentElement.getAttribute('data-theme') === 'dark') return;
+                document.documentElement.style.setProperty('--theme-tint', c);
+                try{ localStorage.setItem(KEY, c); }catch(e){}
+                updateSelected();
+            }
+
+            function updateSelected(){
+                const cur = (getComputedStyle(document.documentElement).getPropertyValue('--theme-tint')||'').trim().toUpperCase();
+                document.querySelectorAll('.tint-swatch').forEach(el=>{
+                    el.classList.toggle('selected', (el.getAttribute('data-color')||'').toUpperCase()===cur);
+                });
+            }
+
+            function create(){
+                const card = document.querySelector('.user-profile-card');
+                if(!card) return;
+                if(card.querySelector('.tint-swatch-container')) return;
+                const container = document.createElement('div');
+                container.className = 'tint-swatch-container';
+                SWATCHES.forEach(c=>{
+                    const b = document.createElement('button');
+                    b.type='button'; b.className='tint-swatch'; b.setAttribute('data-color', c);
+                    b.title = `选择界面浅色背景 ${c}`; b.style.backgroundColor = c;
+                    b.addEventListener('click', ()=>applyTint(c));
+                    container.appendChild(b);
+                });
+                const before = card.querySelector('.profile-logout-item') || null;
+                card.insertBefore(container, before);
+                // restore
+                try{
+                    const stored = localStorage.getItem(KEY);
+                    if(stored && document.documentElement.getAttribute('data-theme')!=='dark'){
+                        document.documentElement.style.setProperty('--theme-tint', stored);
+                    }
+                }catch(e){}
+                updateSelected();
+            }
+
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', create);
+            else create();
+            new MutationObserver(create).observe(document.body, {childList:true, subtree:true});
+            window.addEventListener('storage', (e)=>{ if(e.key===KEY){ if(document.documentElement.getAttribute('data-theme')!=='dark') document.documentElement.style.setProperty('--theme-tint', e.newValue); updateSelected(); }});
+            // hide in dark mode is handled by CSS rule
         })();
     </script>
   </head>
@@ -2967,6 +3084,13 @@
                 authSwitch.textContent = registering ? '已有账号？返回登录' : '还没有账号？注册';
                 authPassword.autocomplete = registering ? 'new-password' : 'current-password';
                 authRememberRow.style.display = registering ? 'none' : 'flex';
+                if (registering) {
+                    authUsername.removeAttribute('list');
+                    if (recentUsersList) recentUsersList.setAttribute('hidden', 'hidden');
+                } else {
+                    authUsername.setAttribute('list', 'recentUsersList');
+                    if (recentUsersList) recentUsersList.removeAttribute('hidden');
+                }
                 // 切换时清空输入框与错误信息，不自动填充密码
                 authUsername.value = '';
                 authPassword.value = '';
@@ -3518,7 +3642,7 @@
                 const selection = window.getSelection();
                 if (selection) {
                     selection.removeAllRanges();
-                    if (range) selection.addRange(range);
+                    selection.addRange(range);
                 }
                 if (range && !range.collapsed) {
                     document.execCommand('createLink', false, url);
@@ -4082,6 +4206,13 @@
                     }
                     avatarGroup.appendChild(avatar);
                 });
+                if (online.length > 5) {
+                    const more = document.createElement('span');
+                    more.className = 'avatar a6';
+                    more.textContent = `+${online.length - 5}`;
+                    more.title = online.slice(5).map(presencePersonName).join('、');
+                    avatarGroup.appendChild(more);
+                }
                 onlineCount.textContent = online.length;
                 if (onlineCountWrap) onlineCountWrap.classList.toggle('no-online', online.length === 0);
             }
@@ -4660,6 +4791,5 @@
             syncFriendsVisibility();
         })();
     </script>
-
 </body>
 </html>

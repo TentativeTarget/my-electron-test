@@ -194,7 +194,8 @@
             border-radius: 20px;
             box-shadow: 0 20px 45px -20px rgba(15, 23, 42, 0.35);
             overflow: hidden;
-            transition: transform 0.25s ease, opacity 0.2s ease;
+            transform-origin: right center;
+            transition: transform 0.34s cubic-bezier(0.65, 0, 0.35, 1);
         }
 
         body.friends-enabled .friends-rail {
@@ -203,7 +204,7 @@
 
         body.friends-enabled {
             padding-right: 348px;
-            transition: padding-right 0.25s ease;
+            transition: padding-right 0.34s cubic-bezier(0.65, 0, 0.35, 1);
         }
 
         body.friends-enabled.friends-minimized {
@@ -211,8 +212,7 @@
         }
 
         body.friends-minimized .friends-rail {
-            opacity: 0;
-            transform: translateX(calc(100% + 60px));
+            transform: translateX(calc(100% + 60px)) scale(0.98);
             pointer-events: none;
         }
 
@@ -224,38 +224,6 @@
             flex-shrink: 0;
             padding: 14px 16px;
             border-bottom: 1px solid #eef2f8;
-        }
-
-        .friends-rail-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .friends-rail-stats {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 30px;
-            background: #eef3ff;
-            color: #2563eb;
-            font-size: 11px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .friends-rail-stats i {
-            color: #22c55e;
-            font-size: 8px;
-        }
-
-        .friends-rail-stats.no-online i {
-            color: #cbd5e1;
-        }
-
-        .friends-rail-stats-sep {
-            color: #93c5fd;
         }
 
         .friends-rail-body {
@@ -282,36 +250,16 @@
             font-size: 14px;
         }
 
-        .friends-minimize-btn {
-            width: 30px;
-            height: 30px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #e2e8f0;
-            border-radius: 9px;
-            background: #ffffff;
-            color: #64748b;
-            font-size: 12px;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s, border-color 0.15s;
-        }
-
-        .friends-minimize-btn:hover {
-            background: #eef3ff;
-            border-color: #b9d0fd;
-            color: #2563eb;
-        }
-
-        .friends-reopen-btn {
+        .friends-toggle-btn {
             position: fixed;
-            right: 30px;
             top: 50%;
-            transform: translateY(-50%);
-            z-index: 45;
+            /* 由 JS 依「好友欄左側邊框線」與「主框架右側邊線」兩個錨點即時計算 */
+            right: 312px;
             display: none;
             align-items: center;
             justify-content: center;
+            transform: translateY(-50%);
+            z-index: 45;
             width: 36px;
             height: 36px;
             padding: 0;
@@ -322,21 +270,46 @@
             font-size: 15px;
             cursor: pointer;
             box-shadow: 0 8px 24px -12px rgba(15, 23, 42, 0.25);
-            transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s ease;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
 
-        .friends-reopen-btn:hover {
+        .friends-toggle-btn i {
+            transition: transform 0.34s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        body.friends-minimized .friends-toggle-btn i {
+            transform: rotate(180deg);
+        }
+
+        .friends-toggle-btn:hover {
             background: #eef3ff;
             border-color: #b9d0fd;
-            transform: translateY(-50%) scale(1.08);
         }
 
-        body.friends-enabled.friends-minimized .friends-reopen-btn {
+        body.friends-enabled .friends-toggle-btn {
             display: flex;
         }
 
         .friends-rail .friends-panel {
             margin: 0;
+        }
+
+        /* 好友欄內的線上好友區塊（由左側側邊欄移入） */
+        .friends-rail .collaborators {
+            margin-bottom: 0;
+            padding: 10px 12px;
+            flex-wrap: wrap;
+        }
+
+        .friends-rail .collaborators .avatar {
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+        }
+
+        .friends-rail .collaborators .online-count {
+            font-size: 12px;
+            margin-left: 0;
         }
 
         /* 好友欄頂端的使用者狀態 */
@@ -580,6 +553,11 @@
 
         .collaborators .online-count.no-online span {
             color: #94a3b8;
+        }
+
+        .collaborators .online-count .online-count-total {
+            color: #94a3b8;
+            font-weight: 500;
         }
 
         .friends-panel {
@@ -1868,9 +1846,6 @@
                 border-radius: 0;
             }
 
-            .friends-reopen-btn {
-                right: 14px;
-            }
         }
 
         @media (max-width: 500px) {
@@ -2088,39 +2063,14 @@
             color: #e6edf6;
         }
 
-        [data-theme="dark"] .friends-rail-stats {
-            background: #16233c;
-            color: #93c5fd;
-        }
-
-        [data-theme="dark"] .friends-rail-stats.no-online i {
-            color: #3a4c6b;
-        }
-
-        [data-theme="dark"] .friends-rail-stats-sep {
-            color: #3d5480;
-        }
-
-        [data-theme="dark"] .friends-minimize-btn {
-            background: #141f34;
-            border-color: #26354f;
-            color: #93a5c0;
-        }
-
-        [data-theme="dark"] .friends-minimize-btn:hover {
-            background: #1b2a45;
-            border-color: #34517f;
-            color: #bfdbfe;
-        }
-
-        [data-theme="dark"] .friends-reopen-btn {
+        [data-theme="dark"] .friends-toggle-btn {
             background: #141f34;
             border-color: #26354f;
             color: #93c5fd;
             box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.6);
         }
 
-        [data-theme="dark"] .friends-reopen-btn:hover {
+        [data-theme="dark"] .friends-toggle-btn:hover {
             background: #1b2a45;
             border-color: #34517f;
         }
@@ -2168,6 +2118,10 @@
 
         [data-theme="dark"] .collaborators .online-count {
             color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .collaborators .online-count .online-count-total {
+            color: #8fa2bd;
         }
 
         [data-theme="dark"] .friends-panel-title {
@@ -2628,14 +2582,6 @@
                 <span class="badge"><i class="fas fa-users" style="margin-right: 4px;"></i>團隊</span>
             </div>
 
-            <!-- 協作者 -->
-            <div class="collaborators">
-                <div class="avatar-group"></div>
-                <div class="online-count">
-                    <span>●</span> <span id="onlineCount">0</span> 位線上
-                </div>
-            </div>
-
             <!-- 搜尋 -->
             <div class="search-box">
                 <i class="fas fa-search"></i>
@@ -2727,19 +2673,16 @@
         <aside class="friends-rail" aria-label="好友状态">
             <div class="friends-rail-header">
                 <span class="friends-rail-title"><i class="fas fa-user-friends" aria-hidden="true"></i> 好友</span>
-                <div class="friends-rail-actions">
-                    <span class="friends-rail-stats" id="friendsRailStats" title="在线好友 / 全部好友">
-                        <i class="fas fa-circle" aria-hidden="true"></i>
-                        <b id="friendsOnlineCount">0</b>
-                        <span class="friends-rail-stats-sep">/</span>
-                        <span id="friendsTotalCount">0</span>
-                    </span>
-                    <button class="friends-minimize-btn" id="friendsMinimizeBtn" type="button" title="收起好友欄" aria-label="收起好友欄">
-                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
-                    </button>
-                </div>
             </div>
             <div class="friends-rail-body">
+            <!-- 線上好友（原左側側邊欄的線上區塊） -->
+            <div class="collaborators">
+                <div class="avatar-group"></div>
+                <div class="online-count">
+                    <span>●</span> <span id="onlineCount">0</span> 位線上
+                    <span class="online-count-total">· 共 <b id="friendsTotalCount">0</b> 位好友</span>
+                </div>
+            </div>
             <div class="user-profile">
                 <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
                     <span class="user-profile-avatar" id="userProfileAvatar">?</span>
@@ -2792,8 +2735,9 @@
         </aside>
 
     <!-- ===== 好友欄重新展開按鈕 ===== -->
-    <button class="friends-reopen-btn" id="friendsReopenBtn" type="button" title="展開好友欄" aria-label="展開好友欄">
-        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+    <!-- ===== 好友欄切換按鈕：展開時貼好友欄左側邊框線，收起時貼主框架右側邊線 ===== -->
+    <button class="friends-toggle-btn" id="friendsToggleBtn" type="button" title="收起好友欄" aria-label="收起好友欄">
+        <i class="fas fa-chevron-right" aria-hidden="true"></i>
     </button>
 
     <div class="delete-dialog-backdrop" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
@@ -4083,13 +4027,8 @@
                 renderPersonList(friendRequestsList, incomingRequests, '暂无请求', true);
                 renderPersonList(friendOutgoingList, outgoingRequests, '暂无请求');
                 renderCollaborators(friends);
-                const onlineFriends = friends.filter(person => person.online).length;
-                const onlineStat = document.getElementById('friendsOnlineCount');
                 const totalStat = document.getElementById('friendsTotalCount');
-                const statsWrap = document.getElementById('friendsRailStats');
-                if (onlineStat) onlineStat.textContent = onlineFriends;
                 if (totalStat) totalStat.textContent = friends.length;
-                if (statsWrap) statsWrap.classList.toggle('no-online', onlineFriends === 0);
             }
 
             function renderCollaborators(friends) {
@@ -4582,17 +4521,90 @@
 
             const body = document.body;
             const appContainer = document.querySelector('.app-container');
-            const minimizeBtn = document.getElementById('friendsMinimizeBtn');
-            const reopenBtn = document.getElementById('friendsReopenBtn');
+            const friendsRail = document.querySelector('.friends-rail');
+            const toggleBtn = document.getElementById('friendsToggleBtn');
+            const APP_CARD_WIDTH = 1440;
+            const BODY_PADDING = 30;
+            const RAIL_ANIMATION_MS = 360;
+            let toggleToken = 0;
+
+            // 與好友欄/主框架一致的 easeInOutCubic（≈ cubic-bezier(0.65, 0, 0.35, 1)）
+            function easeInOutCubic(progress) {
+                return progress < 0.5
+                    ? 4 * progress * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+            }
+
+            // 展開時：圓心貼好友欄左側邊框線
+            function expandedAnchor() {
+                if (!friendsRail) return 312;
+                const styles = window.getComputedStyle(friendsRail);
+                const railRight = parseFloat(styles.right) || 0;
+                const railWidth = parseFloat(styles.width) || 300;
+                return railRight + railWidth - 18;
+            }
+
+            // 收起時：圓心貼主框架右側邊線
+            function minimizedAnchor() {
+                const viewportWidth = document.documentElement.clientWidth;
+                const contentWidth = Math.max(0, viewportWidth - BODY_PADDING * 2);
+                const cardWidth = Math.min(APP_CARD_WIDTH, contentWidth);
+                const gap = Math.max(0, (contentWidth - cardWidth) / 2);
+                return BODY_PADDING + gap - 18;
+            }
+
+            function toggleAnchor() {
+                return body.classList.contains('friends-minimized') ? minimizedAnchor() : expandedAnchor();
+            }
+
+            function placeToggleButton() {
+                if (!toggleBtn) return;
+                toggleBtn.style.right = `${toggleAnchor()}px`;
+            }
+
+            // 切換時讓同一顆按鈕在兩個錨點之間以非線性緩動滑動，避免切換閃爍
+            function animateToggleButton(from) {
+                if (!toggleBtn) return;
+                const token = ++toggleToken;
+                const target = toggleAnchor();
+                const start = Number.isFinite(from) ? from : target;
+                const startTime = performance.now();
+                (function step(now) {
+                    if (token !== toggleToken) return;
+                    const progress = Math.min(1, (now - startTime) / RAIL_ANIMATION_MS);
+                    const eased = easeInOutCubic(progress);
+                    toggleBtn.style.right = `${start + (target - start) * eased}px`;
+                    if (progress < 1) window.requestAnimationFrame(step);
+                })(startTime);
+            }
+
+            function syncToggleButtonLabel() {
+                if (!toggleBtn) return;
+                const label = body.classList.contains('friends-minimized') ? '展開好友欄' : '收起好友欄';
+                toggleBtn.title = label;
+                toggleBtn.setAttribute('aria-label', label);
+            }
 
             function syncFriendsVisibility() {
                 const authenticated = Boolean(appContainer?.classList.contains('authenticated'));
+                toggleToken += 1;
                 body.classList.toggle('friends-enabled', authenticated);
                 body.classList.toggle('friends-minimized', authenticated);
+                syncToggleButtonLabel();
+                placeToggleButton();
             }
 
-            minimizeBtn?.addEventListener('click', () => body.classList.add('friends-minimized'));
-            reopenBtn?.addEventListener('click', () => body.classList.remove('friends-minimized'));
+            toggleBtn?.addEventListener('click', () => {
+                const from = toggleAnchor();
+                body.classList.toggle('friends-minimized');
+                syncToggleButtonLabel();
+                animateToggleButton(from);
+            });
+
+            window.addEventListener('resize', () => {
+                toggleToken += 1;
+                placeToggleButton();
+            });
 
             if (appContainer) {
                 new MutationObserver(syncFriendsVisibility).observe(appContainer, {

@@ -15,10 +15,19 @@
     "salt": "6258535681d2af799df9f7ab30628d61",
     "passwordHash": "fcd6a5c2d08b821e8040927a645dc32317bd8b585bb0e958047d1c3517faa29c",
     "friends": [
-      "YvLvn"
+      "YvLvn",
+      "LimeSev"
     ],
     "friendRequests": [],
     "displayName": "測試帳號",
     "title": "团队成员"
+  },
+  {
+    "username": "LimeSev",
+    "salt": "bfb1a117fcdc69bc6a508f23d743ec91",
+    "passwordHash": "b06e9945be0f89c87523c7200a7cd3c4f6c1f5b55b29c12719b812377dfd2fd5",
+    "friends": [
+      "test"
+    ]
   }
 ]

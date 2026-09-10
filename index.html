@@ -1332,24 +1332,39 @@
             font-weight: 600;
         }
 
+        /* 改为内联下拉，不再使用 hover 浮窗 */
         .user-profile-card {
-            position: absolute;
-            top: calc(100% + 10px);
-            right: 0;
-            z-index: 5;
+            position: static;
             display: none;
-            width: 220px;
-            padding: 16px;
+            width: 100%;
+            padding: 12px;
             border: 1px solid #e2e8f0;
-            border-radius: 14px;
+            border-radius: 10px;
             background: #ffffff;
-            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.15);
+            box-shadow: none;
+            margin-top: 8px;
+            transition: max-height 180ms ease, opacity 160ms ease;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
         }
 
-        .user-profile:hover .user-profile-card,
-        .user-profile:focus-within .user-profile-card {
+        /* 当容器带 .open 时展开，下拉代替浮窗 */
+        .user-profile.open .user-profile-card {
             display: block;
-            animation: delete-dialog-fade-in 150ms ease-out both;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+            max-height: 420px;
+            opacity: 1;
+            animation: none;
+        }
+
+        /* 箭头上下切换效果：在触发器内的 chevron 翻转 */
+        .user-profile .user-profile-trigger i.fa-chevron-down {
+            transition: transform 180ms ease;
+        }
+
+        .user-profile.open .user-profile-trigger i.fa-chevron-down {
+            transform: rotate(180deg);
         }
 
         .user-profile-card strong {
@@ -2921,14 +2936,19 @@
                 connectionDialog.classList.remove('visible');
             }
 
-            function showAuthScreen() {
+            function showAuthScreen(autoFocusUsername = false) {
                 stopConnectionMonitor();
                 stopPresenceMonitor();
                 renderPresenceRoster([]);
                 appContainer.classList.remove('authenticated');
                 authScreen.style.display = 'block';
                 renderRecentUsers();
-                authUsername.focus();
+                if (autoFocusUsername) {
+                    authUsername.focus();
+                } else {
+                    authUsername.blur();
+                    authPassword.blur();
+                }
                 restoreSavedCredentials();
             }
 
@@ -2939,6 +2959,7 @@
             }
 
             function setAuthMode(mode) {
+                // 切换登录/注册模式时清空填写信息，避免保留字段
                 authMode = mode;
                 const registering = mode === 'register';
                 authSubtitle.textContent = registering ? '创建账号后开始使用团队笔记' : '登录后管理你的团队笔记';
@@ -2946,9 +2967,11 @@
                 authSwitch.textContent = registering ? '已有账号？返回登录' : '还没有账号？注册';
                 authPassword.autocomplete = registering ? 'new-password' : 'current-password';
                 authRememberRow.style.display = registering ? 'none' : 'flex';
-                if (registering) authRememberCheckbox.checked = false;
+                // 切换时清空输入框与错误信息，不自动填充密码
+                authUsername.value = '';
+                authPassword.value = '';
                 authError.textContent = '';
-                if (!registering) fillSavedPassword(authUsername.value.trim());
+                authRememberCheckbox.checked = false;
             }
 
             // ─── 歷史登入用戶與系統密碼保存 ───
@@ -3956,7 +3979,7 @@
                     startPresenceMonitor();
                 } catch (error) {
                     console.error('無法連接 Python 後端', error);
-                    if (error.status === 401) showAuthScreen();
+                    if (error.status === 401) showAuthScreen(false);
                     noteTitleInput.value = '';
                     noteContent.innerHTML = '';
                 }
@@ -4264,7 +4287,7 @@
                     if (authToken) {
                         await loadNotes();
                     } else {
-                        showAuthScreen();
+                        showAuthScreen(false);
                     }
                 } catch (error) {
                     console.error('重新连接失败', error);
@@ -4321,7 +4344,7 @@
                 notesData.splice(0, notesData.length);
                 noteList.replaceChildren();
                 renderFriends([]);
-                showAuthScreen();
+                showAuthScreen(false);
             });
 
             profileSettingsBtn.addEventListener('click', function() {
@@ -4336,6 +4359,28 @@
                 profileSettingsDialog.classList.add('visible');
                 profileDisplayName.focus();
             });
+
+            // 用户信息下拉：改为点击展开/收起（上下箭头切换），并实现点击外部关闭
+            const userProfile = document.querySelector('.user-profile');
+            const userProfileTrigger = document.getElementById('userProfileTrigger');
+            if (userProfileTrigger && userProfile) {
+                userProfileTrigger.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    userProfile.classList.toggle('open');
+                });
+
+                // 点击页面其他地方自动关闭下拉
+                document.addEventListener('click', function(e) {
+                    if (!userProfile.contains(e.target)) {
+                        userProfile.classList.remove('open');
+                    }
+                });
+
+                // 按 Esc 关闭
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') userProfile.classList.remove('open');
+                });
+            }
 
             profileAvatarInput.addEventListener('change', function() {
                 const file = this.files?.[0];
@@ -4409,10 +4454,10 @@
                             authToken = null;
                             localStorage.removeItem('collabNoteToken');
                         }
-                        showAuthScreen();
+                        showAuthScreen(false);
                     });
             } else {
-                showAuthScreen();
+                showAuthScreen(true);
             }
             connectionRetryBtn.addEventListener('click', retryConnection);
 

@@ -240,3 +240,6 @@ Authorization: Bearer <token>
 
 测试提交owo
 进行了部分修改
+
+修复好友头像小bug
+增添界面色调预设

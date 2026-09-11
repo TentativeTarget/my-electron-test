@@ -933,6 +933,20 @@
             color: #94a3b8;
         }
 
+        .note-item .note-meta .note-owner {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 上次編輯時間固定靠右 */
+        .note-item .note-meta .note-time {
+            flex-shrink: 0;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
         .note-item .note-actions {
             display: flex;
             align-items: center;
@@ -1151,11 +1165,6 @@
         .note-item .note-meta .access-badge i {
             font-size: 9px;
             margin-right: 0;
-        }
-
-        .note-item .note-meta .access-badge.edit {
-            background: #dbeafe;
-            color: #1d4ed8;
         }
 
         .note-item .note-meta .access-badge.view {
@@ -2832,11 +2841,6 @@
         [data-theme="dark"] .editor-header .right .note-permission-chip.view {
             background: rgba(245, 158, 11, 0.16);
             color: #fbbf24;
-        }
-
-        [data-theme="dark"] .note-item .note-meta .access-badge.edit {
-            background: rgba(59, 130, 246, 0.2);
-            color: #93c5fd;
         }
 
         [data-theme="dark"] .note-item .note-meta .access-badge.view {
@@ -4858,11 +4862,9 @@
                     item.className = 'note-item';
                     item.dataset.id = note.id;
                     const ownerLabel = escapeHtmlText(note.ownerName || note.owner || '未知');
-                    const accessMark = note.access === 'edit'
-                        ? '<span class="access-badge edit" title="別人邀請你編輯這篇筆記"><i class="fas fa-user-friends"></i> 編輯</span>'
-                        : note.access === 'view'
-                            ? '<span class="access-badge view" title="你只有閱讀權限"><i class="fas fa-lock"></i> 只讀</span>'
-                            : '';
+                    const accessMark = note.access === 'view'
+                        ? '<span class="access-badge view" title="你只有閱讀權限"><i class="fas fa-lock"></i> 只讀</span>'
+                        : '';
                     const deleteAction = note.canManage === false
                         ? ''
                         : '<div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>';

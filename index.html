@@ -933,36 +933,6 @@
             color: #94a3b8;
         }
 
-        .note-item .note-meta .editors {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .note-item .note-meta .editors .dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 2px;
-        }
-
-        .dot.green {
-            background: #22c55e;
-        }
-        .dot.yellow {
-            background: #eab308;
-        }
-        .dot.purple {
-            background: #8b5cf6;
-        }
-        .dot.blue {
-            background: #3b82f6;
-        }
-        .dot.pink {
-            background: #ec4899;
-        }
-
         .note-item .note-actions {
             display: flex;
             align-items: center;
@@ -4220,7 +4190,6 @@
                     tagStyle: 'background:#f1f5f9;color:#475569;',
                     content: '開始撰寫你的筆記…',
                     time: '剛剛',
-                    editors: ['green'],
                     owner: currentUsername,
                     ownerName: currentDisplayName || currentUsername,
                     members: [],
@@ -4258,10 +4227,6 @@
                         </div>
                         <div class="note-meta">
                             <span><i class="far fa-clock"></i> 剛剛</span>
-                            <span class="editors">
-                                <i class="fas fa-user-edit"></i>
-                                <span class="dot green"></span>
-                            </span>
                         </div>
                     </div>
                     <div class="note-actions">
@@ -4905,7 +4870,7 @@
                         <div class="note-icon"><i class="fas fa-file-alt"></i></div>
                         <div class="note-content">
                             <div class="note-title">${escapeHtmlText(note.title)}<span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
-                            <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${accessMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
+                            <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${accessMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span></div>
                         </div>
                         ${deleteAction}`;
                     noteList.appendChild(item);

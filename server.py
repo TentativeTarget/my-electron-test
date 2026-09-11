@@ -507,7 +507,6 @@ class NotesHandler(BaseHTTPRequestHandler):
                 "tagStyle": "background:#f1f5f9;color:#475569;",
                 "content": payload.get("content", "開始撰寫你的筆記…"),
                 "time": "剛剛",
-                "editors": ["green"],
                 "owner": session["username"],
                 "members": [],
             }

@@ -2740,6 +2740,8 @@
             scrollbar-color: #2b3b58 transparent;
         }
 
+        /* 頭像帶 2px 邊框，background-origin 預設只鋪滿 padding box，
+           會讓圖片比圓形小一圈、露出底下的配色，故改為鋪滿整個邊框盒 */
         .collaborators .avatar,
         .editor-header .right .avatar-stack .mini-avatar,
         .friend-avatar,
@@ -2747,6 +2749,8 @@
             background-repeat: no-repeat !important;
             background-position: center !important;
             background-size: cover !important;
+            background-origin: border-box !important;
+            background-clip: border-box !important;
             overflow: hidden !important;
         }
     </style>

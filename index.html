@@ -554,6 +554,15 @@
             background-size: cover;
             overflow: hidden;
         }
+
+        .collaborators .avatar:first-child {
+            margin-left: 0;
+        }
+
+        .collaborators .avatar:hover {
+            transform: translateY(-2px);
+        }
+
         .collaborators .avatar.a1 {
             background: #3b82f6;
         }
@@ -4337,13 +4346,6 @@
                     }
                     avatarGroup.appendChild(avatar);
                 });
-                if (online.length > 5) {
-                    const more = document.createElement('span');
-                    more.className = 'avatar a6';
-                    more.textContent = `+${online.length - 5}`;
-                    more.title = online.slice(5).map(presencePersonName).join('、');
-                    avatarGroup.appendChild(more);
-                }
                 onlineCount.textContent = online.length;
                 if (onlineCountWrap) onlineCountWrap.classList.toggle('no-online', online.length === 0);
             }

@@ -1223,41 +1223,75 @@
             opacity: 0.6;
         }
 
+        /* 邀請列：三個控制項同高，且要壓過對話框通用的 input 樣式 */
         .share-invite-form {
             display: flex;
+            align-items: center;
             gap: 8px;
             margin-bottom: 14px;
         }
 
-        .share-invite-form input {
-            flex: 1;
+        .profile-settings-dialog .share-invite-form input[type="text"] {
+            flex: 1 1 auto;
+            width: auto;
             min-width: 0;
-            padding: 9px 10px;
-            border: 1px solid #e2e8f0;
-            border-radius: 9px;
+            height: 38px;
+            margin-bottom: 0;
+            padding: 0 12px;
+            border-radius: 10px;
             font-size: 13px;
-            color: #334155;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
 
-        .share-invite-form select {
+        .profile-settings-dialog .share-invite-form input[type="text"]::placeholder {
+            color: #94a3b8;
+        }
+
+        .profile-settings-dialog .share-invite-form input[type="text"]:focus {
+            outline: none;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+        }
+
+        .profile-settings-dialog .share-invite-form select {
             flex-shrink: 0;
-            padding: 0 8px;
+            height: 38px;
+            padding: 0 10px;
             border: 1px solid #e2e8f0;
-            border-radius: 9px;
+            border-radius: 10px;
             background: #ffffff;
             color: #334155;
             font-size: 13px;
             cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
 
-        .share-invite-form button {
-            width: 42px;
+        .profile-settings-dialog .share-invite-form select:focus {
+            outline: none;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+        }
+
+        .profile-settings-dialog .share-invite-form button {
             flex-shrink: 0;
+            width: 42px;
+            height: 38px;
             border: 0;
-            border-radius: 9px;
+            border-radius: 10px;
             background: #3b82f6;
             color: #ffffff;
+            font-size: 13px;
             cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .profile-settings-dialog .share-invite-form button:hover {
+            background: #2563eb;
+        }
+
+        .profile-settings-dialog .share-invite-form button:disabled {
+            cursor: wait;
+            opacity: 0.6;
         }
 
         .share-hint {
@@ -2855,10 +2889,14 @@
             color: #d7e0ee;
         }
 
-        [data-theme="dark"] .share-invite-form select {
+        [data-theme="dark"] .profile-settings-dialog .share-invite-form select {
             background: #0c172a;
             border-color: #26354f;
             color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .profile-settings-dialog .share-invite-form input[type="text"]::placeholder {
+            color: #6b7f9e;
         }
 
         [data-theme="dark"] .share-owner-line,

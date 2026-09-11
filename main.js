@@ -9,7 +9,8 @@ const path = require('node:path')
 function resolveProfileName() {
   const fromArg = process.argv.find(arg => arg.startsWith('--profile='))
   const raw = fromArg ? fromArg.slice('--profile='.length) : process.env.COLLABNOTE_PROFILE
-  return String(raw || '').trim().replace(/[^A-Za-z0-9_-]+/g, '').slice(0, 32)
+  // 只保留安全字元（含中文），避免路徑跳脫或非法檔名
+  return String(raw || '').trim().replace(/[^A-Za-z0-9_\-\u4e00-\u9fff]+/g, '').slice(0, 32)
 }
 
 const profileName = resolveProfileName()
@@ -48,9 +49,21 @@ const createWindow = () => {
     height: 720,
     show: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      // 讓 preload 取得設定檔名稱（即使只用 --profile= 參數啟動）
+      additionalArguments: profileName ? [`--collabnote-profile=${profileName}`] : []
     }
   })
+
+  if (profileName) {
+    // 同時開多個前端時，用視窗標題分辨各自身分
+    const title = `CollabNote — ${profileName}`
+    win.setTitle(title)
+    win.on('page-title-updated', event => {
+      event.preventDefault()
+      win.setTitle(title)
+    })
+  }
 
   win.once('ready-to-show', () => {
     win.show()

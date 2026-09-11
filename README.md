@@ -26,7 +26,8 @@
 
 - 好友申请、接受或拒绝，以及双向好友关系。
 - 好友在线/离线状态，每 15 秒刷新一次。
-- 单后端多前端：多位使用者以各自账号连接同一台服务器，笔记、好友与在线状态实时共享；登录页可填写服务器地址，支持 `--profile` 在同一台电脑上开多个实例。
+- 单后端多前端：多位使用者以各自账号连接同一台服务器，笔记、好友与在线状态实时共享；登录页可填写服务器地址。
+- 本地多实例：以 `--profile` / `COLLABNOTE_PROFILE` 让每个前端使用独立 `userData`，可在同一台电脑同时开多个窗口并以不同账号登录，启动器以 `frontend:<设定档>` 分别追踪 PID。
 - 好友栏停靠主窗口右侧，默认收起；圆形切换按钮默认贴在主框架右侧边框线上，展开后滑到好友栏左侧边线。点击时同一颗按钮在两个锚点间以非线性缓动平滑移动、图标同步旋转 180°，不会因按钮切换而闪烁。
 - 在线好友头像区位于好友栏顶部：按在线优先展示，最多 5 个头像，在线计数不限且包含本人，右侧同时显示好友总数。
 
@@ -61,7 +62,7 @@ npm run launcher -- restart all
 npm run launcher -- stop all
 ```
 
-启动器会记录前后端 PID，启动后端时会等待 API 端口就绪后再继续。后端默认监听所有网卡，同一局域网的其他电脑也能连接，详见「多用户连接同一个后端」。
+启动器会记录前后端 PID，启动后端时会等待 API 端口就绪后再继续。后端默认监听所有网卡，同一局域网的其他电脑也能连接；前端支持同时开多个实例（`frontend:<设定档>`），详见「多用户连接同一个后端」。
 
 ### 独立启动
 
@@ -119,14 +120,43 @@ Notes API listening on http://0.0.0.0:8765
 COLLABNOTE_API_URL=http://192.168.1.100:8765 npm run frontend
 ```
 
-### 3. 在同一台电脑上模拟多用户
+### 3. 在同一台电脑上运行多个前端
 
-用 `--profile` 或 `COLLABNOTE_PROFILE` 启动多个前端实例，每个实例拥有独立的登录状态与已保存密码：
+前端以「设定档（profile）」隔离实例。每个设定档使用独立的 `userData` 目录（`<userData>/profiles/<名称>`），因此登录 token、已保存密码、界面配色等互不干扰，但全部连向同一个后端，可以在一台电脑上同时扮演多位使用者。
+
+三种启动方式等价：
 
 ```bash
+# 1. 启动器一次开多个实例（推荐，可统一查看与停止）
+npm run launcher -- start backend frontend:alice frontend:bob
+
+# 2. 直接带参启动
 npm run frontend -- --profile=alice
+
+# 3. 用环境变量指定
 COLLABNOTE_PROFILE=bob npm run frontend
 ```
+
+启动器会为每个设定档记录各自的 PID：
+
+```bash
+npm run launcher -- status
+# backend: stopped
+# frontend (預設): running (PID 45120)
+# frontend:alice: running (PID 45121)
+# frontend:bob: running (PID 45122)
+
+npm run launcher -- stop frontend        # 停止所有前端实例（含具名设定档）
+npm run launcher -- stop frontend:bob    # 只停止 bob
+```
+
+设计要点：
+
+- `--profile` 与 `COLLABNOTE_PROFILE` 都会生效，启动器会同时传入参数与环境变量。
+- 设定档名称只保留中英文、数字、`-`、`_`，其余字符会被忽略，避免路径跳脱。
+- 窗口标题会显示为 `CollabNote — <设定档>`，个人资料卡也会显示「伺服器 + 设定档」，方便分辨哪个窗口是哪位使用者。
+- 不指定设定档时使用预设实例，可与具名实例同时运行。
+- 同一个设定档不要同时开两份：它们共用登录状态，会互相覆盖。
 
 ### 4. 连接失败时
 
@@ -140,7 +170,7 @@ my-electron-app/
 ├── main.js                    Electron 主进程：窗口生命周期、凭据存取与 --profile 多实例
 ├── preload.js                 安全桥接，向页面暴露默认 API 地址与设定档名称
 ├── server.py                  Python HTTP 后端：API、认证、好友、笔记、头像
-├── launcher.js                前后端进程启动器
+├── launcher.js                前后端进程启动器（支持 frontend:<设定档> 多实例）
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
 ├── notes.json                 笔记数据文件

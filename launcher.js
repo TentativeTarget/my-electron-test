@@ -5,7 +5,27 @@ const path = require('node:path')
 
 const projectDir = __dirname
 const pidFile = path.join(projectDir, '.collabnote-pids.json')
-const targetNames = ['backend', 'frontend']
+const APPS = ['backend', 'frontend']
+
+// 每個前端實例在 PID 檔中以 `frontend:<設定檔>` 區分；
+// 不帶設定檔的預設實例仍使用 `frontend`，可與具名實例同時運行。
+function profileFromEnv() {
+  return String(process.env.COLLABNOTE_PROFILE || '').trim()
+}
+
+function parseTarget(raw) {
+  const value = String(raw || '').trim()
+  if (!value) return null
+  if (value === 'all') return 'all'
+  const separator = value.indexOf(':')
+  const app = separator === -1 ? value : value.slice(0, separator)
+  const profile = separator === -1 ? '' : value.slice(separator + 1).trim()
+  if (!APPS.includes(app)) return null
+  if (profile && app !== 'frontend') return null
+  if (app === 'backend') return 'backend'
+  const name = profile || profileFromEnv()
+  return name ? `frontend:${name}` : 'frontend'
+}
 
 function readPids() {
   try {
@@ -29,8 +49,28 @@ function isRunning(pid) {
   }
 }
 
-function removeStalePid(name, pids) {
-  if (pids[name] && !isRunning(pids[name])) delete pids[name]
+function frontendKeys(pids) {
+  const keys = Object.keys(pids).filter(name => name === 'frontend' || name.startsWith('frontend:'))
+  return keys.sort((a, b) => a.localeCompare(b))
+}
+
+// 決定一個指令要作用在哪些實例上：
+//   start  → 只啟動指定實例（frontend 代表預設實例）
+//   stop   → frontend 代表「所有前端實例」，避免漏掉具名實例
+function keysForAction(raw, action, pids) {
+  const target = parseTarget(raw)
+  if (!target) return null
+  const stopping = action === 'stop' || action === 'restart'
+  if (target === 'all') {
+    const fronts = frontendKeys(pids)
+    return stopping ? ['backend', ...fronts] : ['backend', 'frontend']
+  }
+  if (target === 'frontend') {
+    if (!stopping) return ['frontend']
+    const fronts = frontendKeys(pids)
+    return fronts.length ? fronts : ['frontend']
+  }
+  return [target]
 }
 
 function commandFor(name) {
@@ -38,15 +78,19 @@ function commandFor(name) {
     return {
       command: process.platform === 'win32' ? 'python' : 'python3',
       args: [path.join(projectDir, 'server.py')],
-      env: process.env
+      env: { ...process.env }
     }
   }
 
-  return {
-    command: require('electron'),
-    args: [projectDir],
-    env: process.env
+  const profile = name.startsWith('frontend:') ? name.slice('frontend:'.length) : ''
+  const args = [projectDir]
+  const env = { ...process.env }
+  if (profile) {
+    // 同時用參數與環境變數傳遞，讓 main.js 兩種啟動方式都能識別
+    args.push(`--profile=${profile}`)
+    env.COLLABNOTE_PROFILE = profile
   }
+  return { command: require('electron'), args, env }
 }
 
 function waitForBackend(timeout = 5000) {
@@ -76,7 +120,7 @@ function waitForBackend(timeout = 5000) {
 
 async function start(name) {
   const pids = readPids()
-  removeStalePid(name, pids)
+  if (pids[name] && !isRunning(pids[name])) delete pids[name]
   if (pids[name]) {
     console.log(`${name} already running (PID ${pids[name]})`)
     return
@@ -128,33 +172,73 @@ function stop(name) {
 
 function status() {
   const pids = readPids()
-  for (const name of targetNames) {
-    const pid = pids[name]
-    console.log(`${name}: ${pid && isRunning(pid) ? `running (PID ${pid})` : 'stopped'}`)
+  const backend = pids.backend
+  console.log(`backend: ${backend && isRunning(backend) ? `running (PID ${backend})` : 'stopped'}`)
+  const fronts = frontendKeys(pids).filter(key => key !== 'frontend')
+  const defaultPid = pids.frontend
+  const rows = [
+    ['frontend', defaultPid],
+    ...fronts.map(key => [key, pids[key]])
+  ]
+  if (!rows.length) rows.push(['frontend', undefined])
+  for (const [key, pid] of rows) {
+    const label = key === 'frontend' ? 'frontend (預設)' : key
+    console.log(`${label}: ${pid && isRunning(pid) ? `running (PID ${pid})` : 'stopped'}`)
   }
 }
 
-const action = process.argv[2] || 'start'
-const target = process.argv[3] || 'all'
-const names = target === 'all' ? targetNames : [target]
+const USAGE = `usage:
+  node launcher.js start  [backend|frontend|frontend:<設定檔>|all] ...
+  node launcher.js stop   [backend|frontend|frontend:<設定檔>|all] ...
+  node launcher.js restart [backend|frontend|frontend:<設定檔>|all] ...
+  node launcher.js status
 
-if (!names.every(name => targetNames.includes(name))) {
-  console.error('target must be backend, frontend, or all')
-  process.exit(1)
-}
+同時啟動多個前端（每個設定檔一個獨立視窗與登入狀態）：
+  node launcher.js start backend frontend:alice frontend:bob
+停止所有前端實例：
+  node launcher.js stop frontend`
 
-(async () => {
+async function main(argv) {
+  const action = argv[2] || 'start'
+  const raws = argv.slice(3)
+  if (action === 'status') {
+    status()
+    return
+  }
+  if (!['start', 'stop', 'restart'].includes(action)) {
+    console.error(USAGE)
+    process.exitCode = 1
+    return
+  }
+
+  const requested = raws.length ? raws : ['all']
+  const pids = readPids()
+  const names = []
+  for (const raw of requested) {
+    const keys = keysForAction(raw, action, pids)
+    if (!keys) {
+      console.error(`target must be backend, frontend, frontend:<profile>, or all (got "${raw}")`)
+      process.exitCode = 1
+      return
+    }
+    for (const key of keys) if (!names.includes(key)) names.push(key)
+  }
+
   if (action === 'start') {
     for (const name of names) await start(name)
   } else if (action === 'stop') {
     names.slice().reverse().forEach(stop)
-  } else if (action === 'restart') {
+  } else {
     names.slice().reverse().forEach(stop)
     for (const name of names) await start(name)
-  } else if (action === 'status') {
-    status()
-  } else {
-    console.error('usage: node launcher.js [start|stop|restart|status] [backend|frontend|all]')
-    process.exit(1)
   }
-})()
+}
+
+if (require.main === module) {
+  main(process.argv).catch(error => {
+    console.error(error.message)
+    process.exitCode = 1
+  })
+}
+
+module.exports = { parseTarget, keysForAction, commandFor, frontendKeys, start, stop, status, main, pidFile }

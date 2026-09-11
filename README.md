@@ -17,7 +17,7 @@
 - 富文本工具栏：粗体 / 斜体 / 下划线 / 删除线、项目与编号列表、引用块、表格，格式即时生效。
 - 字号可调整为「默认」或 12-40px，选中文字即时预览并随光标同步显示。
 - 可插入超链接（自动补全 `https://`），点击链接会在系统默认浏览器中打开（仅限 http/https）。
-- 「图片」采用本地文件上传，由后端存储到 `frontend/assets/images/`；点击图片可拖拽等比缩放，按 Delete 删除、按 Esc 取消。
+- 「图片」采用本地文件上传，由后端存储到 `data/images/`；点击图片可拖拽等比缩放，按 Delete 删除、按 Esc 取消。
 - 每篇笔记在本次会话内保留最多 20 个版本快照，可随时复原（重启后清空）。
 - 编辑器顶部实时显示同步状态：已同步 / 保存中… / 服务器断开时显示已断开。
 - 正在查看同一篇笔记的好友（含自己）实时出现在标题旁头像堆叠与底部信息栏，区分「正在编辑 / 檢視中」，由心跳维持、有变动时即时推送。
@@ -257,6 +257,40 @@ python3 monitor.py --host 192.168.1.50 --token secret
 
 后端默认也会把日志同步打印到终端（launcher 启动时是丢弃的）；设置 `COLLABNOTE_LOG_STDOUT=0` 可以关闭。
 
+## 打包发布
+
+只打包 Electron 前端，不需要 Python 后端；后端要另外部署（打包后的客户端仍通过登录页或 `COLLABNOTE_API_URL` 连接服务器）。
+
+```bash
+npm install
+npm run dist:mac   # macOS：dist/CollabNote-1.0.0.dmg（x64）与 dist/CollabNote-1.0.0-arm64.dmg
+npm run dist:win   # Windows 10/11：dist/CollabNote-Setup-1.0.0-x64.exe（NSIS 安装包）
+npm run pack       # 只生成未打包目录 dist/mac、dist/win-unpacked，便于本机试跑
+```
+
+打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js` 与 `frontend/vendor/**`，不会把 `notes.json`、`users.json`、`data/**` 等本机数据塞进去。产物在 `dist/`（已在 `.gitignore` 中忽略）。
+
+### 镜像设置不可省略
+
+electron-builder 会从 GitHub Releases 下载 Electron 运行包与 NSIS、7-Zip、dmg-builder 等工具，国内网络经常超时（典型报错：`⨯ read ETIMEDOUT`、`⨯ getaddrinfo ENOTFOUND github.com`）。本项目已把镜像写进 `package.json` 的 `config` 字段：
+
+```json
+"config": {
+  "electron_mirror": "https://registry.npmmirror.com/-/binary/electron/",
+  "electron_builder_binaries_mirror": "https://registry.npmmirror.com/-/binary/electron-builder-binaries/"
+}
+```
+
+npm 会把 `config` 里的键暴露成 `npm_package_config_*` 环境变量，electron-builder 与 `@electron/get` 都能识别，所以直接用 `npm run dist:win` 即可，不必再手动加 `ELECTRON_MIRROR`，Windows、macOS、Linux 语法一致。注意必须通过 npm 脚本运行（`npm run dist:win`）；若直接执行 `npx electron-builder`，这些变量不存在，会退回 GitHub 下载。
+
+首次打包会下载约 100 MB 工具链并缓存在 `~/Library/Caches/electron` 与 `~/Library/Caches/electron-builder`，之后离线也能重新打包。
+
+### 已知限制
+
+- 未做代码签名：macOS 首次打开需右键「打开」，Windows 可能出现 SmartScreen 提示，选择「仍要运行」即可。
+- 未配置应用图标，使用 Electron 默认图标（日志会提示 `default Electron icon is used`）。
+- 打包后的客户端仍需要 Python 后端配合，单独发给别人只会得到登录界面。
+
 ## 项目结构
 
 ```text
@@ -270,10 +304,12 @@ my-electron-app/
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
 ├── notes.json                 笔记数据文件（运行时产生，不纳入版本控制）
-├── users.json                 用户账号与好友关系数据文件
+├── users.json                 用户账号、密码哈希与好友关系（运行时产生，不纳入版本控制）
+├── data/
+│   ├── avatars/               头像文件（运行时由后端写入）
+│   └── images/                笔记图片文件（运行时由后端写入）
 └── frontend/
-    ├── assets/avatars/        头像资源目录（Git 可见）
-    └── assets/images/         笔记图片资源目录（运行时创建）
+    └── vendor/                前端静态依赖（Font Awesome 等）
 ```
 
 Electron 与 Python 是两个独立进程，前端不直接读取数据文件，只通过 HTTP API 通信。业务请求流程如下：
@@ -327,10 +363,10 @@ Electron 与 Python 是两个独立进程，前端不直接读取数据文件，
 
 ## 数据文件
 
-- `notes.json`：笔记数据。运行时由后端读写，已在 `.gitignore` 中忽略，不随代码提交；换机器时请自行复制。
-- `users.json`：用户账号、密码哈希、昵称、头衔和好友关系（目前仍纳入版本控制）。
-- `frontend/assets/avatars/`：处理后的头像文件，统一为 `256x256` JPEG，并纳入 Git 副本。
-- `frontend/assets/images/`：笔记中通过「图片」工具上传的图片文件，运行时创建。
+- `notes.json`：笔记数据（含内文与读写权限）。运行时由后端读写，已在 `.gitignore` 中忽略，不随代码提交；换机器时请自行复制。
+- `users.json`：用户账号、密码哈希、昵称、头衔和好友关系。选项与 `notes.json` 相同，运行时产生、不纳入版本控制；换机器时请自行复制。
+- `data/avatars/`：处理后的头像文件，统一为 `256x256` JPEG，由后端在运行时写入，不纳入版本控制。
+- `data/images/`：笔记中通过「图片」工具上传的图片，由后端在运行时写入，不纳入版本控制。
 - `.collabnote-pids.json`：启动器运行时 PID 文件，不应提交到版本库。
 - `collabnote-monitor-<端口>.pid`：监控器 PID 文件，放在系统临时目录，后端关闭时自动删除。
 
@@ -400,7 +436,7 @@ POST /api/images/upload
 GET  /api/images/:file
 ```
 
-上传接口需要登录（携带 `Authorization: Bearer <token>`），仅接受 JPG/PNG，单张上限 10MB；图片保存到 `frontend/assets/images/` 后以 `/api/images/:file` 公开读取。
+上传接口需要登录（携带 `Authorization: Bearer <token>`），仅接受 JPG/PNG，单张上限 10MB；图片保存到后端的 `data/images/` 后以 `/api/images/:file` 公开读取。
 
 除 `/api/health`、注册和登录接口外，业务接口需要携带：
 
@@ -413,7 +449,8 @@ Authorization: Bearer <token>
 - 密码只保存 PBKDF2-SHA256 哈希和随机盐。
 - 当前会话存储在 Python 内存中，后端重启后失效。
 - JSON 文件和头像目录应定期备份。
-- `users.json` 目前纳入版本控制，内含账号与密码哈希；若要公开仓库，建议先停止追踪该文件（`git rm --cached users.json`）。
+- 账号、笔记、权限与密码哈希都只保存在后端：`users.json`（账号 + PBKDF2-SHA256 哈希）、`notes.json`（笔记内文 + `owner`/`members`/`viewers`）。两者都不纳入版本控制，前端不会留下副本，localStorage 只存主题、服务器地址、最近账号与登录 token。
+- `data/avatars/`、`data/images/` 为后端持有的上传文件；旧版放在 `frontend/assets/` 的档案会在后端启动时自动搬移。打包出的客户端不含这些文件。
 - 监控接口 `/api/monitor/status` 与 `/api/monitor/logs` 只接受 `127.0.0.1` 的连线；要让其他机器存取必须设置 `COLLABNOTE_MONITOR_TOKEN` 并携带 `X-Monitor-Token`，否则回 `403`。
 - 后端默认监听 `0.0.0.0`，同一局域网内的其他设备都能访问；仅在受信任网络中使用，公网部署前应改为 `COLLABNOTE_HOST=127.0.0.1` 并置于反向代理之后。
 - 前端只有在登录页或 `COLLABNOTE_API_URL` 指定地址时才会连接外部服务器，不会主动扫描网络。

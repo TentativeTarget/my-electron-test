@@ -20,5 +20,12 @@ lerna-debug.log*
 .env.*
 !.env.example
 
-# 使用者資料：筆記內容在 app 執行時寫入，不隨程式碼提交
+# 使用者資料：由 app 執行時寫入後端，不隨程式碼提交
 notes.json
+users.json
+data/
+# 舊版上傳目錄，已搬到 data/
+frontend/assets/
+
+# 打包輸出
+dist/

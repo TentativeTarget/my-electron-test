@@ -31,8 +31,13 @@ HOST = os.environ.get("COLLABNOTE_HOST", "0.0.0.0")
 PORT = int(os.environ.get("COLLABNOTE_PORT", sys.argv[1] if len(sys.argv) > 1 else 8765))
 DATA_FILE = Path(__file__).with_name("notes.json")
 USERS_FILE = Path(__file__).with_name("users.json")
-AVATAR_DIR = Path(__file__).with_name("frontend") / "assets" / "avatars"
-IMAGE_DIR = Path(__file__).with_name("frontend") / "assets" / "images"
+# 使用者上傳的檔案一律由後端保存，不放在前端目錄內
+DATA_DIR = Path(__file__).with_name("data")
+AVATAR_DIR = DATA_DIR / "avatars"
+IMAGE_DIR = DATA_DIR / "images"
+# 舊版把上傳檔寫在 frontend/assets/ 底下，開機時搬到 DATA_DIR
+LEGACY_AVATAR_DIR = Path(__file__).with_name("frontend") / "assets" / "avatars"
+LEGACY_IMAGE_DIR = Path(__file__).with_name("frontend") / "assets" / "images"
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 DATA_LOCK = Lock()
 SESSIONS = {}
@@ -193,6 +198,31 @@ def migrate_note_permissions():
             changed = True
         if changed:
             save_notes(notes)
+
+
+def migrate_legacy_uploads():
+    """把舊版放在 frontend/assets/ 的頭像與圖片搬到後端的 DATA_DIR（只做一次）。"""
+    for legacy_dir, target_dir in ((LEGACY_AVATAR_DIR, AVATAR_DIR), (LEGACY_IMAGE_DIR, IMAGE_DIR)):
+        if not legacy_dir.is_dir():
+            continue
+        for source in sorted(legacy_dir.iterdir()):
+            if not source.is_file():
+                continue
+            target = target_dir / source.name
+            if target.exists():
+                continue
+            try:
+                target_dir.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(source), str(target))
+                log_event(f"搬移舊上傳檔 {source.name} → {target_dir.name}/", "WARN")
+            except OSError as error:
+                log_event(f"搬移 {source.name} 失敗：{error}", "WARN")
+        # 搬完後清掉留下來的空目錄（frontend/assets 空了也一併移除）
+        for empty_dir in (legacy_dir, legacy_dir.parent):
+            try:
+                empty_dir.rmdir()
+            except OSError:
+                pass
 
 
 def is_user_online(username):
@@ -1284,6 +1314,8 @@ class NotesServer(ThreadingHTTPServer):
 if __name__ == "__main__":
     # 舊筆記沒有建立者欄位，開機時補上預設的擁有者與協作名單
     migrate_note_permissions()
+    # 舊版把頭像與筆記圖片存在前端目錄，開機時搬到後端的 data/
+    migrate_legacy_uploads()
     server = NotesServer((HOST, PORT), NotesHandler)
     print_banner()
     log_event(f"伺服器啟動：http://{HOST}:{PORT}")

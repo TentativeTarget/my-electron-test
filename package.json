@@ -13,7 +13,8 @@
     "launcher": "node launcher.js",
     "pack": "electron-builder --dir",
     "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win"
+    "dist:win": "electron-builder --win",
+    "dist:backend": "python3 build-backend.py"
   },
   "author": "Jane Doe",
   "license": "MIT",

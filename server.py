@@ -28,16 +28,28 @@ from PIL import Image, UnidentifiedImageError
 # 預設綁定所有網卡，讓同一區域網內的多位使用者都能連上這台伺服器。
 # 只想本機使用時可設定 COLLABNOTE_HOST=127.0.0.1。
 HOST = os.environ.get("COLLABNOTE_HOST", "0.0.0.0")
-PORT = int(os.environ.get("COLLABNOTE_PORT", sys.argv[1] if len(sys.argv) > 1 else 8765))
-DATA_FILE = Path(__file__).with_name("notes.json")
-USERS_FILE = Path(__file__).with_name("users.json")
+# 第一個參數是連接埠；--monitor 模式（見檔尾）不會用到，需避免被當成數字解析
+PORT = int(os.environ.get("COLLABNOTE_PORT",
+                          sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].isdigit() else 8765))
+
+
+def base_dir():
+    """資料檔的基準目錄：打包成單一執行檔後改用執行檔所在目錄，才不會寫進解壓暫存區。"""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+BASE_DIR = base_dir()
+DATA_FILE = BASE_DIR / "notes.json"
+USERS_FILE = BASE_DIR / "users.json"
 # 使用者上傳的檔案一律由後端保存，不放在前端目錄內
-DATA_DIR = Path(__file__).with_name("data")
+DATA_DIR = BASE_DIR / "data"
 AVATAR_DIR = DATA_DIR / "avatars"
 IMAGE_DIR = DATA_DIR / "images"
 # 舊版把上傳檔寫在 frontend/assets/ 底下，開機時搬到 DATA_DIR
-LEGACY_AVATAR_DIR = Path(__file__).with_name("frontend") / "assets" / "avatars"
-LEGACY_IMAGE_DIR = Path(__file__).with_name("frontend") / "assets" / "images"
+LEGACY_AVATAR_DIR = BASE_DIR / "frontend" / "assets" / "avatars"
+LEGACY_IMAGE_DIR = BASE_DIR / "frontend" / "assets" / "images"
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 DATA_LOCK = Lock()
 SESSIONS = {}
@@ -1197,9 +1209,12 @@ def applescript_quote(text):
 def monitor_command():
     """監控器指令；固定走 127.0.0.1，因為監控端點只開放本機。"""
     host = HOST if HOST not in ("0.0.0.0", "::", "") else "127.0.0.1"
-    parts = [
-        shlex.quote(sys.executable),
-        shlex.quote(str(Path(__file__).with_name("monitor.py"))),
+    if getattr(sys, "frozen", False):
+        # 打包後沒有 monitor.py，改用同一支執行檔的 --monitor 模式
+        parts = [shlex.quote(sys.executable), "--monitor"]
+    else:
+        parts = [shlex.quote(sys.executable), shlex.quote(str(BASE_DIR / "monitor.py"))]
+    parts += [
         "--url", shlex.quote("http://%s:%d" % (host, PORT)),
         "--title", shlex.quote(MONITOR_WINDOW_TITLE),
         "--pid-file", shlex.quote(str(monitor_pid_file())),
@@ -1216,7 +1231,7 @@ def open_monitor_window():
     """在新終端視窗啟動監控器，後端結束時會一併收掉。"""
     if not MONITOR_WINDOW:
         return
-    if not Path(__file__).with_name("monitor.py").exists():
+    if not getattr(sys, "frozen", False) and not (BASE_DIR / "monitor.py").exists():
         return
     try:
         monitor_pid_file().unlink()
@@ -1312,6 +1327,10 @@ class NotesServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
+    # 打包後的執行檔同時扮演監控器：`--monitor` 等同執行 monitor.py
+    if "--monitor" in sys.argv[1:]:
+        import monitor
+        sys.exit(monitor.main([arg for arg in sys.argv[1:] if arg != "--monitor"]))
     # 舊筆記沒有建立者欄位，開機時補上預設的擁有者與協作名單
     migrate_note_permissions()
     # 舊版把頭像與筆記圖片存在前端目錄，開機時搬到後端的 data/

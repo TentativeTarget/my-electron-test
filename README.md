@@ -291,6 +291,31 @@ npm 会把 `config` 里的键暴露成 `npm_package_config_*` 环境变量，ele
 - 未配置应用图标，使用 Electron 默认图标（日志会提示 `default Electron icon is used`）。
 - 打包后的客户端仍需要 Python 后端配合，单独发给别人只会得到登录界面。
 
+### 打包免安装后端（一键运行）
+
+后端也可以打包成免安装版本，对方不需要装 Python，双击即可启动：
+
+```bash
+npm run dist:backend                                        # 依当前系统打包
+python3 build-backend.py --platform win                     # 在任何系统上组装 Windows 版
+python3 build-backend.py --out /tmp/backend                 # 指定输出目录
+```
+
+产物与启动方式：
+
+- `dist/backend/CollabNote-Backend-macOS-x86_64/`：双击 `启动后端.command`（macOS，Intel x86_64；Apple Silicon 走 Rosetta 2）。用 PyInstaller 冻结，无需 Python。
+- `dist/backend/CollabNote-Backend-Windows-x64/`：双击 `启动后端.bat`（Windows 10/11 x64）。内含官方嵌入式 Python 与 Pillow 的官方 wheel，无需安装任何东西。
+- 另附同名 `.zip` 便于传输；zip 解压后仍保留执行权限。
+
+启动后会同时打开后端窗口与监控窗口，关闭后端窗口时监控窗口一起收掉。**整个文件夹就是数据目录**：运行时在文件夹内产生 `users.json`、`notes.json` 与 `data/`，备份或换机器只要复制整个文件夹。
+
+各平台细节：
+
+- macOS 版只能在 macOS 上构建（PyInstaller 不能跨平台交叉编译），且架构跟随构建机的 Python（本机为 x86_64）。
+- Windows 版是下载官方嵌入式 Python 与 win_amd64 wheel 后组装，任何平台都能构建，也不需要编译器。
+- 两个版本都未做代码签名，首次运行可能被系统拦下：macOS 右键「打开」，Windows SmartScreen 选「仍要运行」。
+- Windows 版首次启动若弹出防火墙询问，选择「允许」后同一区域网的其他设备才能连上；只想本机使用可加上 `COLLABNOTE_HOST=127.0.0.1`。
+
 ## 项目结构
 
 ```text
@@ -301,6 +326,7 @@ my-electron-app/
 ├── server.py                  Python HTTP 后端：API、认证、好友、笔记、头像
 ├── monitor.py                 后端终端监控器：连线用户 + 即时日志
 ├── launcher.js                前后端进程启动器（支持 frontend:<设定档> 多实例）
+├── build-backend.py           打包免安装后端（macOS 用 PyInstaller、Windows 用嵌入式 Python）
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
 ├── notes.json                 笔记数据文件（运行时产生，不纳入版本控制）

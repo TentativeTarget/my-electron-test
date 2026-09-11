@@ -1078,6 +1078,123 @@
             opacity: 0.6;
         }
 
+        /* ─── 筆記協作權限對話框 ─── */
+        .share-dialog {
+            width: min(440px, 100%);
+        }
+
+        .share-owner-line {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .share-section {
+            margin-bottom: 14px;
+        }
+
+        .share-section-title {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .share-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 186px;
+            overflow-y: auto;
+        }
+
+        .share-member {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .share-member-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #334155;
+            font-size: 13px;
+        }
+
+        .share-role,
+        .share-empty {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .share-empty {
+            padding: 6px 2px;
+        }
+
+        .share-remove-btn,
+        .share-invite-btn {
+            border: 0;
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .share-remove-btn {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .share-invite-btn {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .share-remove-btn:disabled,
+        .share-invite-btn:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .share-invite-form {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .share-invite-form input {
+            flex: 1;
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            font-size: 13px;
+            color: #334155;
+        }
+
+        .share-invite-form button {
+            width: 42px;
+            flex-shrink: 0;
+            border: 0;
+            border-radius: 9px;
+            background: #3b82f6;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .share-hint {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 14px;
+        }
+
         .connection-dialog-backdrop {
             position: fixed;
             inset: 0;
@@ -1358,6 +1475,27 @@
 
         .editor-header .right .share-btn i {
             color: #3b82f6;
+        }
+
+        .editor-header .right .note-owner-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 220px;
+            padding: 6px 14px;
+            border-radius: 30px;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .editor-header .right .note-owner-chip i {
+            color: #94a3b8;
+            font-size: 11px;
         }
 
         .editor-header .right .avatar-stack {
@@ -2570,6 +2708,40 @@
             background: rgba(248, 113, 113, 0.14);
         }
 
+        [data-theme="dark"] .editor-header .right .note-owner-chip {
+            background: #17233a;
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .editor-header .right .note-owner-chip i {
+            color: #7d8ea8;
+        }
+
+        [data-theme="dark"] .share-owner-line,
+        [data-theme="dark"] .share-hint,
+        [data-theme="dark"] .share-role,
+        [data-theme="dark"] .share-empty {
+            color: #8fa2bd;
+        }
+
+        [data-theme="dark"] .share-member {
+            border-color: #26354f;
+        }
+
+        [data-theme="dark"] .share-member-name {
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .share-remove-btn {
+            background: rgba(248, 113, 113, 0.16);
+            color: #fca5a5;
+        }
+
+        [data-theme="dark"] .share-invite-btn {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
         [data-theme="dark"] .editor-header .right .share-btn {
             background: #17233a;
             color: #dbe4f1;
@@ -2918,6 +3090,11 @@
                     </button>
                 </div>
                 <div class="right">
+                    <span class="note-owner-chip" id="noteOwnerChip" hidden></span>
+                    <button class="share-btn" id="shareNoteBtn" type="button" title="管理這篇筆記的協作權限">
+                        <i class="fas fa-user-plus" aria-hidden="true"></i>
+                        <span class="share-btn-label">共用</span>
+                    </button>
                     <div class="avatar-stack" id="presenceAvatarStack" aria-label="正在此筆記協作的使用者"></div>
                 </div>
             </div>
@@ -3109,6 +3286,30 @@
             <div class="history-empty" id="historyEmpty">暫無歷史版本</div>
             <div class="profile-settings-actions">
                 <button class="profile-cancel-btn" id="historyCloseBtn" type="button">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="delete-dialog-backdrop" id="shareDialog" role="dialog" aria-modal="true" aria-labelledby="shareDialogTitle">
+        <div class="profile-settings-dialog share-dialog">
+            <h2 id="shareDialogTitle">筆記協作權限</h2>
+            <p class="share-owner-line" id="shareOwnerLine">建立者：—</p>
+            <div class="share-section">
+                <div class="share-section-title">可以編輯這篇筆記的人</div>
+                <div class="share-list" id="shareMemberList"></div>
+            </div>
+            <form class="share-invite-form" id="shareInviteForm" hidden>
+                <input id="shareInviteInput" type="text" placeholder="輸入登錄名邀請協作" autocomplete="off" maxlength="32" />
+                <button type="submit" id="shareInviteBtn" title="邀請協作"><i class="fas fa-user-plus" aria-hidden="true"></i></button>
+            </form>
+            <p class="share-hint" id="shareHint" hidden>只有建立者可以邀請或移除協作。</p>
+            <div class="share-section" id="shareFriendSection" hidden>
+                <div class="share-section-title">好友快速邀請</div>
+                <div class="share-list" id="shareFriendList"></div>
+            </div>
+            <p class="auth-error" id="shareError"></p>
+            <div class="profile-settings-actions">
+                <button class="profile-cancel-btn" id="shareCloseBtn" type="button">關閉</button>
             </div>
         </div>
     </div>
@@ -3526,6 +3727,8 @@
                         } else {
                             setEditorStatus('synced');
                         }
+                        // 權限被移除時，這篇筆記已經不該留在清單裡
+                        if (error.status === 403) syncNotesFromServer();
                         console.error('筆記儲存失敗', error);
                     } finally {
                         savePending = false;
@@ -3601,8 +3804,7 @@
                     activeId = notesData[0]?.id;
                     if (activeId !== undefined) switchNote(activeId);
                     else {
-                        noteTitleInput.value = '';
-                        noteContent.innerHTML = '';
+                        showEmptyEditor();
                     }
                 }
                 updateRemoteUpdateBadge();
@@ -3620,7 +3822,8 @@
                 if (event.sid && currentSid && event.sid === currentSid) return;
                 if (event.type === 'note-created') onRemoteNoteCreated(event.note);
                 else if (event.type === 'note-updated') onRemoteNoteUpdated(event.note);
-                else if (event.type === 'note-deleted') onRemoteNoteDeleted(event.noteId);
+                else if (event.type === 'note-deleted' || event.type === 'note-unshared') onRemoteNoteDeleted(event.noteId);
+                else if (event.type === 'note-members') syncNotesFromServer();
                 else if (event.type === 'presence' && event.noteId === activeId) {
                     renderPresenceRoster(event.people || []);
                 }
@@ -3728,6 +3931,7 @@
                 if (!data) return;
 
                 activeId = id;
+                updateNoteSharingUi(data);
                 const pending = pendingRemoteNotes.get(id);
                 if (pending && !isNoteDirty(id)) {
                     data.title = pending.title;
@@ -3747,7 +3951,7 @@
 
             function openDeleteDialog(id) {
                 const note = notesData.find(item => item.id === id);
-                if (!note) return;
+                if (!note || note.canManage === false) return;
                 pendingDeleteId = id;
                 clearTimeout(dialogCloseTimer);
                 deleteDialog.classList.remove('closing');
@@ -3785,8 +3989,7 @@
                         activeId = notesData[0]?.id;
                         if (activeId !== undefined) switchNote(activeId);
                         else {
-                            noteTitleInput.value = '';
-                            noteContent.innerHTML = '';
+                            showEmptyEditor();
                         }
                     }
                 } catch (error) {
@@ -3830,7 +4033,12 @@
                     tagStyle: 'background:#f1f5f9;color:#475569;',
                     content: '開始撰寫你的筆記…',
                     time: '剛剛',
-                    editors: ['green']
+                    editors: ['green'],
+                    owner: currentUsername,
+                    ownerName: currentDisplayName || currentUsername,
+                    members: [],
+                    access: 'owner',
+                    canManage: true
                 };
                 notesData.push(newNote);
                 apiRequest('/api/notes', {
@@ -3838,8 +4046,16 @@
                     body: JSON.stringify(newNote)
                 }).then(savedNote => {
                     newNote.id = savedNote.id;
+                    Object.assign(newNote, {
+                        owner: savedNote.owner,
+                        ownerName: savedNote.ownerName,
+                        members: savedNote.members,
+                        access: savedNote.access,
+                        canManage: savedNote.canManage
+                    });
                     item.dataset.id = savedNote.id;
                     activeId = savedNote.id;
+                    updateNoteSharingUi(newNote);
                 }).catch(error => console.error('新增筆記失敗', error));
 
                 // 建立 DOM 元素
@@ -3972,6 +4188,19 @@
             const messageDialogTitle = document.getElementById('messageDialogTitle');
             const messageDialogText = document.getElementById('messageDialogText');
             const messageOkBtn = document.getElementById('messageOkBtn');
+            const noteOwnerChip = document.getElementById('noteOwnerChip');
+            const shareNoteBtn = document.getElementById('shareNoteBtn');
+            const shareDialog = document.getElementById('shareDialog');
+            const shareOwnerLine = document.getElementById('shareOwnerLine');
+            const shareMemberList = document.getElementById('shareMemberList');
+            const shareFriendList = document.getElementById('shareFriendList');
+            const shareFriendSection = document.getElementById('shareFriendSection');
+            const shareInviteForm = document.getElementById('shareInviteForm');
+            const shareInviteInput = document.getElementById('shareInviteInput');
+            const shareInviteBtn = document.getElementById('shareInviteBtn');
+            const shareHint = document.getElementById('shareHint');
+            const shareError = document.getElementById('shareError');
+            const shareCloseBtn = document.getElementById('shareCloseBtn');
             const toolbar = document.querySelector('.toolbar');
             const fontSizeSelect = document.getElementById('fontSizeSelect');
             let pendingInsert = null;
@@ -4242,6 +4471,8 @@
                     noteContent.focus();
                 } else if (historyDialog.classList.contains('visible')) {
                     historyDialog.classList.remove('visible');
+                } else if (shareDialog.classList.contains('visible')) {
+                    closeShareDialog();
                 }
             });
 
@@ -4472,13 +4703,20 @@
                     const item = document.createElement('div');
                     item.className = 'note-item';
                     item.dataset.id = note.id;
+                    const ownerLabel = escapeHtmlText(note.ownerName || note.owner || '未知');
+                    const sharedMark = note.access === 'edit'
+                        ? '<span class="shared-badge" title="別人邀請你協作這篇筆記"><i class="fas fa-user-friends"></i></span>'
+                        : '';
+                    const deleteAction = note.canManage === false
+                        ? ''
+                        : '<div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>';
                     item.innerHTML = `
                         <div class="note-icon"><i class="fas fa-file-alt"></i></div>
                         <div class="note-content">
                             <div class="note-title">${escapeHtmlText(note.title)}<span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
-                            <div class="note-meta"><span><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
+                            <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${sharedMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
                         </div>
-                        <div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>`;
+                        ${deleteAction}`;
                     noteList.appendChild(item);
                 });
             }
@@ -4495,8 +4733,182 @@
                 } else if (titleSpan) {
                     titleSpan.textContent = note.title;
                 }
-                const timeSpan = item.querySelector('.note-meta span');
+                const timeSpan = item.querySelector('.note-meta .note-time');
                 if (timeSpan) timeSpan.innerHTML = `<i class="far fa-clock"></i> ${escapeHtmlText(note.time)}`;
+            }
+
+            function showEmptyEditor() {
+                noteTitleInput.value = '';
+                noteContent.innerHTML = '';
+                updateNoteSharingUi(null);
+            }
+
+            // ─── 筆記權限：建立者標籤與共用對話框 ───
+            let shareNoteId = null;
+            let friendDirectory = [];
+
+            function updateNoteSharingUi(note) {
+                if (!note) {
+                    noteOwnerChip.hidden = true;
+                    shareNoteBtn.hidden = true;
+                    return;
+                }
+                const ownerLabel = note.ownerName || note.owner || '未知';
+                const isOwner = note.canManage !== false;
+                noteOwnerChip.replaceChildren();
+                const icon = document.createElement('i');
+                icon.className = isOwner ? 'fas fa-user-pen' : 'fas fa-user-friends';
+                const label = document.createElement('span');
+                label.textContent = isOwner ? `建立者：我（${ownerLabel}）` : `建立者：${ownerLabel}`;
+                noteOwnerChip.append(icon, label);
+                noteOwnerChip.title = isOwner ? '你是這篇筆記的建立者' : `這篇筆記由 ${ownerLabel} 建立，你被邀請協作`;
+                noteOwnerChip.hidden = false;
+                shareNoteBtn.hidden = false;
+                shareNoteBtn.title = isOwner ? '邀請好友協作這篇筆記' : '查看這篇筆記的協作權限';
+                shareNoteBtn.querySelector('.share-btn-label').textContent = isOwner ? '共用' : '協作';
+            }
+
+            function createAvatarElement(person, className = 'friend-avatar') {
+                const avatar = document.createElement('span');
+                avatar.className = className;
+                const displayName = person.displayName || person.username || '?';
+                if (person.avatarUrl) {
+                    avatar.textContent = '';
+                    avatar.style.backgroundImage = `url("${apiBaseUrl}${person.avatarUrl}")`;
+                } else {
+                    avatar.textContent = displayName.charAt(0).toUpperCase();
+                }
+                return avatar;
+            }
+
+            function buildShareRow(person, actionButton) {
+                const row = document.createElement('div');
+                row.className = 'share-member';
+                row.appendChild(createAvatarElement(person));
+                const name = document.createElement('span');
+                name.className = 'share-member-name';
+                name.textContent = person.displayName || person.username;
+                name.title = `${person.displayName || person.username} (${person.username})`;
+                row.appendChild(name);
+                if (actionButton) row.appendChild(actionButton);
+                return row;
+            }
+
+            function makeActionButton(text, className, handler) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = className;
+                button.textContent = text;
+                button.addEventListener('click', () => handler(button));
+                return button;
+            }
+
+            function showShareMessage(text) {
+                shareError.textContent = text;
+            }
+
+            async function openShareDialog() {
+                const note = notesData.find(item => item.id === activeId);
+                if (!note || !authToken) return;
+                shareNoteId = note.id;
+                showShareMessage('');
+                shareInviteInput.value = '';
+                shareDialog.classList.add('visible');
+                await refreshShareDialog();
+            }
+
+            function closeShareDialog() {
+                shareNoteId = null;
+                shareDialog.classList.remove('visible');
+            }
+
+            async function refreshShareDialog() {
+                if (shareNoteId === null) return;
+                let data;
+                try {
+                    data = await apiRequest(`/api/notes/${shareNoteId}/members`);
+                } catch (error) {
+                    showShareMessage(error.status === 403 ? '你沒有這篇筆記的權限。' : '無法載入協作名單，請確認後端是否正在執行。');
+                    return;
+                }
+                const canManage = !!data.canManage;
+                const owner = data.owner;
+                shareOwnerLine.textContent = `建立者：${owner ? (owner.displayName || owner.username) : '未知'}`;
+                shareMemberList.replaceChildren();
+                if (!data.members.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'share-empty';
+                    empty.textContent = '尚未邀請其他人，只有你可編輯。';
+                    shareMemberList.appendChild(empty);
+                }
+                data.members.forEach(person => {
+                    const remove = canManage
+                        ? makeActionButton('移除', 'share-remove-btn', button => removeNoteMember(person.username, button))
+                        : (() => {
+                            const role = document.createElement('span');
+                            role.className = 'share-role';
+                            role.textContent = '可編輯';
+                            return role;
+                        })();
+                    shareMemberList.appendChild(buildShareRow(person, remove));
+                });
+                shareInviteForm.hidden = !canManage;
+                shareFriendSection.hidden = !canManage;
+                shareHint.hidden = canManage;
+                if (canManage) renderShareFriends(data.members);
+            }
+
+            function renderShareFriends(members) {
+                const taken = new Set([currentUsername, ...members.map(person => person.username)]);
+                const candidates = friendDirectory.filter(person => !taken.has(person.username));
+                shareFriendList.replaceChildren();
+                if (!candidates.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'share-empty';
+                    empty.textContent = '沒有可邀請的好友，可直接在上方輸入登錄名。';
+                    shareFriendList.appendChild(empty);
+                    return;
+                }
+                candidates.forEach(person => {
+                    const invite = makeActionButton('邀請', 'share-invite-btn', button => inviteNoteMember(person.username, button));
+                    shareFriendList.appendChild(buildShareRow(person, invite));
+                });
+            }
+
+            async function inviteNoteMember(username, button) {
+                if (shareNoteId === null || !username) return;
+                showShareMessage('');
+                if (button) button.disabled = true;
+                try {
+                    await apiRequest(`/api/notes/${shareNoteId}/members`, {
+                        method: 'POST',
+                        body: JSON.stringify({ username })
+                    });
+                    await refreshShareDialog();
+                    return true;
+                } catch (error) {
+                    showShareMessage(error.status === 404 ? '找不到該用戶。'
+                        : error.status === 409 ? '對方已經有這篇筆記的權限。'
+                        : error.status === 403 ? '只有建立者可以邀請協作。'
+                        : '邀請失敗，請確認後端是否正在執行。');
+                    return false;
+                } finally {
+                    if (button) button.disabled = false;
+                }
+            }
+
+            async function removeNoteMember(username, button) {
+                if (shareNoteId === null) return;
+                showShareMessage('');
+                if (button) button.disabled = true;
+                try {
+                    await apiRequest(`/api/notes/${shareNoteId}/members/${encodeURIComponent(username)}`, { method: 'DELETE' });
+                    await refreshShareDialog();
+                } catch (error) {
+                    showShareMessage(error.status === 403 ? '只有建立者可以移除協作。' : '移除失敗，請確認後端是否正在執行。');
+                } finally {
+                    if (button) button.disabled = false;
+                }
             }
 
             function isNoteDirty(id) {
@@ -4527,8 +4939,7 @@
                     activeId = serverNotes[0]?.id;
                     if (activeId !== undefined) switchNote(activeId);
                     else {
-                        noteTitleInput.value = '';
-                        noteContent.innerHTML = '';
+                        showEmptyEditor();
                     }
                 }
                 updateRemoteUpdateBadge();
@@ -4543,8 +4954,7 @@
                     activeId = serverNotes[0]?.id;
                     if (activeId !== undefined) switchNote(activeId);
                     else {
-                        noteTitleInput.value = '';
-                        noteContent.innerHTML = '';
+                        showEmptyEditor();
                     }
                     hideConnectionError();
                     await loadFriends();
@@ -4552,8 +4962,7 @@
                 } catch (error) {
                     console.error('無法連接 Python 後端', error);
                     if (error.status === 401) showAuthScreen(false);
-                    noteTitleInput.value = '';
-                    noteContent.innerHTML = '';
+                    showEmptyEditor();
                 }
             }
 
@@ -4569,15 +4978,8 @@
                 people.forEach(person => {
                     const item = document.createElement('div');
                     item.className = 'friend-item';
-                    const avatar = document.createElement('span');
-                    avatar.className = 'friend-avatar';
+                    const avatar = createAvatarElement(person);
                     const displayName = person.displayName || person.username;
-                    if (person.avatarUrl) {
-                        avatar.textContent = '';
-                        avatar.style.backgroundImage = `url("${apiBaseUrl}${person.avatarUrl}")`;
-                    } else {
-                        avatar.textContent = displayName.charAt(0).toUpperCase();
-                    }
                     const info = document.createElement('div');
                     info.className = 'friend-info';
                     const name = document.createElement('span');
@@ -4616,6 +5018,7 @@
 
             function renderFriends(data) {
                 const friends = (data?.friends || []).slice().sort((a, b) => Number(b.online) - Number(a.online));
+                friendDirectory = friends;
                 const incomingRequests = data?.incomingRequests || [];
                 const outgoingRequests = data?.outgoingRequests || [];
                 renderPersonList(friendsList, friends, '暂无好友');
@@ -4806,6 +5209,19 @@
 
             noteContent.addEventListener('focus', sendPresenceBeat);
             noteTitleInput.addEventListener('focus', sendPresenceBeat);
+
+            // ─── 事件：共用 / 協作權限 ───
+            shareNoteBtn.addEventListener('click', openShareDialog);
+            shareCloseBtn.addEventListener('click', closeShareDialog);
+            shareDialog.addEventListener('click', function(event) {
+                if (event.target === shareDialog) closeShareDialog();
+            });
+            shareInviteForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const invited = shareInviteInput.value.trim();
+                if (!invited) return;
+                if (await inviteNoteMember(invited, shareInviteBtn)) shareInviteInput.value = '';
+            });
 
             friendRequestsList.addEventListener('click', async function(event) {
                 const button = event.target.closest('button[data-action]');

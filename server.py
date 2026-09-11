@@ -112,6 +112,62 @@ def find_user(username):
     return next((user for user in load_users() if user["username"] == username), None)
 
 
+# 舊筆記沒有建立者欄位，開機時補上（見 migrate_note_permissions）
+LEGACY_NOTE_OWNER = "YvLvn"
+LEGACY_NOTE_MEMBERS = ("LimeSev",)
+
+
+def note_access(note, username):
+    """回傳使用者對這篇筆記的權限：owner / edit / None（看不到）。"""
+    if not username:
+        return None
+    owner = note.get("owner")
+    if not owner:
+        # 尚未遷移的舊資料：視為擁有者，避免升級後突然不能編輯
+        return "owner"
+    if username == owner:
+        return "owner"
+    if username in (note.get("members") or []):
+        return "edit"
+    return None
+
+
+def note_visible_to(note, username):
+    return note_access(note, username) is not None
+
+
+def public_note(note, username):
+    """輸出筆記並附上目前使用者的權限，前端據此決定 UI。"""
+    access = note_access(note, username) or "none"
+    owner = note.get("owner") or ""
+    owner_record = find_user(owner) if owner else None
+    return {
+        **note,
+        "access": access,
+        "canManage": access == "owner",
+        "ownerName": (owner_record.get("displayName") or owner) if owner_record else owner,
+    }
+
+
+def migrate_note_permissions():
+    """為沒有建立者的舊筆記補上建立者與預設協作名單（只做一次）。"""
+    usernames = [user["username"] for user in load_users()]
+    owner = LEGACY_NOTE_OWNER if LEGACY_NOTE_OWNER in usernames else (usernames[0] if usernames else "")
+    if not owner:
+        return
+    with DATA_LOCK:
+        notes = load_notes()
+        changed = False
+        for note in notes:
+            if note.get("owner"):
+                continue
+            note["owner"] = owner
+            note["members"] = [name for name in LEGACY_NOTE_MEMBERS if name in usernames and name != owner]
+            changed = True
+        if changed:
+            save_notes(notes)
+
+
 def is_user_online(username):
     return any(session["username"] == username for session in SESSIONS.values())
 
@@ -145,15 +201,44 @@ def presence_people_for(note_id, username):
         return people
 
 
-def publish_event(event):
-    """把事件送給所有即時連線；個別佇列滿了就丟棄，客戶端重連時會重新載入。"""
+def subscribers_snapshot():
     with EVENT_LOCK:
-        subscribers = list(EVENT_SUBSCRIBERS.values())
-    for subscriber in subscribers:
-        try:
-            subscriber["queue"].put_nowait(event)
-        except Full:
-            pass
+        return list(EVENT_SUBSCRIBERS.values())
+
+
+def put_event(subscriber, event):
+    try:
+        subscriber["queue"].put_nowait(event)
+    except Full:
+        pass
+
+
+def publish_note_event(event_type, note, sid, extra_usernames=()):
+    """送出含筆記內容的事件：只給看得到的人，權限欄位再依收件者各自計算。"""
+    extra = set(extra_usernames)
+    for subscriber in subscribers_snapshot():
+        username = subscriber["username"]
+        if username not in extra and not note_visible_to(note, username):
+            continue
+        put_event(subscriber, {"type": event_type, "note": public_note(note, username), "sid": sid})
+
+
+def publish_note_change(event_type, note, sid, extra_usernames=()):
+    """送出不含內容的筆記事件（刪除、名單變更），同樣只給有權限的人。"""
+    extra = set(extra_usernames)
+    for subscriber in subscribers_snapshot():
+        username = subscriber["username"]
+        if username not in extra and not note_visible_to(note, username):
+            continue
+        put_event(subscriber, {"type": event_type, "noteId": note["id"], "sid": sid})
+
+
+def publish_to_users(event, usernames):
+    """只通知指定使用者（例如被移出協作名單的人）。"""
+    targets = set(usernames)
+    for subscriber in subscribers_snapshot():
+        if subscriber["username"] in targets:
+            put_event(subscriber, event)
 
 
 def publish_presence(note_id):
@@ -239,11 +324,10 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_note_image()
         elif urlsplit(self.path).path.startswith("/api/users/") and urlsplit(self.path).path.endswith("/avatar"):
             self.send_avatar()
-        elif self.path == "/api/notes" and self.current_user():
-            with DATA_LOCK:
-                self.send_json(200, load_notes())
+        elif urlsplit(self.path).path.startswith("/api/notes/") and urlsplit(self.path).path.endswith("/members"):
+            self.list_note_members()
         elif self.path == "/api/notes":
-            self.send_json(401, {"error": "Authentication required"})
+            self.list_notes()
         else:
             self.send_json(404, {"error": "Not found"})
 
@@ -318,28 +402,14 @@ class NotesHandler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/friends/requests/"):
             self.handle_friend_request()
             return
+        resource = urlsplit(self.path).path
+        if resource.startswith("/api/notes/") and resource.endswith("/members"):
+            self.add_note_member()
+            return
         if self.path != "/api/notes":
             self.send_json(404, {"error": "Not found"})
             return
-        if not self.current_user():
-            self.send_json(401, {"error": "Authentication required"})
-            return
-        payload = self.read_payload()
-        with DATA_LOCK:
-            notes = load_notes()
-            note = {
-                "id": int(datetime.now(timezone.utc).timestamp() * 1000),
-                "title": payload.get("title", "未命名筆記"),
-                "tag": "草稿",
-                "tagStyle": "background:#f1f5f9;color:#475569;",
-                "content": payload.get("content", "開始撰寫你的筆記…"),
-                "time": "剛剛",
-                "editors": ["green"],
-            }
-            notes.insert(0, note)
-            save_notes(notes)
-        publish_event({"type": "note-created", "note": note, "sid": self.current_session_sid()})
-        self.send_json(201, note)
+        self.create_note()
 
     def do_PUT(self):
         if not self.path.startswith("/api/notes/"):
@@ -354,18 +424,28 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_json(400, {"error": "Invalid note id"})
             return
         payload = self.read_payload()
+        session = self.current_user()
         with DATA_LOCK:
             notes = load_notes()
             for note in notes:
-                if note["id"] == note_id:
-                    note.update({key: payload[key] for key in ("title", "content") if key in payload})
-                    save_notes(notes)
-                    publish_event({"type": "note-updated", "note": note, "sid": self.current_session_sid()})
-                    self.send_json(200, note)
+                if note["id"] != note_id:
+                    continue
+                if not note_visible_to(note, session["username"]):
+                    self.send_json(403, {"error": "沒有這篇筆記的權限"})
                     return
+                note.update({key: payload[key] for key in ("title", "content") if key in payload})
+                save_notes(notes)
+                result = public_note(note, session["username"])
+                publish_note_event("note-updated", note, self.current_session_sid())
+                self.send_json(200, result)
+                return
         self.send_json(404, {"error": "Note not found"})
 
     def do_DELETE(self):
+        resource = urlsplit(self.path).path
+        if resource.startswith("/api/notes/") and "/members/" in resource:
+            self.remove_note_member()
+            return
         if not self.path.startswith("/api/notes/"):
             self.send_json(404, {"error": "Not found"})
             return
@@ -378,15 +458,167 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_json(400, {"error": "Invalid note id"})
             return
 
+        session = self.current_user()
         with DATA_LOCK:
             notes = load_notes()
-            remaining_notes = [note for note in notes if note["id"] != note_id]
-            if len(remaining_notes) == len(notes):
+            note = next((item for item in notes if item["id"] == note_id), None)
+            if note is None:
                 self.send_json(404, {"error": "Note not found"})
                 return
+            if note_access(note, session["username"]) != "owner":
+                self.send_json(403, {"error": "只有建立者可以刪除筆記"})
+                return
+            remaining_notes = [item for item in notes if item["id"] != note_id]
             save_notes(remaining_notes)
-        publish_event({"type": "note-deleted", "noteId": note_id, "sid": self.current_session_sid()})
+        publish_note_change("note-deleted", note, self.current_session_sid())
         self.send_json(200, {"deleted": note_id})
+
+    def list_notes(self):
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        username = session["username"]
+        with DATA_LOCK:
+            notes = load_notes()
+        # 沒有權限的筆記完全不回傳
+        visible = [public_note(note, username) for note in notes if note_visible_to(note, username)]
+        self.send_json(200, visible)
+
+    def create_note(self):
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        payload = self.read_payload()
+        with DATA_LOCK:
+            notes = load_notes()
+            note = {
+                "id": int(datetime.now(timezone.utc).timestamp() * 1000),
+                "title": payload.get("title", "未命名筆記"),
+                "tag": "草稿",
+                "tagStyle": "background:#f1f5f9;color:#475569;",
+                "content": payload.get("content", "開始撰寫你的筆記…"),
+                "time": "剛剛",
+                "editors": ["green"],
+                "owner": session["username"],
+                "members": [],
+            }
+            notes.insert(0, note)
+            save_notes(notes)
+        result = public_note(note, session["username"])
+        publish_note_event("note-created", note, self.current_session_sid())
+        self.send_json(201, result)
+
+    def note_members_payload(self, note, username):
+        owner_record = find_user(note.get("owner") or "")
+        members = []
+        for name in note.get("members") or []:
+            record = find_user(name)
+            if record:
+                members.append(public_user(record))
+        return {
+            "noteId": note["id"],
+            "owner": public_user(owner_record) if owner_record else None,
+            "members": members,
+            "canManage": note_access(note, username) == "owner",
+        }
+
+    def read_note_for_member_action(self):
+        """解析 /api/notes/<id>/members... 並確認呼叫者可以檢視這篇筆記。"""
+        resource = urlsplit(self.path).path
+        parts = resource.split("/")
+        try:
+            note_id = int(parts[3])
+        except (IndexError, ValueError):
+            self.send_json(400, {"error": "Invalid note id"})
+            return None, None
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return None, None
+        with DATA_LOCK:
+            note = next((item for item in load_notes() if item["id"] == note_id), None)
+        if note is None:
+            self.send_json(404, {"error": "Note not found"})
+            return None, None
+        if not note_visible_to(note, session["username"]):
+            self.send_json(403, {"error": "沒有這篇筆記的權限"})
+            return None, None
+        return note, session
+
+    def list_note_members(self):
+        note, session = self.read_note_for_member_action()
+        if note is None:
+            return
+        self.send_json(200, self.note_members_payload(note, session["username"]))
+
+    def add_note_member(self):
+        note, session = self.read_note_for_member_action()
+        if note is None:
+            return
+        if note_access(note, session["username"]) != "owner":
+            self.send_json(403, {"error": "只有建立者可以邀請協作"})
+            return
+        username = str(self.read_payload().get("username", "")).strip()
+        if not USERNAME_PATTERN.fullmatch(username):
+            self.send_json(400, {"error": "请输入有效的登录名"})
+            return
+        if username == session["username"]:
+            self.send_json(400, {"error": "建立者已經擁有權限"})
+            return
+        if not find_user(username):
+            self.send_json(404, {"error": "找不到该用户"})
+            return
+        with DATA_LOCK:
+            notes = load_notes()
+            for item in notes:
+                if item["id"] != note["id"]:
+                    continue
+                members = item.setdefault("members", [])
+                if username in members:
+                    self.send_json(409, {"error": "對方已經有權限"})
+                    return
+                members.append(username)
+                save_notes(notes)
+                updated = dict(item)
+                break
+            else:
+                self.send_json(404, {"error": "Note not found"})
+                return
+        payload = self.note_members_payload(updated, session["username"])
+        publish_note_change("note-members", updated, self.current_session_sid())
+        self.send_json(200, payload)
+
+    def remove_note_member(self):
+        note, session = self.read_note_for_member_action()
+        if note is None:
+            return
+        if note_access(note, session["username"]) != "owner":
+            self.send_json(403, {"error": "只有建立者可以移除協作"})
+            return
+        username = unquote(urlsplit(self.path).path.split("/members/", 1)[1])
+        with DATA_LOCK:
+            notes = load_notes()
+            for item in notes:
+                if item["id"] != note["id"]:
+                    continue
+                members = item.get("members") or []
+                if username not in members:
+                    self.send_json(404, {"error": "對方不在協作名單中"})
+                    return
+                item["members"] = [name for name in members if name != username]
+                save_notes(notes)
+                updated = dict(item)
+                break
+            else:
+                self.send_json(404, {"error": "Note not found"})
+                return
+        payload = self.note_members_payload(updated, session["username"])
+        publish_note_change("note-members", updated, self.current_session_sid())
+        # 被移除的人不會再收到這篇筆記的事件，因此單獨通知他把筆記從清單移除
+        publish_to_users({"type": "note-unshared", "noteId": updated["id"], "sid": self.current_session_sid()}, [username])
+        self.send_json(200, payload)
 
     def read_payload(self):
         try:
@@ -427,6 +659,11 @@ class NotesHandler(BaseHTTPRequestHandler):
             note_id = int(note_id)
         except (TypeError, ValueError):
             self.send_json(400, {"error": "Invalid note id"})
+            return
+        with DATA_LOCK:
+            note = next((item for item in load_notes() if item["id"] == note_id), None)
+        if note is not None and not note_visible_to(note, session["username"]):
+            self.send_json(403, {"error": "沒有這篇筆記的權限"})
             return
         with PRESENCE_LOCK:
             PRESENCE[token] = {
@@ -752,6 +989,8 @@ class NotesServer(ThreadingHTTPServer):
 
 
 if __name__ == "__main__":
+    # 舊筆記沒有建立者欄位，開機時補上預設的擁有者與協作名單
+    migrate_note_permissions()
     server = NotesServer((HOST, PORT), NotesHandler)
     print_banner()
     try:

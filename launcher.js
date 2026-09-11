@@ -50,7 +50,9 @@ function commandFor(name) {
 }
 
 function waitForBackend(timeout = 5000) {
-  const host = process.env.COLLABNOTE_HOST || '127.0.0.1'
+  // 後端預設綁定 0.0.0.0（所有網卡），但健康檢查要連 127.0.0.1 才保證可達
+  const configuredHost = process.env.COLLABNOTE_HOST || '0.0.0.0'
+  const host = configuredHost === '0.0.0.0' || configuredHost === '::' ? '127.0.0.1' : configuredHost
   const port = Number(process.env.COLLABNOTE_PORT || 8765)
   const startedAt = Date.now()
 

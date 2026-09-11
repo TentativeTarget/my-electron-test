@@ -3,6 +3,20 @@ const { shell } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
 
+// 多用戶測試：以 --profile=<名稱> 或 COLLABNOTE_PROFILE=<名稱> 啟動時，
+// 每個設定檔使用獨立的 userData（各自的登入狀態與已存密碼），
+// 因此同一台電腦可以同時開多個視窗，以不同帳號連線到同一個後端。
+function resolveProfileName() {
+  const fromArg = process.argv.find(arg => arg.startsWith('--profile='))
+  const raw = fromArg ? fromArg.slice('--profile='.length) : process.env.COLLABNOTE_PROFILE
+  return String(raw || '').trim().replace(/[^A-Za-z0-9_-]+/g, '').slice(0, 32)
+}
+
+const profileName = resolveProfileName()
+if (profileName) {
+  app.setPath('userData', path.join(app.getPath('userData'), 'profiles', profileName))
+}
+
 function credentialsFile() {
   return path.join(app.getPath('userData'), 'collabnote-credentials.json')
 }

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import socket
 import sys
 import time
 from io import BytesIO
@@ -18,7 +19,9 @@ from urllib.parse import unquote, urlsplit
 
 from PIL import Image, UnidentifiedImageError
 
-HOST = os.environ.get("COLLABNOTE_HOST", "127.0.0.1")
+# 預設綁定所有網卡，讓同一區域網內的多位使用者都能連上這台伺服器。
+# 只想本機使用時可設定 COLLABNOTE_HOST=127.0.0.1。
+HOST = os.environ.get("COLLABNOTE_HOST", "0.0.0.0")
 PORT = int(os.environ.get("COLLABNOTE_PORT", sys.argv[1] if len(sys.argv) > 1 else 8765))
 DATA_FILE = Path(__file__).with_name("notes.json")
 USERS_FILE = Path(__file__).with_name("users.json")
@@ -140,7 +143,18 @@ def public_user(user):
     }
 
 
+class BadPayload(Exception):
+    """請求內容不是合法的 JSON 物件；錯誤回應已於 read_payload 內送出。"""
+
+
 class NotesHandler(BaseHTTPRequestHandler):
+    def handle_one_request(self):
+        # 單一客戶端送出損壞的內容時，不要讓請求執行緒直接中斷而讓前端一直等待回應
+        try:
+            super().handle_one_request()
+        except BadPayload:
+            self.close_connection = True
+
     def send_json(self, status, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -273,8 +287,22 @@ class NotesHandler(BaseHTTPRequestHandler):
         self.send_json(200, {"deleted": note_id})
 
     def read_payload(self):
-        length = int(self.headers.get("Content-Length", 0))
-        return json.loads(self.rfile.read(length) or b"{}")
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            length = 0
+        raw = self.rfile.read(length) if length > 0 else b""
+        if not raw:
+            return {}
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            payload = None
+        if not isinstance(payload, dict):
+            self.close_connection = True
+            self.send_json(400, {"error": "请求内容必须是合法的 JSON 物件"})
+            raise BadPayload()
+        return payload
 
     def post_presence(self):
         session = self.current_user()
@@ -564,9 +592,42 @@ class NotesHandler(BaseHTTPRequestHandler):
         return
 
 
+def lan_addresses():
+    """回傳本機可用於區域網連線的 IPv4 位址。"""
+    addresses = set()
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            address = info[4][0]
+            if not address.startswith("127."):
+                addresses.add(address)
+    except OSError:
+        pass
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            probe.connect(("8.8.8.8", 80))
+            address = probe.getsockname()[0]
+            if not address.startswith("127."):
+                addresses.add(address)
+        finally:
+            probe.close()
+    except OSError:
+        pass
+    return sorted(addresses)
+
+
+def print_banner():
+    print(f"Notes API listening on http://{HOST}:{PORT}", flush=True)
+    if HOST in ("0.0.0.0", "::"):
+        for address in lan_addresses():
+            print(f"  區域網連線地址: http://{address}:{PORT}", flush=True)
+        print("  多位使用者可將前端伺服器地址設為上述任一網址後登入不同帳號。", flush=True)
+    print("  本機連線地址: http://127.0.0.1:%d" % PORT, flush=True)
+
+
 if __name__ == "__main__":
     server = ThreadingHTTPServer((HOST, PORT), NotesHandler)
-    print(f"Notes API listening on http://{HOST}:{PORT}", flush=True)
+    print_banner()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

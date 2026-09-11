@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' file: data: http://127.0.0.1:8765; style-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' file: https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
+            content="default-src 'self'; connect-src 'self' http: https:; img-src 'self' file: data: http: https:; style-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' file: https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
     />
     <meta
       http-equiv="X-Content-Security-Policy"
-            content="default-src 'self'; connect-src 'self' http://127.0.0.1:8765; img-src 'self' file: data: http://127.0.0.1:8765; style-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' file: https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
+            content="default-src 'self'; connect-src 'self' http: https:; img-src 'self' file: data: http: https:; style-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' file: https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="frontend/vendor/font-awesome/all.min.css" />
@@ -96,6 +96,27 @@
         .auth-screen input:focus {
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .auth-screen .auth-server-hint {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px 8px;
+            color: #94a3b8;
+            font-size: 11px;
+            line-height: 1.5;
+            margin: -10px 0 16px;
+        }
+
+        .auth-server-reset {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 11px;
+            text-decoration: underline;
         }
 
         .auth-submit {
@@ -1085,6 +1106,28 @@
         .connection-dialog-actions {
             display: flex;
             justify-content: flex-end;
+        }
+
+        .connection-dialog-server {
+            color: #64748b;
+            font-size: 12px;
+            margin: 0 0 16px;
+            word-break: break-all;
+        }
+
+        .connection-secondary-btn {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: transparent;
+            color: #334155;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 9px 14px;
+            margin-right: 8px;
+        }
+
+        .connection-secondary-btn:hover {
+            background: #f1f5f9;
         }
 
         .connection-retry-btn {
@@ -2392,6 +2435,27 @@
             color: #fca5a5;
         }
 
+        [data-theme="dark"] .auth-screen .auth-server-hint {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .auth-server-reset {
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .connection-dialog-server {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .connection-secondary-btn {
+            border-color: #334155;
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .connection-secondary-btn:hover {
+            background: #22304c;
+        }
+
         [data-theme="dark"] .connection-dialog p {
             color: #c3cfe0;
         }
@@ -2685,6 +2749,12 @@
         <h1>CollabNote</h1>
         <p class="auth-subtitle" id="authSubtitle">登录后管理你的团队笔记</p>
         <form id="authForm">
+            <label for="authServerUrl">服务器地址</label>
+            <input id="authServerUrl" name="serverUrl" type="text" autocomplete="off" spellcheck="false" placeholder="http://192.168.1.100:8765" />
+            <p class="auth-server-hint">
+                <span>多人協作時填寫伺服器電腦的區域網地址，留空則連線本機。</span>
+                <button type="button" class="auth-server-reset" id="authServerReset">使用本機</button>
+            </p>
             <label for="authUsername">用户名</label>
             <input id="authUsername" name="username" list="recentUsersList" autocomplete="username" required minlength="3" maxlength="32" />
             <datalist id="recentUsersList"></datalist>
@@ -2825,6 +2895,7 @@
                     <strong id="userProfileCardName">用户</strong>
                     <p class="user-profile-login-name" id="userProfileLoginName">用戶登陸名: ""</p>
                     <p id="userProfileCardTitle">团队成员</p>
+                    <p class="user-profile-login-name" id="userProfileServer">伺服器: —</p>
                     <button class="profile-settings-btn" id="profileSettingsBtn" type="button">个性化设置</button>
                     <div class="profile-card-divider"></div>
                     <button class="profile-menu-item theme-toggle" type="button" aria-label="切換到深色模式" title="切換到深色模式">
@@ -2887,7 +2958,9 @@
         <div class="connection-dialog">
             <h2 id="connectionDialogTitle">後端連接失敗</h2>
             <p id="connectionDialogMessage">目前無法連接 Python 後端，筆記資料尚未載入。請確認後端服務正在執行。</p>
+            <p class="connection-dialog-server">目前伺服器：<b id="connectionDialogServer">http://127.0.0.1:8765</b></p>
             <div class="connection-dialog-actions">
+                <button class="connection-secondary-btn" id="connectionServerBtn" type="button">更改伺服器地址</button>
                 <button class="connection-retry-btn" id="connectionRetryBtn" type="button">重新連接</button>
             </div>
         </div>
@@ -2971,8 +3044,12 @@
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
             const connectionDialog = document.getElementById('connectionDialog');
             const connectionRetryBtn = document.getElementById('connectionRetryBtn');
+            const connectionServerBtn = document.getElementById('connectionServerBtn');
+            const connectionDialogServer = document.getElementById('connectionDialogServer');
             const authScreen = document.getElementById('authScreen');
             const authForm = document.getElementById('authForm');
+            const authServerUrl = document.getElementById('authServerUrl');
+            const authServerReset = document.getElementById('authServerReset');
             const authUsername = document.getElementById('authUsername');
             const authPassword = document.getElementById('authPassword');
             const authError = document.getElementById('authError');
@@ -2992,6 +3069,7 @@
             const userProfileCardName = document.getElementById('userProfileCardName');
             const userProfileLoginName = document.getElementById('userProfileLoginName');
             const userProfileCardTitle = document.getElementById('userProfileCardTitle');
+            const userProfileServer = document.getElementById('userProfileServer');
             const profileSettingsBtn = document.getElementById('profileSettingsBtn');
             const profileSettingsDialog = document.getElementById('profileSettingsDialog');
             const profileSettingsForm = document.getElementById('profileSettingsForm');
@@ -3002,7 +3080,59 @@
             const profileError = document.getElementById('profileError');
             const profileCancelBtn = document.getElementById('profileCancelBtn');
             const profileSaveBtn = document.getElementById('profileSaveBtn');
-            const apiBaseUrl = window.collabNoteApi?.baseUrl || 'http://127.0.0.1:8765';
+            const FALLBACK_SERVER_URL = 'http://127.0.0.1:8765';
+            const ENV_SERVER_URL = window.collabNoteApi?.hasEnvBaseUrl
+                ? normalizeServerUrl(window.collabNoteApi.baseUrl)
+                : '';
+            const DEFAULT_SERVER_URL = ENV_SERVER_URL || FALLBACK_SERVER_URL;
+            const PROFILE_NAME = window.collabNoteApi?.profileName || '';
+            const SERVER_URL_STORAGE_KEY = 'collabNoteServerUrl';
+
+            // 解析使用者輸入的伺服器地址，允許省略 http:// 與結尾斜線
+            function normalizeServerUrl(raw) {
+                const value = String(raw ?? '').trim();
+                if (!value) return '';
+                const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `http://${value}`;
+                try {
+                    const parsed = new URL(withScheme);
+                    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+                    if (!parsed.hostname) return '';
+                    const path = parsed.pathname.replace(/\/+$/, '');
+                    return `${parsed.origin}${path}`;
+                } catch (error) {
+                    return '';
+                }
+            }
+
+            // 環境變數指定 > 上次使用的地址 > 本機預設值
+            let apiBaseUrl = ENV_SERVER_URL
+                || normalizeServerUrl(localStorage.getItem(SERVER_URL_STORAGE_KEY))
+                || FALLBACK_SERVER_URL;
+
+            function renderServerInfo() {
+                if (connectionDialogServer) connectionDialogServer.textContent = apiBaseUrl;
+                if (userProfileServer) {
+                    userProfileServer.textContent = PROFILE_NAME
+                        ? `伺服器: ${apiBaseUrl} · 設定檔 ${PROFILE_NAME}`
+                        : `伺服器: ${apiBaseUrl}`;
+                }
+            }
+
+            // 切換伺服器後，舊伺服器簽發的登入憑證不再有效
+            function applyServerUrl(nextUrl) {
+                if (!nextUrl || nextUrl === apiBaseUrl) return false;
+                apiBaseUrl = nextUrl;
+                try {
+                    localStorage.setItem(SERVER_URL_STORAGE_KEY, nextUrl);
+                } catch (error) {
+                    console.error('保存伺服器地址失败', error);
+                }
+                authToken = null;
+                localStorage.removeItem('collabNoteToken');
+                renderServerInfo();
+                return true;
+            }
+
             let saveTimer;
             const syncStatusBadge = document.querySelector('.editor-header .left .status');
             const syncStatusText = document.getElementById('syncStatusText');
@@ -3044,6 +3174,7 @@
             function showConnectionError() {
                 if (connectionDialogVisible) return;
                 connectionDialogVisible = true;
+                renderServerInfo();
                 connectionDialog.classList.add('visible');
                 connectionRetryBtn.focus();
             }
@@ -4432,6 +4563,23 @@
                 setAuthMode(authMode === 'login' ? 'register' : 'login');
             });
 
+            authServerReset.addEventListener('click', function() {
+                authServerUrl.value = DEFAULT_SERVER_URL;
+                authServerUrl.focus();
+            });
+
+            authServerUrl.addEventListener('change', function() {
+                const resolved = normalizeServerUrl(authServerUrl.value);
+                if (resolved) authServerUrl.value = resolved;
+            });
+
+            connectionServerBtn.addEventListener('click', function() {
+                hideConnectionError();
+                showAuthScreen(false);
+                authServerUrl.focus();
+                authServerUrl.select();
+            });
+
             authUsername.addEventListener('change', function() {
                 if (authMode === 'login') fillSavedPassword(authUsername.value.trim());
             });
@@ -4439,6 +4587,20 @@
             authForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
                 authError.textContent = '';
+
+                const typedServer = authServerUrl.value.trim();
+                const resolvedServer = normalizeServerUrl(typedServer);
+                if (typedServer && !resolvedServer) {
+                    authError.textContent = '服务器地址格式不正确，请输入如 http://192.168.1.100:8765';
+                    authServerUrl.focus();
+                    return;
+                }
+                if (resolvedServer) {
+                    applyServerUrl(resolvedServer);
+                } else {
+                    authServerUrl.value = apiBaseUrl;
+                }
+
                 authSubmit.disabled = true;
                 try {
                     const result = await apiRequest(`/api/auth/${authMode}`, {
@@ -4572,6 +4734,15 @@
             if (!credentialsApi && authRememberRow) {
                 authRememberRow.style.display = 'none';
             }
+
+            authServerUrl.value = apiBaseUrl;
+            if (ENV_SERVER_URL) {
+                // 由環境變數指定時不允許在介面上覆寫，避免與 COLLABNOTE_API_URL 衝突
+                authServerUrl.readOnly = true;
+                authServerUrl.title = '伺服器地址由 COLLABNOTE_API_URL 環境變數指定';
+                authServerReset.hidden = true;
+            }
+            renderServerInfo();
 
             if (authToken) {
                 apiRequest('/api/auth/me')

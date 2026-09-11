@@ -103,10 +103,14 @@ class Monitor:
         "ERROR": ("red", "ERROR"),
     }
 
-    def __init__(self, base_url, token="", interval=1.0):
+    def __init__(self, base_url, token="", interval=1.0, title="", exit_when_offline=0.0):
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.interval = max(0.2, interval)
+        self.title = title
+        self.exit_when_offline = max(0.0, exit_when_offline)
+        self.offline_since = None
+        self.pid_file = ""
         self.lock = threading.Lock()
         self.logs = deque(maxlen=2000)
         self.status = None
@@ -140,21 +144,32 @@ class Monitor:
     def poll_status(self):
         while not self.stopping:
             try:
-                with self._open("/api/monitor/status", 5) as response:
+                with self._open("/api/monitor/status", 3) as response:
                     payload = json.loads(response.read().decode("utf-8"))
                 with self.lock:
                     self.status = payload
                     self.state = "online"
                     self.error = ""
+                    self.offline_since = None
             except urllib.error.HTTPError as exc:
                 with self.lock:
                     self.state = "offline"
                     self.error = "HTTP %s（監控端點只開放本機，或需要 --token）" % exc.code
+                    self.note_offline()
             except Exception as exc:
                 with self.lock:
                     self.state = "offline"
                     self.error = str(getattr(exc, "reason", "") or exc) or exc.__class__.__name__
+                    self.note_offline()
             self._sleep(self.interval)
+
+    def note_offline(self):
+        """後端失聯就開始計時，超過門檻讓監控器自己結束（由呼叫端持鎖）。"""
+        now = time.monotonic()
+        if self.offline_since is None:
+            self.offline_since = now
+        elif self.exit_when_offline and now - self.offline_since >= self.exit_when_offline:
+            self.stopping = True
 
     def stream_logs(self):
         backoff = 1.0
@@ -194,6 +209,9 @@ class Monitor:
                     "level": event.get("level", "INFO"),
                     "text": event.get("text", ""),
                 })
+            elif event.get("type") == "shutdown" and self.exit_when_offline:
+                # 後端關閉通知：由後端開啟的監控器跟著結束，視窗才好收掉
+                self.stopping = True
 
     # ─── 畫面 ───
     def visible_logs(self):
@@ -391,6 +409,12 @@ class Monitor:
             self.handle_key(key)
 
     def run(self, colors):
+        if self.pid_file:
+            try:
+                with open(self.pid_file, "w", encoding="utf-8") as handle:
+                    handle.write(str(os.getpid()))
+            except OSError:
+                self.pid_file = ""
         interactive = sys.stdin.isatty()
         if interactive:
             self.stdin_fd = sys.stdin.fileno()
@@ -404,6 +428,9 @@ class Monitor:
             except Exception:
                 terminal_state = None
         sys.stdout.write("\x1b[?1049h\x1b[?25l\x1b[2J")
+        if self.title:
+            # 設定終端機視窗標題，後端關閉後才能認出這個視窗並收掉
+            sys.stdout.write("\x1b]0;%s\x07" % self.title)
         sys.stdout.flush()
         try:
             while not self.stopping:
@@ -415,6 +442,11 @@ class Monitor:
                 termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, terminal_state)
             sys.stdout.write("\x1b[?25h\x1b[?1049l")
             sys.stdout.flush()
+            if self.pid_file:
+                try:
+                    os.remove(self.pid_file)
+                except OSError:
+                    pass
 
 
 def build_parser():
@@ -428,6 +460,10 @@ def build_parser():
     parser.add_argument("--token", default=os.environ.get("COLLABNOTE_MONITOR_TOKEN", ""),
                         help="非本機來源需要的監控 token")
     parser.add_argument("--interval", type=float, default=1.0, help="使用者名單更新間隔（秒）")
+    parser.add_argument("--title", default="", help="設定終端機視窗標題")
+    parser.add_argument("--pid-file", default="", help="啟動時寫入自己的 PID，結束時刪除")
+    parser.add_argument("--exit-when-offline", type=float, default=0.0,
+                        help="後端失聯幾秒後自動結束（0 表示持續重試）")
     parser.add_argument("--once", action="store_true", help="只輸出一次畫面後結束")
     parser.add_argument("--no-color", action="store_true", help="關閉顏色")
     return parser
@@ -439,7 +475,9 @@ def main(argv=None):
     if not base_url.startswith(("http://", "https://")):
         base_url = "http://" + base_url
     colors = Colors(not args.no_color and sys.stdout.isatty())
-    monitor = Monitor(base_url, args.token, args.interval)
+    monitor = Monitor(base_url, args.token, args.interval,
+                      title=args.title, exit_when_offline=args.exit_when_offline)
+    monitor.pid_file = args.pid_file
 
     def handle_signal(signum, frame):
         monitor.stop()

@@ -10,12 +10,16 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shlex
+import shutil
+import signal
 import socket
+import subprocess
 import sys
 import time
 from io import BytesIO
 from queue import Empty, Full, Queue
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, gettempdir
 from threading import Lock
 from urllib.parse import parse_qs, unquote, urlsplit
 
@@ -50,6 +54,9 @@ LOG_SUBSCRIBERS = {}
 LOG_STDOUT = os.environ.get("COLLABNOTE_LOG_STDOUT", "1") not in ("0", "", "false", "False")
 # 非本機來源要讀監控端點時，必須帶 X-Monitor-Token 標頭
 MONITOR_TOKEN = os.environ.get("COLLABNOTE_MONITOR_TOKEN", "")
+# 後端啟動時是否自動開一個終端視窗跑 monitor.py（COLLABNOTE_MONITOR_WINDOW=0 可關閉）
+MONITOR_WINDOW = os.environ.get("COLLABNOTE_MONITOR_WINDOW", "1") not in ("0", "", "false", "False")
+MONITOR_WINDOW_TITLE = "CollabNote 監控"
 SERVER_STARTED_AT = datetime.now(timezone.utc)
 SERVER_STARTED_MONOTONIC = time.monotonic()
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{3,32}$")
@@ -293,6 +300,16 @@ def log_event(text, level="INFO"):
         print(f"[{entry['time']}] {level:<7} {text}", flush=True)
 
 
+def notify_monitors_shutdown():
+    """後端要關了：通知監控器立刻結束，它才知道可以收掉視窗。"""
+    with LOG_LOCK:
+        for queue in list(LOG_SUBSCRIBERS.values()):
+            try:
+                queue.put_nowait({"type": "shutdown"})
+            except Full:
+                pass
+
+
 def monitor_snapshot():
     """整理終端監控器需要的狀態：連線使用者名單與伺服器資訊。"""
     now = time.monotonic()
@@ -521,7 +538,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                     self.wfile.write(b": ping\n\n")
                     self.wfile.flush()
                     continue
-                payload = json.dumps({"type": "line", **entry}, ensure_ascii=False)
+                payload = json.dumps(entry if entry.get("type") else {"type": "line", **entry}, ensure_ascii=False)
                 self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
                 self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
@@ -1143,6 +1160,87 @@ class NotesHandler(BaseHTTPRequestHandler):
         log_event(f"{getattr(self, 'command', '-')} {resource} -> {code} ({who})", level)
 
 
+def applescript_quote(text):
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def monitor_command():
+    """監控器指令；固定走 127.0.0.1，因為監控端點只開放本機。"""
+    host = HOST if HOST not in ("0.0.0.0", "::", "") else "127.0.0.1"
+    parts = [
+        shlex.quote(sys.executable),
+        shlex.quote(str(Path(__file__).with_name("monitor.py"))),
+        "--url", shlex.quote("http://%s:%d" % (host, PORT)),
+        "--title", shlex.quote(MONITOR_WINDOW_TITLE),
+        "--pid-file", shlex.quote(str(monitor_pid_file())),
+        "--exit-when-offline", "4",
+    ]
+    return " ".join(parts)
+
+
+def monitor_pid_file():
+    return Path(gettempdir()) / ("collabnote-monitor-%d.pid" % PORT)
+
+
+def open_monitor_window():
+    """在新終端視窗啟動監控器，後端結束時會一併收掉。"""
+    if not MONITOR_WINDOW:
+        return
+    if not Path(__file__).with_name("monitor.py").exists():
+        return
+    try:
+        monitor_pid_file().unlink()
+    except OSError:
+        pass
+    command = monitor_command()
+    try:
+        if sys.platform == "darwin":
+            # 外層 shell 跑完就 exit，Terminal 會視設定自動關窗；關不掉時再由 close_monitor_window 收尾
+            script = 'tell application "Terminal"\n  do script %s\n  activate\nend tell' % applescript_quote(command + "; exit")
+            subprocess.Popen(["osascript", "-e", script],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif sys.platform.startswith("win"):
+            subprocess.Popen('start "%s" cmd /c "%s"' % (MONITOR_WINDOW_TITLE, command),
+                             shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            for terminal, flags in (("x-terminal-emulator", ["-e", "bash", "-lc"]),
+                                    ("gnome-terminal", ["--", "bash", "-lc"]),
+                                    ("konsole", ["-e", "bash", "-lc"]),
+                                    ("xterm", ["-e", "bash", "-lc"])):
+                if shutil.which(terminal):
+                    subprocess.Popen([terminal] + flags + [command],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    break
+    except OSError as error:
+        log_event(f"無法開啟監控視窗：{error}", "WARN")
+
+
+def close_monitor_window():
+    """等監控器真的結束後才關掉它的終端視窗（延後執行，不拖慢後端關閉）。"""
+    if not MONITOR_WINDOW or sys.platform != "darwin":
+        return
+    script = ('tell application "Terminal"\n'
+              '  repeat with target in (every window whose name contains %s)\n'
+              '    close target\n'
+              '  end repeat\n'
+              'end tell') % applescript_quote(MONITOR_WINDOW_TITLE)
+    pid_file = shlex.quote(str(monitor_pid_file()))
+    # 先等監控器（pid 檔）消失，避免在還有行程執行時關窗而跳出確認對話框
+    helper = (
+        "for _ in $(seq 1 120); do "
+        "[ -f %s ] || break; "
+        "pid=$(cat %s 2>/dev/null); "
+        "[ -n \"$pid\" ] && kill -0 \"$pid\" 2>/dev/null || break; "
+        "sleep 0.5; "
+        "done; sleep 0.5; osascript -e %s"
+    ) % (pid_file, pid_file, shlex.quote(script))
+    try:
+        subprocess.Popen(["bash", "-c", helper], start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+
+
 def lan_addresses():
     """回傳本機可用於區域網連線的 IPv4 位址。"""
     addresses = set()
@@ -1189,6 +1287,14 @@ if __name__ == "__main__":
     server = NotesServer((HOST, PORT), NotesHandler)
     print_banner()
     log_event(f"伺服器啟動：http://{HOST}:{PORT}")
+
+    def stop_on_signal(signum, frame):
+        # launcher 用 SIGTERM 關閉後端，轉成 KeyboardInterrupt 才會走收尾流程
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, stop_on_signal)
+    # 開一個終端視窗跑監控器（COLLABNOTE_MONITOR_WINDOW=0 可關閉）
+    open_monitor_window()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -1196,3 +1302,7 @@ if __name__ == "__main__":
     finally:
         server.server_close()
         log_event("伺服器已停止", "WARN")
+        notify_monitors_shutdown()
+        # 留一點時間讓 SSE 把結束通知送出去
+        time.sleep(0.3)
+        close_monitor_window()

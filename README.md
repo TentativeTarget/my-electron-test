@@ -205,11 +205,20 @@ presence       { noteId, people } 该笔记的在线名单（依观看者过滤�
 
 `monitor.py` 是一个不依赖第三方套件的终端监控程序：左侧列出连上服务器的用户，右侧滚动显示服务器即时日志。
 
+后端启动时会**自动开一个新的终端窗口**跑监控器（macOS 用系统 Terminal），后端关闭时先送关闭通知，等监控器结束后自动收掉那个窗口。不需要这个行为时：
+
+```bash
+COLLABNOTE_MONITOR_WINDOW=0 npm run backend
+```
+
+手动启动（不透过后端）：
+
 ```bash
 npm run monitor                      # 连接 http://127.0.0.1:8765
 python3 monitor.py --port 9000       # 指定端口
 python3 monitor.py --url http://192.168.1.50:8765
 python3 monitor.py --once            # 只输出一帧后结束（脚本或排错用）
+python3 monitor.py --exit-when-offline 4   # 后端失联 4 秒后自动结束
 ```
 
 左侧面板：

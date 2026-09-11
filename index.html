@@ -354,13 +354,18 @@
         }
 
         .friends-rail .user-profile-trigger {
-            width: 100%;
-            padding: 6px 10px 6px 6px;
+            padding: 6px 8px;
         }
 
         .friends-rail .user-profile-name {
             flex: 1;
             max-width: none;
+            text-align: left;
+        }
+
+        .friends-rail .user-profile-trigger i.fa-chevron-down {
+            color: #94a3b8;
+            font-size: 14px;
         }
 
         .friends-rail .user-profile-card {
@@ -1403,25 +1408,32 @@
         .user-profile-trigger {
             display: flex;
             align-items: center;
-            gap: 8px;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            background: #ffffff;
+            gap: 12px;
+            width: 100%;
+            border: 0;
+            border-radius: 14px;
+            background: transparent;
             color: #334155;
             cursor: pointer;
-            padding: 4px 10px 4px 5px;
+            padding: 6px 8px;
+            transition: background 0.15s;
+        }
+
+        .user-profile-trigger:hover {
+            background: #f1f5f9;
         }
 
         .user-profile-avatar {
-            width: 28px;
-            height: 28px;
+            width: 46px;
+            height: 46px;
+            flex-shrink: 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
             background: #0f766e;
             color: #ffffff;
-            font-size: 12px;
+            font-size: 18px;
             font-weight: 700;
             background-position: center;
             background-repeat: no-repeat;
@@ -1433,8 +1445,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.2px;
         }
 
         /* 改为内联下拉，不再使用 hover 浮窗 */
@@ -2556,9 +2569,16 @@
         }
 
         [data-theme="dark"] .user-profile-trigger {
-            background: #141f34;
-            border-color: #2a3a57;
+            background: transparent;
             color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .user-profile-trigger:hover {
+            background: #1f2c46;
+        }
+
+        [data-theme="dark"] .friends-rail .user-profile-trigger i.fa-chevron-down {
+            color: #7d8ea8;
         }
 
         [data-theme="dark"] .user-profile-card {
@@ -2933,14 +2953,6 @@
                 <span class="friends-rail-title"><i class="fas fa-user-friends" aria-hidden="true"></i> 好友</span>
             </div>
             <div class="friends-rail-body">
-            <!-- 線上好友（原左側側邊欄的線上區塊） -->
-            <div class="collaborators">
-                <div class="avatar-group"></div>
-                <div class="online-count">
-                    <span>●</span> <span id="onlineCount">0</span> 位線上
-                    <span class="online-count-total">· 共 <b id="friendsTotalCount">0</b> 位好友</span>
-                </div>
-            </div>
             <div class="user-profile">
                 <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
                     <span class="user-profile-avatar" id="userProfileAvatar">?</span>
@@ -2962,6 +2974,14 @@
                         <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
                         <span>登出</span>
                     </button>
+                </div>
+            </div>
+            <!-- 線上好友（原左側側邊欄的線上區塊） -->
+            <div class="collaborators">
+                <div class="avatar-group"></div>
+                <div class="online-count">
+                    <span>●</span> <span id="onlineCount">0</span> 位線上
+                    <span class="online-count-total">· 共 <b id="friendsTotalCount">0</b> 位好友</span>
                 </div>
             </div>
             <section class="friends-panel" aria-labelledby="friendsPanelTitle">

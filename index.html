@@ -325,6 +325,7 @@
         .friends-rail .collaborators .avatar {
             width: 32px;
             height: 32px;
+            flex-shrink: 0;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -357,10 +358,15 @@
             padding: 6px 8px;
         }
 
-        .friends-rail .user-profile-name {
+        .friends-rail .user-profile-meta {
             flex: 1;
-            max-width: none;
+            min-width: 0;
             text-align: left;
+        }
+
+        .friends-rail .user-profile-name,
+        .friends-rail .user-profile-title {
+            max-width: 100%;
         }
 
         .friends-rail .user-profile-trigger i.fa-chevron-down {
@@ -542,6 +548,7 @@
         .collaborators .avatar {
             width: 32px;
             height: 32px;
+            flex-shrink: 0;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -569,19 +576,19 @@
         }
 
         .collaborators .avatar.a1 {
-            background: #3b82f6;
+            background-color: #3b82f6;
         }
         .collaborators .avatar.a2 {
-            background: #8b5cf6;
+            background-color: #8b5cf6;
         }
         .collaborators .avatar.a3 {
-            background: #ec4899;
+            background-color: #ec4899;
         }
         .collaborators .avatar.a4 {
-            background: #14b8a6;
+            background-color: #14b8a6;
         }
         .collaborators .avatar.a5 {
-            background: #f59e0b;
+            background-color: #f59e0b;
         }
 
         .collaborators .online-count {
@@ -598,11 +605,6 @@
 
         .collaborators .online-count.no-online span {
             color: #94a3b8;
-        }
-
-        .collaborators .online-count .online-count-total {
-            color: #94a3b8;
-            font-weight: 500;
         }
 
         .friends-panel {
@@ -687,7 +689,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            background: #64748b;
+            background-color: #64748b;
             color: #ffffff;
             font-size: 12px;
             font-weight: 700;
@@ -1366,6 +1368,7 @@
         .editor-header .right .avatar-stack .mini-avatar {
             width: 28px;
             height: 28px;
+            flex-shrink: 0;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -1383,22 +1386,22 @@
         }
 
         .editor-header .right .avatar-stack .mini-avatar.m1 {
-            background: #3b82f6;
+            background-color: #3b82f6;
         }
         .editor-header .right .avatar-stack .mini-avatar.m2 {
-            background: #8b5cf6;
+            background-color: #8b5cf6;
         }
         .editor-header .right .avatar-stack .mini-avatar.m3 {
-            background: #ec4899;
+            background-color: #ec4899;
         }
         .editor-header .right .avatar-stack .mini-avatar.m4 {
-            background: #f59e0b;
+            background-color: #f59e0b;
         }
         .editor-header .right .avatar-stack .mini-avatar.m5 {
-            background: #10b981;
+            background-color: #10b981;
         }
         .editor-header .right .avatar-stack .mini-avatar.avatar-more {
-            background: #475569;
+            background-color: #475569;
         }
 
         .user-profile {
@@ -1423,6 +1426,26 @@
             background: #f1f5f9;
         }
 
+        /* 顯示名稱與頭銜上下排列 */
+        .user-profile-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .user-profile-title {
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
         .user-profile-avatar {
             width: 46px;
             height: 46px;
@@ -1431,7 +1454,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            background: #0f766e;
+            background-color: #0f766e;
             color: #ffffff;
             font-size: 18px;
             font-weight: 700;
@@ -2280,10 +2303,6 @@
             color: #c9d5e6;
         }
 
-        [data-theme="dark"] .collaborators .online-count .online-count-total {
-            color: #8fa2bd;
-        }
-
         [data-theme="dark"] .friends-panel-title {
             color: #c9d5e6;
         }
@@ -2314,7 +2333,7 @@
         }
 
         [data-theme="dark"] .friend-avatar {
-            background: #5b6b85;
+            background-color: #5b6b85;
             color: #ffffff;
             border: 2px solid rgba(255,255,255,0.06);
         }
@@ -2577,6 +2596,10 @@
             background: #1f2c46;
         }
 
+        [data-theme="dark"] .user-profile-title {
+            color: #93a5c0;
+        }
+
         [data-theme="dark"] .friends-rail .user-profile-trigger i.fa-chevron-down {
             color: #7d8ea8;
         }
@@ -2718,6 +2741,7 @@
         }
 
         .collaborators .avatar,
+        .editor-header .right .avatar-stack .mini-avatar,
         .friend-avatar,
         .user-profile-avatar {
             background-repeat: no-repeat !important;
@@ -2956,13 +2980,15 @@
             <div class="user-profile">
                 <button class="user-profile-trigger" id="userProfileTrigger" type="button" aria-label="查看个人信息">
                     <span class="user-profile-avatar" id="userProfileAvatar">?</span>
-                    <span class="user-profile-name" id="userProfileName">用户</span>
+                    <span class="user-profile-meta">
+                        <span class="user-profile-name" id="userProfileName">用户</span>
+                        <span class="user-profile-title" id="userProfileCardTitle">团队成员</span>
+                    </span>
                     <i class="fas fa-chevron-down" aria-hidden="true"></i>
                 </button>
                 <div class="user-profile-card" role="status">
                     <strong id="userProfileCardName">用户</strong>
                     <p class="user-profile-login-name" id="userProfileLoginName">用戶登陸名: ""</p>
-                    <p id="userProfileCardTitle">团队成员</p>
                     <p class="user-profile-login-name" id="userProfileServer">伺服器: —</p>
                     <button class="profile-settings-btn" id="profileSettingsBtn" type="button">个性化设置</button>
                     <div class="profile-card-divider"></div>
@@ -2981,7 +3007,6 @@
                 <div class="avatar-group"></div>
                 <div class="online-count">
                     <span>●</span> <span id="onlineCount">0</span> 位線上
-                    <span class="online-count-total">· 共 <b id="friendsTotalCount">0</b> 位好友</span>
                 </div>
             </div>
             <section class="friends-panel" aria-labelledby="friendsPanelTitle">
@@ -4593,8 +4618,6 @@
                 renderPersonList(friendRequestsList, incomingRequests, '暂无请求', true);
                 renderPersonList(friendOutgoingList, outgoingRequests, '暂无请求');
                 renderCollaborators(friends);
-                const totalStat = document.getElementById('friendsTotalCount');
-                if (totalStat) totalStat.textContent = friends.length;
             }
 
             function renderCollaborators(friends) {
@@ -4617,6 +4640,7 @@
                     avatar.title = person.self ? `${name}（我）` : name;
                     const avatarUrl = person.avatarUrl ? `${apiBaseUrl}${person.avatarUrl}${person.self ? `?v=${Date.now()}` : ''}` : '';
                     if (avatarUrl) {
+                        avatar.textContent = '';
                         avatar.style.backgroundImage = `url("${avatarUrl}")`;
                         avatar.style.backgroundSize = 'cover';
                         avatar.style.backgroundPosition = 'center';

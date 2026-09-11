@@ -39,6 +39,12 @@
 - 昵称、自定义头衔与 JPG/PNG 头像设置，头像由后端裁剪压缩为 `256x256` JPEG。
 - 后端不可用时显示连接错误窗口，并支持重新连接。
 
+**后端运维**
+
+- 内置终端监控器 `monitor.py`：左侧列出连线使用者（含編輯／檢視状态与正在看的笔记），右侧滚动显示服务器即时日志。
+- 后端启动时自动开一个终端窗口运行监控器，关闭时先通知监控器结束、再收掉该窗口；设 `COLLABNOTE_MONITOR_WINDOW=0` 可关闭自动开窗。
+- 监控接口 `/api/monitor/*` 默认只接受本机连线，需要远端查看时以 `COLLABNOTE_MONITOR_TOKEN` 开放。
+
 ## 快速开始
 
 需要 Node.js（含 npm）与 Python 3。安装依赖：
@@ -65,6 +71,8 @@ npm run launcher -- stop all
 ```
 
 启动器会记录前后端 PID，启动后端时会等待 API 端口就绪后再继续。后端默认监听所有网卡，同一局域网的其他电脑也能连接；每执行一次 `npm run launcher -- start frontend` 就会多开一个客户端，详见「多用户连接同一个后端」。
+
+启动后端时会自动开一个终端窗口运行后端监控器，关闭后端时一并收掉；不想开窗就加上 `COLLABNOTE_MONITOR_WINDOW=0`，详见「后端终端监控器」。
 
 ### 独立启动
 
@@ -261,7 +269,7 @@ my-electron-app/
 ├── launcher.js                前后端进程启动器（支持 frontend:<设定档> 多实例）
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
-├── notes.json                 笔记数据文件
+├── notes.json                 笔记数据文件（运行时产生，不纳入版本控制）
 ├── users.json                 用户账号与好友关系数据文件
 └── frontend/
     ├── assets/avatars/        头像资源目录（Git 可见）
@@ -310,13 +318,21 @@ Electron 与 Python 是两个独立进程，前端不直接读取数据文件，
 2. 修改显示名称、自定义头衔或上传 JPG/PNG 头像。
 3. 保存后后端会裁剪并压缩头像为 `256x256` JPEG。
 
+### 查看后端状态
+
+1. 启动后端时会自动开一个终端窗口运行监控器（macOS 使用系统 Terminal）。
+2. 左侧列出目前连线的使用者、他们正在編輯还是檢視、以及正在看哪一篇笔记；右侧是服务器即时日志。
+3. 右侧默认隐藏静态请求，按 `a` 显示、`p` 暂停滚动、`q` 离开。手动查看可运行 `npm run monitor`。
+4. 关闭后端时监控窗口会自动收掉；若后端是被强制结束的，监控器会在失联 4 秒后自行结束。
+
 ## 数据文件
 
-- `notes.json`：笔记数据。
-- `users.json`：用户账号、密码哈希、昵称、头衔和好友关系。
+- `notes.json`：笔记数据。运行时由后端读写，已在 `.gitignore` 中忽略，不随代码提交；换机器时请自行复制。
+- `users.json`：用户账号、密码哈希、昵称、头衔和好友关系（目前仍纳入版本控制）。
 - `frontend/assets/avatars/`：处理后的头像文件，统一为 `256x256` JPEG，并纳入 Git 副本。
 - `frontend/assets/images/`：笔记中通过「图片」工具上传的图片文件，运行时创建。
 - `.collabnote-pids.json`：启动器运行时 PID 文件，不应提交到版本库。
+- `collabnote-monitor-<端口>.pid`：监控器 PID 文件，放在系统临时目录，后端关闭时自动删除。
 
 ## API 参考
 
@@ -362,6 +378,8 @@ GET /api/monitor/status   连线用户、在线模式、服务器运行时间与
 GET /api/monitor/logs     服务器日志串流（SSE，连上时先补发最近 500 行）
 ```
 
+`/api/monitor/logs` 连上时先收到一笔 `{"type": "backlog", "lines": [...]}`，之后每笔为 `{"type": "line", "time", "level", "text"}`；后端正关闭时会送 `{"type": "shutdown"}`，由后端启动的监控器据此立即结束并收掉窗口。
+
 `GET /api/events` 是 SSE 串流，推送 `note-created` / `note-updated` / `note-deleted` / `presence` 事件（详见「笔记即时同步」）。
 
 `POST /api/presence` 请求体为 `{"noteId": <笔记 id>, "mode": "editing" | "viewing"}`，返回该笔记上在线的好友与自己的名单（含显示名、头像与 mode）。连续 12 秒无心跳会自动视为离线；登出或 `noteId: null` 时立即移除，并即时通知同笔记的其他使用者。
@@ -395,6 +413,8 @@ Authorization: Bearer <token>
 - 密码只保存 PBKDF2-SHA256 哈希和随机盐。
 - 当前会话存储在 Python 内存中，后端重启后失效。
 - JSON 文件和头像目录应定期备份。
+- `users.json` 目前纳入版本控制，内含账号与密码哈希；若要公开仓库，建议先停止追踪该文件（`git rm --cached users.json`）。
+- 监控接口 `/api/monitor/status` 与 `/api/monitor/logs` 只接受 `127.0.0.1` 的连线；要让其他机器存取必须设置 `COLLABNOTE_MONITOR_TOKEN` 并携带 `X-Monitor-Token`，否则回 `403`。
 - 后端默认监听 `0.0.0.0`，同一局域网内的其他设备都能访问；仅在受信任网络中使用，公网部署前应改为 `COLLABNOTE_HOST=127.0.0.1` 并置于反向代理之后。
 - 前端只有在登录页或 `COLLABNOTE_API_URL` 指定地址时才会连接外部服务器，不会主动扫描网络。
 - 当前实现适合本地或受信任局域网；生产部署还应增加 HTTPS、持久化会话、访问控制和更严格的输入限制。

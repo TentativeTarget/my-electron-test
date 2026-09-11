@@ -9,6 +9,7 @@
     "frontend": "electron .",
     "backend": "python3 server.py",
     "api": "npm run backend",
+    "monitor": "python3 monitor.py",
     "launcher": "node launcher.js"
   },
   "author": "Jane Doe",

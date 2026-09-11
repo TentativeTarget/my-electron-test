@@ -1,3 +1,4 @@
+from collections import deque
 from datetime import datetime, timezone
 import base64
 import binascii
@@ -39,6 +40,18 @@ EVENT_LOCK = Lock()
 EVENT_SUBSCRIBERS = {}
 EVENT_QUEUE_SIZE = 64
 EVENT_HEARTBEAT = 15.0
+# 終端監控器用的伺服器日誌：環形緩衝 + SSE 訂閱者
+LOG_BUFFER_SIZE = 500
+LOG_SUBSCRIBER_QUEUE_SIZE = 256
+LOG_LOCK = Lock()
+LOG_BUFFER = deque(maxlen=LOG_BUFFER_SIZE)
+LOG_SUBSCRIBERS = {}
+# 設 COLLABNOTE_LOG_STDOUT=0 可關閉同步輸出到終端
+LOG_STDOUT = os.environ.get("COLLABNOTE_LOG_STDOUT", "1") not in ("0", "", "false", "False")
+# 非本機來源要讀監控端點時，必須帶 X-Monitor-Token 標頭
+MONITOR_TOKEN = os.environ.get("COLLABNOTE_MONITOR_TOKEN", "")
+SERVER_STARTED_AT = datetime.now(timezone.utc)
+SERVER_STARTED_MONOTONIC = time.monotonic()
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{3,32}$")
 
 
@@ -262,6 +275,79 @@ def publish_presence(note_id):
             pass
 
 
+def log_event(text, level="INFO"):
+    """寫一行伺服器日誌：存進環形緩衝、推給監控端，必要時同步輸出到終端。"""
+    entry = {
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "level": level,
+        "text": text,
+    }
+    with LOG_LOCK:
+        LOG_BUFFER.append(entry)
+        for queue in list(LOG_SUBSCRIBERS.values()):
+            try:
+                queue.put_nowait(entry)
+            except Full:
+                pass
+    if LOG_STDOUT:
+        print(f"[{entry['time']}] {level:<7} {text}", flush=True)
+
+
+def monitor_snapshot():
+    """整理終端監控器需要的狀態：連線使用者名單與伺服器資訊。"""
+    now = time.monotonic()
+    with PRESENCE_LOCK:
+        for token, presence in list(PRESENCE.items()):
+            if token not in SESSIONS or now - presence["ts"] > PRESENCE_TIMEOUT:
+                PRESENCE.pop(token, None)
+        presence_by_user = {}
+        for presence in PRESENCE.values():
+            seen = presence_by_user.get(presence["username"])
+            if seen is None or presence["ts"] >= seen["ts"]:
+                presence_by_user[presence["username"]] = presence
+    with EVENT_LOCK:
+        streams_by_user = {}
+        for subscriber in EVENT_SUBSCRIBERS.values():
+            username = subscriber["username"]
+            streams_by_user[username] = streams_by_user.get(username, 0) + 1
+    sessions_by_user = {}
+    for session in SESSIONS.values():
+        username = session["username"]
+        sessions_by_user[username] = sessions_by_user.get(username, 0) + 1
+    titles = {note["id"]: note.get("title", "") for note in load_notes()}
+    records = {user["username"]: user for user in load_users()}
+    people = []
+    names = sorted(set(sessions_by_user) | set(presence_by_user), key=lambda name: (name not in presence_by_user, name))
+    for username in names:
+        presence = presence_by_user.get(username)
+        record = records.get(username) or {}
+        people.append({
+            "username": username,
+            "displayName": record.get("displayName") or username,
+            "online": presence is not None,
+            "mode": presence.get("mode") if presence else None,
+            "noteId": presence.get("noteId") if presence else None,
+            "noteTitle": titles.get(presence.get("noteId")) if presence else None,
+            "idleSeconds": round(now - presence["ts"], 1) if presence else None,
+            "sessions": sessions_by_user.get(username, 0),
+            "streams": streams_by_user.get(username, 0),
+        })
+    return {
+        "server": {
+            "host": HOST,
+            "port": PORT,
+            "startedAt": SERVER_STARTED_AT.isoformat(),
+            "uptimeSeconds": round(time.monotonic() - SERVER_STARTED_MONOTONIC, 1),
+            "userCount": len(records),
+            "noteCount": len(titles),
+            "sessionCount": len(SESSIONS),
+            "streamCount": len(EVENT_SUBSCRIBERS),
+            "onlineCount": len(presence_by_user),
+        },
+        "users": people,
+    }
+
+
 def public_user(user):
     return {
         "username": user["username"],
@@ -325,6 +411,10 @@ class NotesHandler(BaseHTTPRequestHandler):
                 self.send_json(401, {"error": "Authentication required"})
         elif urlsplit(self.path).path == "/api/events":
             self.stream_events()
+        elif urlsplit(self.path).path == "/api/monitor/status":
+            self.monitor_status()
+        elif urlsplit(self.path).path == "/api/monitor/logs":
+            self.monitor_logs()
         elif self.path == "/api/friends":
             self.list_friends()
         elif urlsplit(self.path).path.startswith("/api/images/"):
@@ -364,6 +454,7 @@ class NotesHandler(BaseHTTPRequestHandler):
         self.end_headers()
         with EVENT_LOCK:
             EVENT_SUBSCRIBERS[client_id] = subscriber
+        log_event(f"{session['username']} 開啟即時事件連線", "EVENT")
         try:
             self.wfile.write(b"retry: 3000\n\n")
             self.wfile.write(b": connected\n\n")
@@ -383,6 +474,61 @@ class NotesHandler(BaseHTTPRequestHandler):
         finally:
             with EVENT_LOCK:
                 EVENT_SUBSCRIBERS.pop(client_id, None)
+            log_event(f"{session['username']} 關閉即時事件連線", "EVENT")
+
+    def monitor_allowed(self):
+        """監控端點預設只開放本機；設定 COLLABNOTE_MONITOR_TOKEN 後可用標頭存取。"""
+        client = self.client_address[0] if self.client_address else ""
+        if client in ("127.0.0.1", "::1"):
+            return True
+        if not MONITOR_TOKEN:
+            return False
+        supplied = self.headers.get("X-Monitor-Token", "").strip()
+        return bool(supplied) and hmac.compare_digest(supplied, MONITOR_TOKEN)
+
+    def monitor_status(self):
+        if not self.monitor_allowed():
+            self.send_json(403, {"error": "監控端點只允許本機存取"})
+            return
+        self.send_json(200, monitor_snapshot())
+
+    def monitor_logs(self):
+        """Server-Sent Events：先把緩衝內的舊日誌補上，之後即時推送新日誌。"""
+        if not self.monitor_allowed():
+            self.send_json(403, {"error": "監控端點只允許本機存取"})
+            return
+        subscriber_queue = Queue(maxsize=LOG_SUBSCRIBER_QUEUE_SIZE)
+        client_id = secrets.token_hex(8)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Connection", "close")
+        self.close_connection = True
+        self.end_headers()
+        with LOG_LOCK:
+            backlog = list(LOG_BUFFER)
+            LOG_SUBSCRIBERS[client_id] = subscriber_queue
+        try:
+            self.wfile.write(b"retry: 3000\n\n")
+            self.wfile.write(b": connected\n\n")
+            self.wfile.write(("data: " + json.dumps({"type": "backlog", "lines": backlog}, ensure_ascii=False) + "\n\n").encode("utf-8"))
+            self.wfile.flush()
+            while True:
+                try:
+                    entry = subscriber_queue.get(timeout=EVENT_HEARTBEAT)
+                except Empty:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    continue
+                payload = json.dumps({"type": "line", **entry}, ensure_ascii=False)
+                self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
+            pass
+        finally:
+            with LOG_LOCK:
+                LOG_SUBSCRIBERS.pop(client_id, None)
 
     def do_POST(self):
         if self.path == "/api/auth/register":
@@ -444,6 +590,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                 save_notes(notes)
                 result = public_note(note, session["username"])
                 publish_note_event("note-updated", note, self.current_session_sid())
+                log_event(f"{session['username']} 更新筆記 #{note['id']}「{note.get('title', '')}」")
                 self.send_json(200, result)
                 return
         self.send_json(404, {"error": "Note not found"})
@@ -478,6 +625,7 @@ class NotesHandler(BaseHTTPRequestHandler):
             remaining_notes = [item for item in notes if item["id"] != note_id]
             save_notes(remaining_notes)
         publish_note_change("note-deleted", note, self.current_session_sid())
+        log_event(f"{session['username']} 刪除筆記 #{note_id}「{note.get('title', '')}」", "WARN")
         self.send_json(200, {"deleted": note_id})
 
     def list_notes(self):
@@ -514,6 +662,7 @@ class NotesHandler(BaseHTTPRequestHandler):
             save_notes(notes)
         result = public_note(note, session["username"])
         publish_note_event("note-created", note, self.current_session_sid())
+        log_event(f"{session['username']} 新增筆記 #{note['id']}「{note['title']}」")
         self.send_json(201, result)
 
     def note_members_payload(self, note, username):
@@ -605,6 +754,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                 return
         payload = self.note_members_payload(updated, session["username"])
         publish_note_change("note-members", updated, self.current_session_sid())
+        log_event(f"{session['username']} 邀請 {username} 協作 #{updated['id']}（{'可編輯' if access == 'edit' else '只讀'}）")
         self.send_json(200, payload)
 
     def remove_note_member(self):
@@ -635,6 +785,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                 return
         payload = self.note_members_payload(updated, session["username"])
         publish_note_change("note-members", updated, self.current_session_sid())
+        log_event(f"{session['username']} 移除協作者 {username} #{updated['id']}", "WARN")
         # 被移除的人不會再收到這篇筆記的事件，因此單獨通知他把筆記從清單移除
         publish_to_users({"type": "note-unshared", "noteId": updated["id"], "sid": self.current_session_sid()}, [username])
         self.send_json(200, payload)
@@ -685,12 +836,17 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_json(403, {"error": "沒有這篇筆記的權限"})
             return
         with PRESENCE_LOCK:
+            previous = PRESENCE.get(token)
             PRESENCE[token] = {
                 "username": session["username"],
                 "noteId": note_id,
                 "mode": mode,
                 "ts": time.monotonic(),
             }
+        if previous is None or previous.get("noteId") != note_id or previous.get("mode") != mode:
+            title = note.get("title", "") if note else ""
+            action = "編輯中" if mode == "editing" else "閱讀中"
+            log_event(f"{session['username']} {action} #{note_id}「{title}」", "PRESENCE")
         people = presence_people_for(note_id, session["username"])
         publish_presence(note_id)
         self.send_json(200, {"noteId": note_id, "people": people})
@@ -789,6 +945,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                 if user["username"] not in requester["friends"]:
                     requester["friends"].append(user["username"])
             save_users(users)
+        log_event(f"{user['username']} {'接受' if action == 'accept' else '拒絕'} {requester_name} 的好友邀請")
         self.send_json(200, {"accepted": action == "accept", "username": requester_name})
 
     def register_user(self):
@@ -811,21 +968,26 @@ class NotesHandler(BaseHTTPRequestHandler):
             save_users(users)
             user = users[-1]
         token = create_session(user)
+        log_event(f"新使用者註冊：{username}")
         self.send_json(201, {"token": token, **session_public(SESSIONS[token]), **public_user(user)})
 
     def login_user(self):
         payload = self.read_payload()
         user = authenticate_user(str(payload.get("username", "")).strip(), str(payload.get("password", "")))
         if not user:
+            log_event(f"登入失敗：{str(payload.get('username', '')).strip() or '(空)'}", "WARN")
             self.send_json(401, {"error": "用户名或密码错误"})
             return
         token = create_session(user)
+        log_event(f"{user['username']} 登入成功")
         self.send_json(200, {"token": token, **session_public(SESSIONS[token]), **public_user(user)})
 
     def logout_user(self):
         authorization = self.headers.get("Authorization", "")
         token = authorization.removeprefix("Bearer ").strip()
-        SESSIONS.pop(token, None)
+        session = SESSIONS.pop(token, None)
+        if session:
+            log_event(f"{session['username']} 登出")
         with PRESENCE_LOCK:
             previous = PRESENCE.pop(token, None)
         if previous and previous.get("noteId") is not None:
@@ -881,6 +1043,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                     if avatar_file:
                         stored_user["avatarFile"] = avatar_file
                     save_users(users)
+                    log_event(f"{user['username']} 更新個人資料（暱稱：{display_name}）")
                     self.send_json(200, public_user(stored_user))
                     return
         self.send_json(404, {"error": "User not found"})
@@ -939,6 +1102,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         except OSError:
             self.send_json(500, {"error": "圖片存儲失敗"})
             return
+        session = self.current_user()
+        log_event(f"{session['username'] if session else '-'} 上傳圖片 {filename}（{length // 1024} KB）")
         self.send_json(201, {"url": f"/api/images/{filename}"})
 
     def send_note_image(self):
@@ -965,6 +1130,17 @@ class NotesHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         return
+
+    def log_request(self, code="-", size="-"):
+        """把每個請求寫進監控日誌；靜態資源（頭像、圖片、健康檢查）另外標記。"""
+        resource = urlsplit(getattr(self, "path", "")).path
+        if resource in ("/api/health", "/api/monitor/logs", "/api/monitor/status") or resource.startswith("/api/users/") or resource.startswith("/api/images/"):
+            level = "STATIC"
+        else:
+            level = "HTTP"
+        session = self.current_user()
+        who = session["username"] if session else "-"
+        log_event(f"{getattr(self, 'command', '-')} {resource} -> {code} ({who})", level)
 
 
 def lan_addresses():
@@ -1012,9 +1188,11 @@ if __name__ == "__main__":
     migrate_note_permissions()
     server = NotesServer((HOST, PORT), NotesHandler)
     print_banner()
+    log_event(f"伺服器啟動：http://{HOST}:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         server.server_close()
+        log_event("伺服器已停止", "WARN")

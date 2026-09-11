@@ -201,6 +201,45 @@ presence       { noteId, people } 该笔记的在线名单（依观看者过滤�
 
 界面会弹出「后端连接失败」对话框，并显示当前使用的服务器地址。可点击「更改服务器地址」回到登录页重新填写，或确认服务器已启动后点「重新连接」。
 
+## 后端终端监控器
+
+`monitor.py` 是一个不依赖第三方套件的终端监控程序：左侧列出连上服务器的用户，右侧滚动显示服务器即时日志。
+
+```bash
+npm run monitor                      # 连接 http://127.0.0.1:8765
+python3 monitor.py --port 9000       # 指定端口
+python3 monitor.py --url http://192.168.1.50:8765
+python3 monitor.py --once            # 只输出一帧后结束（脚本或排错用）
+```
+
+左侧面板：
+
+- `●` 表示该用户有心跳（最近 12 秒内回过 `/api/presence`），`○` 表示只保持连线、未打开笔记。
+- 右侧标签为 `編輯` / `檢視`，下面一行显示正在看的笔记编号与标题。
+- 只有「有心跳」或「已建立 `/api/events` 连线」的用户会出现在列表里，登出后自动消失。
+
+右侧面板的日志等级：
+
+```text
+INFO      业务事件（注册、登录、笔记增删改、协同权限变更）
+HTTP      每个 API 请求与状态码，括号内是发起者
+EVENT     SSE 长连线建立／结束
+LIVE      使用者切换正在编辑或阅读的笔记
+WARN      登出以外的注意事件（删除笔记、移除协作者、服务器停止）
+STATIC    静态资源与监控器自身的轮询，默认隐藏，按 a 显示
+```
+
+按键：`q` 离开、`p` 暂停／恢复跟随、`c` 清空画面、`a` 显示／隐藏静态请求、`↑` `↓` `PgUp` `PgDn` `Home` `End` 翻阅历史日志。
+
+日志保存在后端内存的环形缓冲区（最近 500 行），后端重启即清空。监控端两个接口只接受本机（`127.0.0.1`）连线；需要用其他机器查看时，在启动后端前设置 `COLLABNOTE_MONITOR_TOKEN`，并让监控器带上同一个 token：
+
+```bash
+COLLABNOTE_MONITOR_TOKEN=secret npm run backend
+python3 monitor.py --host 192.168.1.50 --token secret
+```
+
+后端默认也会把日志同步打印到终端（launcher 启动时是丢弃的）；设置 `COLLABNOTE_LOG_STDOUT=0` 可以关闭。
+
 ## 项目结构
 
 ```text
@@ -209,6 +248,7 @@ my-electron-app/
 ├── main.js                    Electron 主进程：窗口生命周期、凭据存取与 --profile 多实例
 ├── preload.js                 安全桥接，向页面暴露默认 API 地址与设定档名称
 ├── server.py                  Python HTTP 后端：API、认证、好友、笔记、头像
+├── monitor.py                 后端终端监控器：连线用户 + 即时日志
 ├── launcher.js                前后端进程启动器（支持 frontend:<设定档> 多实例）
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
@@ -304,6 +344,13 @@ POST /api/friends/requests/:username/reject
 ```text
 POST /api/presence
 GET  /api/events?token=<token>
+```
+
+后端监控（只接受本机，或用 `COLLABNOTE_MONITOR_TOKEN` + `X-Monitor-Token` 标头）：
+
+```text
+GET /api/monitor/status   连线用户、在线模式、服务器运行时间与计数（JSON）
+GET /api/monitor/logs     服务器日志串流（SSE，连上时先补发最近 500 行）
 ```
 
 `GET /api/events` 是 SSE 串流，推送 `note-created` / `note-updated` / `note-deleted` / `presence` 事件（详见「笔记即时同步」）。

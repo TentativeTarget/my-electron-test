@@ -35,3 +35,6 @@ lerna-debug.log*
 
 # 打包輸出
 /dist/
+
+# ─── 本機趣味工具：完整功能測試監控器（單檔案、不提交）───
+/monitor-tests.py

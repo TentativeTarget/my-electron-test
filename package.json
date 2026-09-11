@@ -4,9 +4,9 @@
   "description": "CollabNote 多人共享笔记客户端（Electron 前端）",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "node start-frontend.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "frontend": "electron .",
+    "frontend": "node start-frontend.js",
     "backend": "python3 server.py",
     "api": "npm run backend",
     "monitor": "python3 monitor.py",

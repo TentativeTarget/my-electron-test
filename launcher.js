@@ -1,4 +1,5 @@
 const { spawn } = require('node:child_process')
+const { ensureElectron, guiEnv } = require('./start-frontend')
 const fs = require('node:fs')
 const http = require('node:http')
 const path = require('node:path')
@@ -115,13 +116,15 @@ function commandFor(name) {
   let profile = name.startsWith('frontend:') ? name.slice('frontend:'.length) : ''
   if (profile === 'default') profile = ''
   const args = [projectDir]
-  const env = { ...process.env }
+  // 沿用 npm run frontend 的啟動邏輯：補回缺損的 Electron，並移除
+  // ELECTRON_RUN_AS_NODE，否則 Electron 會以 Node 模式執行而啟動失敗
+  const env = guiEnv()
   if (profile) {
     // 同時用參數與環境變數傳遞，讓 main.js 兩種啟動方式都能識別
     args.push(`--profile=${profile}`)
     env.COLLABNOTE_PROFILE = profile
   }
-  return { command: require('electron'), args, env }
+  return { command: ensureElectron(), args, env }
 }
 
 function waitForBackend(timeout = 5000) {

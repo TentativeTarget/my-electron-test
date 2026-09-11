@@ -97,6 +97,15 @@ npm run launcher -- start frontend
 npm run launcher -- stop frontend
 ```
 
+### 前端启动失败时
+
+`npm run frontend` 现在会自己补齐缺損的 Electron 并移除有干扰的环境变量，两个常见错误的处理方式：
+
+| 错误 | 原因 | 处理 |
+| --- | --- | --- |
+| `Cannot find module 'electron/main'` | 环境带着 `ELECTRON_RUN_AS_NODE=1`（常见于从 VS Code 的终端启动），Electron 会退化成纯 Node | `npm run frontend` 已经自动移除；手动启动时可执行 `env -u ELECTRON_RUN_AS_NODE npm run frontend` |
+| `spawn ... Electron ENOENT` | `node_modules/electron/dist` 安装不完整（`npm install` 中断） | 启动脚本会自动重新解压；也可手动执行 `node node_modules/electron/install.js` |
+
 ## 多用户连接同一个后端
 
 一个后端进程可以同时服务多位使用者：所有账号、好友关系、笔记和在线状态都由 `server.py` 统一保存，前端只负责连接与显示。
@@ -327,6 +336,7 @@ my-electron-app/
 ├── monitor.py                 后端终端监控器：连线用户 + 即时日志
 ├── launcher.js                前后端进程启动器（支持 frontend:<设定档> 多实例）
 ├── build-backend.py           打包免安装后端（macOS 用 PyInstaller、Windows 用嵌入式 Python）
+├── start-frontend.js          启动前端：补齐 Electron 并移除 ELECTRON_RUN_AS_NODE
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
 ├── notes.json                 笔记数据文件（运行时产生，不纳入版本控制）

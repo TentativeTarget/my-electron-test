@@ -21,6 +21,11 @@
             box-sizing: border-box;
         }
 
+        /* 有 hidden 屬性的元素一律隱藏：作者樣式（如 display: inline-flex）會蓋過 UA 的 [hidden] */
+        [hidden] {
+            display: none !important;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: #f5f7fb;
@@ -1564,16 +1569,22 @@
             font-size: 11px;
         }
 
-        .editor-header .right .note-readonly-chip {
+        .editor-header .right .note-permission-chip {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 6px 12px;
             border-radius: 30px;
-            background: #fef3c7;
-            color: #b45309;
+            background: #dbeafe;
+            color: #1d4ed8;
             font-size: 12px;
             font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .editor-header .right .note-permission-chip.view {
+            background: #fef3c7;
+            color: #b45309;
         }
 
         /* 只讀權限：鎖住編輯區與工具列 */
@@ -2809,7 +2820,12 @@
             color: #7d8ea8;
         }
 
-        [data-theme="dark"] .editor-header .right .note-readonly-chip {
+        [data-theme="dark"] .editor-header .right .note-permission-chip {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .editor-header .right .note-permission-chip.view {
             background: rgba(245, 158, 11, 0.16);
             color: #fbbf24;
         }
@@ -3219,7 +3235,7 @@
                 </div>
                 <div class="right">
                     <span class="note-owner-chip" id="noteOwnerChip" hidden></span>
-                    <span class="note-readonly-chip" id="noteReadOnlyChip" hidden><i class="fas fa-lock" aria-hidden="true"></i> 只讀</span>
+                    <span class="note-permission-chip" id="notePermissionChip" hidden></span>
                     <button class="share-btn" id="shareNoteBtn" type="button" title="管理這篇筆記的協作權限">
                         <i class="fas fa-user-plus" aria-hidden="true"></i>
                         <span class="share-btn-label">共用</span>
@@ -4322,7 +4338,7 @@
             const messageDialogText = document.getElementById('messageDialogText');
             const messageOkBtn = document.getElementById('messageOkBtn');
             const noteOwnerChip = document.getElementById('noteOwnerChip');
-            const noteReadOnlyChip = document.getElementById('noteReadOnlyChip');
+            const notePermissionChip = document.getElementById('notePermissionChip');
             const shareAccessSelect = document.getElementById('shareAccessSelect');
             const shareNoteBtn = document.getElementById('shareNoteBtn');
             const shareDialog = document.getElementById('shareDialog');
@@ -4891,21 +4907,38 @@
                 noteContent.setAttribute('contenteditable', noteReadOnly ? 'false' : 'true');
                 noteTitleInput.readOnly = noteReadOnly;
                 document.body.classList.toggle('note-readonly', noteReadOnly);
-                noteReadOnlyChip.hidden = !noteReadOnly;
                 if (noteReadOnly) clearImageSelection();
+            }
+
+            // 徽章跟著「當前使用者對這篇筆記的權限」變：我建立的＝不顯示、被邀請編輯＝編輯、只讀＝只讀
+            function updateNotePermissionChip(access) {
+                if (access !== 'edit' && access !== 'view') {
+                    notePermissionChip.hidden = true;
+                    return;
+                }
+                notePermissionChip.className = `note-permission-chip${access === 'view' ? ' view' : ''}`;
+                const icon = document.createElement('i');
+                icon.className = access === 'view' ? 'fas fa-lock' : 'fas fa-user-friends';
+                const label = document.createElement('span');
+                label.textContent = access === 'view' ? '只讀' : '編輯';
+                notePermissionChip.replaceChildren(icon, label);
+                notePermissionChip.title = access === 'view' ? '你只有閱讀權限' : '你被邀請編輯這篇筆記';
+                notePermissionChip.hidden = false;
             }
 
             function updateNoteSharingUi(note) {
                 if (!note) {
                     noteOwnerChip.hidden = true;
                     shareNoteBtn.hidden = true;
+                    notePermissionChip.hidden = true;
                     setNoteReadOnly(false);
                     return;
                 }
                 const ownerLabel = note.ownerName || note.owner || '未知';
                 const isOwner = note.canManage !== false;
-                // 只讀權限的筆記：看得到但不能改
+                // 只讀權限的筆記：看得到但不能改；徽章依 access 顯示編輯/只讀
                 setNoteReadOnly(note.access === 'view');
+                updateNotePermissionChip(note.access);
                 noteOwnerChip.replaceChildren();
                 const icon = document.createElement('i');
                 icon.className = isOwner ? 'fas fa-user-pen' : 'fas fa-user-friends';

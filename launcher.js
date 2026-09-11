@@ -24,7 +24,22 @@ function parseTarget(raw) {
   if (profile && app !== 'frontend') return null
   if (app === 'backend') return 'backend'
   const name = profile || profileFromEnv()
+  // frontend:default 代表沿用原本的預設 userData（不建立 profiles/<名稱>）
+  if (name === 'default') return 'frontend:default'
   return name ? `frontend:${name}` : 'frontend'
+}
+
+// 每次 start frontend 都開一個新客戶端，自動分配沒被占用的設定檔編號，
+// 讓多個視窗各自擁有獨立的登入狀態。
+function nextClientKey(pids) {
+  const used = new Set()
+  for (const key of Object.keys(pids)) {
+    const matched = /^frontend:client-(\d+)$/.exec(key)
+    if (matched) used.add(Number(matched[1]))
+  }
+  let index = 1
+  while (used.has(index)) index += 1
+  return `frontend:client-${index}`
 }
 
 function readPids() {
@@ -49,6 +64,18 @@ function isRunning(pid) {
   }
 }
 
+// 清除已結束的行程記錄，讓自動編號可以重複使用空出來的設定檔
+function prunePids(pids) {
+  let changed = false
+  for (const [key, pid] of Object.entries(pids)) {
+    if (!isRunning(pid)) {
+      delete pids[key]
+      changed = true
+    }
+  }
+  return changed
+}
+
 function frontendKeys(pids) {
   const keys = Object.keys(pids).filter(name => name === 'frontend' || name.startsWith('frontend:'))
   return keys.sort((a, b) => a.localeCompare(b))
@@ -63,10 +90,13 @@ function keysForAction(raw, action, pids) {
   const stopping = action === 'stop' || action === 'restart'
   if (target === 'all') {
     const fronts = frontendKeys(pids)
-    return stopping ? ['backend', ...fronts] : ['backend', 'frontend']
+    return stopping ? ['backend', ...fronts] : ['backend', nextClientKey(pids)]
   }
+  if (target === 'frontend:default') return ['frontend']
   if (target === 'frontend') {
-    if (!stopping) return ['frontend']
+    // start：每次執行都開一個新的客戶端實例
+    // stop ：關閉所有前端實例（含具名設定檔）
+    if (!stopping) return [nextClientKey(pids)]
     const fronts = frontendKeys(pids)
     return fronts.length ? fronts : ['frontend']
   }
@@ -82,7 +112,8 @@ function commandFor(name) {
     }
   }
 
-  const profile = name.startsWith('frontend:') ? name.slice('frontend:'.length) : ''
+  let profile = name.startsWith('frontend:') ? name.slice('frontend:'.length) : ''
+  if (profile === 'default') profile = ''
   const args = [projectDir]
   const env = { ...process.env }
   if (profile) {
@@ -120,7 +151,7 @@ function waitForBackend(timeout = 5000) {
 
 async function start(name) {
   const pids = readPids()
-  if (pids[name] && !isRunning(pids[name])) delete pids[name]
+  if (prunePids(pids)) writePids(pids)
   if (pids[name]) {
     console.log(`${name} already running (PID ${pids[name]})`)
     return
@@ -144,6 +175,10 @@ async function start(name) {
     }
   }
   console.log(`started ${name} (PID ${child.pid})`)
+  if (name.startsWith('frontend:')) {
+    const profile = name.slice('frontend:'.length)
+    console.log(`  ↳ 設定檔 ${profile}：獨立登入狀態，可在這個視窗登入不同帳號`)
+  }
 }
 
 function stop(name) {
@@ -193,10 +228,19 @@ const USAGE = `usage:
   node launcher.js restart [backend|frontend|frontend:<設定檔>|all] ...
   node launcher.js status
 
-同時啟動多個前端（每個設定檔一個獨立視窗與登入狀態）：
-  node launcher.js start backend frontend:alice frontend:bob
-停止所有前端實例：
-  node launcher.js stop frontend`
+每次 start frontend 都會開啟一個新的客戶端（自動分配 client-1、client-2 …）：
+  npm run launcher -- start frontend        # 第 1 個客戶端
+  npm run launcher -- start frontend        # 第 2 個客戶端
+  npm run launcher -- start all             # 後端 + 一個客戶端
+
+指定設定檔名稱（同一個名稱會沿用先前的登入狀態）：
+  npm run launcher -- start frontend:alice
+使用預設設定檔（不安裝在 profiles 目錄下）：
+  npm run launcher -- start frontend:default
+
+停止：
+  npm run launcher -- stop frontend         # 關閉所有前端實例
+  npm run launcher -- stop frontend:client-2`
 
 async function main(argv) {
   const action = argv[2] || 'start'
@@ -213,6 +257,7 @@ async function main(argv) {
 
   const requested = raws.length ? raws : ['all']
   const pids = readPids()
+  if (prunePids(pids)) writePids(pids)
   const names = []
   for (const raw of requested) {
     const keys = keysForAction(raw, action, pids)
@@ -241,4 +286,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = { parseTarget, keysForAction, commandFor, frontendKeys, start, stop, status, main, pidFile }
+module.exports = { parseTarget, keysForAction, commandFor, frontendKeys, nextClientKey, prunePids, start, stop, status, main, pidFile }

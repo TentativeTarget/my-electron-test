@@ -27,7 +27,7 @@
 - 好友申请、接受或拒绝，以及双向好友关系。
 - 好友在线/离线状态，每 15 秒刷新一次。
 - 单后端多前端：多位使用者以各自账号连接同一台服务器，笔记、好友与在线状态实时共享；登录页可填写服务器地址。
-- 本地多实例：以 `--profile` / `COLLABNOTE_PROFILE` 让每个前端使用独立 `userData`，可在同一台电脑同时开多个窗口并以不同账号登录，启动器以 `frontend:<设定档>` 分别追踪 PID。
+- 本地多实例：每执行一次 `npm run launcher -- start frontend` 就开启一个客户端，自动分配独立 `userData`（`client-1`、`client-2`…），可在同一台电脑同时开多个窗口并以不同账号登录，启动器分别追踪各实例 PID。
 - 好友栏停靠主窗口右侧，默认收起；圆形切换按钮默认贴在主框架右侧边框线上，展开后滑到好友栏左侧边线。点击时同一颗按钮在两个锚点间以非线性缓动平滑移动、图标同步旋转 180°，不会因按钮切换而闪烁。
 - 在线好友头像区位于好友栏顶部：按在线优先展示，最多 5 个头像，在线计数不限且包含本人，右侧同时显示好友总数。
 
@@ -62,7 +62,7 @@ npm run launcher -- restart all
 npm run launcher -- stop all
 ```
 
-启动器会记录前后端 PID，启动后端时会等待 API 端口就绪后再继续。后端默认监听所有网卡，同一局域网的其他电脑也能连接；前端支持同时开多个实例（`frontend:<设定档>`），详见「多用户连接同一个后端」。
+启动器会记录前后端 PID，启动后端时会等待 API 端口就绪后再继续。后端默认监听所有网卡，同一局域网的其他电脑也能连接；每执行一次 `npm run launcher -- start frontend` 就会多开一个客户端，详见「多用户连接同一个后端」。
 
 ### 独立启动
 
@@ -122,41 +122,52 @@ COLLABNOTE_API_URL=http://192.168.1.100:8765 npm run frontend
 
 ### 3. 在同一台电脑上运行多个前端
 
-前端以「设定档（profile）」隔离实例。每个设定档使用独立的 `userData` 目录（`<userData>/profiles/<名称>`），因此登录 token、已保存密码、界面配色等互不干扰，但全部连向同一个后端，可以在一台电脑上同时扮演多位使用者。
-
-三种启动方式等价：
+每執行一次 `start frontend` 就開啟一個新的客戶端，並自動分配互不干擾的設定檔：
 
 ```bash
-# 1. 启动器一次开多个实例（推荐，可统一查看与停止）
-npm run launcher -- start backend frontend:alice frontend:bob
-
-# 2. 直接带参启动
-npm run frontend -- --profile=alice
-
-# 3. 用环境变量指定
-COLLABNOTE_PROFILE=bob npm run frontend
+npm run launcher -- start frontend   # 第 1 個客戶端（設定檔 client-1）
+npm run launcher -- start frontend   # 第 2 個客戶端（設定檔 client-2）
+npm run launcher -- start frontend   # 第 3 個客戶端（設定檔 client-3）
 ```
 
-启动器会为每个设定档记录各自的 PID：
+每个设定档使用独立的 `userData` 目录（`<userData>/profiles/client-N`），因此登录 token、已保存密码、界面配色互不影响，但都连向同一个后端，可以在同一台电脑上同时扮演多位使用者。已关闭实例空出来的编号会被重复使用。
+
+也可以指定名称，同一个名称会沿用先前的登录状态：
+
+```bash
+npm run launcher -- start frontend:alice
+npm run launcher -- start frontend:bob
+npm run frontend -- --profile=alice          # 直接启动时带参数
+COLLABNOTE_PROFILE=bob npm run frontend      # 或以环境变量指定
+```
+
+`frontend:default` 使用原本的预设设定档（不建立 `profiles/<名称>` 目录）：
+
+```bash
+npm run launcher -- start frontend:default
+```
+
+管理所有实例：
 
 ```bash
 npm run launcher -- status
 # backend: stopped
-# frontend (預設): running (PID 45120)
-# frontend:alice: running (PID 45121)
-# frontend:bob: running (PID 45122)
+# frontend (預設): stopped
+# frontend:client-1: running (PID 45167)
+# frontend:client-2: running (PID 45180)
 
-npm run launcher -- stop frontend        # 停止所有前端实例（含具名设定档）
-npm run launcher -- stop frontend:bob    # 只停止 bob
+npm run launcher -- stop frontend               # 关闭所有前端实例（含具名设定档）
+npm run launcher -- stop frontend:client-2      # 只关闭指定实例
+npm run launcher -- start all                   # 后端 + 一个客户端
 ```
 
 设计要点：
 
 - `--profile` 与 `COLLABNOTE_PROFILE` 都会生效，启动器会同时传入参数与环境变量。
 - 设定档名称只保留中英文、数字、`-`、`_`，其余字符会被忽略，避免路径跳脱。
-- 窗口标题会显示为 `CollabNote — <设定档>`，个人资料卡也会显示「伺服器 + 设定档」，方便分辨哪个窗口是哪位使用者。
-- 不指定设定档时使用预设实例，可与具名实例同时运行。
-- 同一个设定档不要同时开两份：它们共用登录状态，会互相覆盖。
+- 窗口标题显示为 `CollabNote — client-2`，个人资料卡显示「伺服器 + 设定档」，方便分辨哪个窗口是哪位使用者。
+- 启动器会跳过使用中的编号，因此同一个设定档不会同时开两份（共用登录状态会互相覆盖）。
+- `stop frontend` 会关闭所有前端实例，`restart` 则先关闭再重新开启。
 
 ### 4. 连接失败时
 

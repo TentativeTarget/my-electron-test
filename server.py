@@ -13,9 +13,10 @@ import socket
 import sys
 import time
 from io import BytesIO
+from queue import Empty, Full, Queue
 from tempfile import NamedTemporaryFile
 from threading import Lock
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from PIL import Image, UnidentifiedImageError
 
@@ -33,6 +34,11 @@ SESSIONS = {}
 PRESENCE = {}
 PRESENCE_LOCK = Lock()
 PRESENCE_TIMEOUT = 12.0
+# 即時事件（Server-Sent Events）：每個已連線的前端一個佇列
+EVENT_LOCK = Lock()
+EVENT_SUBSCRIBERS = {}
+EVENT_QUEUE_SIZE = 64
+EVENT_HEARTBEAT = 15.0
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{3,32}$")
 
 
@@ -93,8 +99,13 @@ def authenticate_user(username, password):
 
 def create_session(user):
     token = secrets.token_urlsafe(32)
-    SESSIONS[token] = {"username": user["username"]}
+    # sid 用來辨識「同一個登入」的來源，前端可忽略自己造成的事件
+    SESSIONS[token] = {"username": user["username"], "sid": secrets.token_hex(8)}
     return token
+
+
+def session_public(session):
+    return {"sid": session.get("sid", "")}
 
 
 def find_user(username):
@@ -134,6 +145,31 @@ def presence_people_for(note_id, username):
         return people
 
 
+def publish_event(event):
+    """把事件送給所有即時連線；個別佇列滿了就丟棄，客戶端重連時會重新載入。"""
+    with EVENT_LOCK:
+        subscribers = list(EVENT_SUBSCRIBERS.values())
+    for subscriber in subscribers:
+        try:
+            subscriber["queue"].put_nowait(event)
+        except Full:
+            pass
+
+
+def publish_presence(note_id):
+    """在線名單依觀看者而不同，因此對每位訂閱者分別計算。"""
+    if note_id is None:
+        return
+    with EVENT_LOCK:
+        subscribers = list(EVENT_SUBSCRIBERS.items())
+    for client_id, subscriber in subscribers:
+        people = presence_people_for(note_id, subscriber["username"])
+        try:
+            subscriber["queue"].put_nowait({"type": "presence", "noteId": note_id, "people": people})
+        except Full:
+            pass
+
+
 def public_user(user):
     return {
         "username": user["username"],
@@ -148,6 +184,17 @@ class BadPayload(Exception):
 
 
 class NotesHandler(BaseHTTPRequestHandler):
+    # SSE 需要長連線，因此改用 HTTP/1.1；其他回應一律帶 Connection: close 維持舊行為
+    protocol_version = "HTTP/1.1"
+
+    def setup(self):
+        super().setup()
+        # 長時間的 SSE 連線靠 TCP keepalive 偵測消失的客戶端
+        try:
+            self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        except OSError:
+            pass
+
     def handle_one_request(self):
         # 單一客戶端送出損壞的內容時，不要讓請求執行緒直接中斷而讓前端一直等待回應
         try:
@@ -161,6 +208,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Connection", "close")
+        self.close_connection = True
         self.end_headers()
         self.wfile.write(body)
 
@@ -169,6 +218,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Connection", "close")
+        self.close_connection = True
         self.end_headers()
 
     def do_GET(self):
@@ -177,9 +228,11 @@ class NotesHandler(BaseHTTPRequestHandler):
         elif self.path == "/api/auth/me":
             user = self.current_user()
             if user:
-                self.send_json(200, public_user(user))
+                self.send_json(200, {**session_public(user), **public_user(user)})
             else:
                 self.send_json(401, {"error": "Authentication required"})
+        elif urlsplit(self.path).path == "/api/events":
+            self.stream_events()
         elif self.path == "/api/friends":
             self.list_friends()
         elif urlsplit(self.path).path.startswith("/api/images/"):
@@ -193,6 +246,52 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.send_json(401, {"error": "Authentication required"})
         else:
             self.send_json(404, {"error": "Not found"})
+
+    def stream_events(self):
+        """Server-Sent Events：把筆記與在線狀態的變更即時推給所有前端。"""
+        parsed = urlsplit(self.path)
+        token = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        if not token:
+            # EventSource 無法自訂標頭，因此允許以 query string 傳遞 token
+            token = (parse_qs(parsed.query).get("token") or [""])[0].strip()
+        session = SESSIONS.get(token)
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+
+        subscriber = {
+            "username": session["username"],
+            "sid": session.get("sid", ""),
+            "queue": Queue(maxsize=EVENT_QUEUE_SIZE),
+        }
+        client_id = secrets.token_hex(8)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        with EVENT_LOCK:
+            EVENT_SUBSCRIBERS[client_id] = subscriber
+        try:
+            self.wfile.write(b"retry: 3000\n\n")
+            self.wfile.write(b": connected\n\n")
+            self.wfile.flush()
+            while True:
+                try:
+                    event = subscriber["queue"].get(timeout=EVENT_HEARTBEAT)
+                except Empty:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    continue
+                line = json.dumps(event, ensure_ascii=False)
+                self.wfile.write(f"data: {line}\n\n".encode("utf-8"))
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError, ValueError):
+            pass
+        finally:
+            with EVENT_LOCK:
+                EVENT_SUBSCRIBERS.pop(client_id, None)
 
     def do_POST(self):
         if self.path == "/api/auth/register":
@@ -239,6 +338,7 @@ class NotesHandler(BaseHTTPRequestHandler):
             }
             notes.insert(0, note)
             save_notes(notes)
+        publish_event({"type": "note-created", "note": note, "sid": self.current_session_sid()})
         self.send_json(201, note)
 
     def do_PUT(self):
@@ -260,6 +360,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                 if note["id"] == note_id:
                     note.update({key: payload[key] for key in ("title", "content") if key in payload})
                     save_notes(notes)
+                    publish_event({"type": "note-updated", "note": note, "sid": self.current_session_sid()})
                     self.send_json(200, note)
                     return
         self.send_json(404, {"error": "Note not found"})
@@ -284,6 +385,7 @@ class NotesHandler(BaseHTTPRequestHandler):
                 self.send_json(404, {"error": "Note not found"})
                 return
             save_notes(remaining_notes)
+        publish_event({"type": "note-deleted", "noteId": note_id, "sid": self.current_session_sid()})
         self.send_json(200, {"deleted": note_id})
 
     def read_payload(self):
@@ -316,7 +418,9 @@ class NotesHandler(BaseHTTPRequestHandler):
         mode = "editing" if payload.get("mode") == "editing" else "viewing"
         if note_id is None:
             with PRESENCE_LOCK:
-                PRESENCE.pop(token, None)
+                previous = PRESENCE.pop(token, None)
+            if previous and previous.get("noteId") is not None:
+                publish_presence(previous["noteId"])
             self.send_json(200, {"noteId": None, "people": []})
             return
         try:
@@ -332,7 +436,14 @@ class NotesHandler(BaseHTTPRequestHandler):
                 "ts": time.monotonic(),
             }
         people = presence_people_for(note_id, session["username"])
+        publish_presence(note_id)
         self.send_json(200, {"noteId": note_id, "people": people})
+
+    def current_session_sid(self):
+        authorization = self.headers.get("Authorization", "")
+        token = authorization.removeprefix("Bearer ").strip()
+        session = SESSIONS.get(token)
+        return session.get("sid", "") if session else ""
 
     def current_user(self):
         authorization = self.headers.get("Authorization", "")
@@ -443,7 +554,8 @@ class NotesHandler(BaseHTTPRequestHandler):
             users.append({"username": username, "salt": salt, "passwordHash": password_hash})
             save_users(users)
             user = users[-1]
-        self.send_json(201, {"token": create_session(user), **public_user(user)})
+        token = create_session(user)
+        self.send_json(201, {"token": token, **session_public(SESSIONS[token]), **public_user(user)})
 
     def login_user(self):
         payload = self.read_payload()
@@ -451,14 +563,17 @@ class NotesHandler(BaseHTTPRequestHandler):
         if not user:
             self.send_json(401, {"error": "用户名或密码错误"})
             return
-        self.send_json(200, {"token": create_session(user), **public_user(user)})
+        token = create_session(user)
+        self.send_json(200, {"token": token, **session_public(SESSIONS[token]), **public_user(user)})
 
     def logout_user(self):
         authorization = self.headers.get("Authorization", "")
         token = authorization.removeprefix("Bearer ").strip()
         SESSIONS.pop(token, None)
         with PRESENCE_LOCK:
-            PRESENCE.pop(token, None)
+            previous = PRESENCE.pop(token, None)
+        if previous and previous.get("noteId") is not None:
+            publish_presence(previous["noteId"])
         self.send_json(200, {"ok": True})
 
     def update_profile(self):
@@ -526,6 +641,8 @@ class NotesHandler(BaseHTTPRequestHandler):
                     self.send_header("Content-Type", "image/jpeg")
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-cache")
+                    self.send_header("Connection", "close")
+                    self.close_connection = True
                     self.end_headers()
                     self.wfile.write(body)
                     return
@@ -585,6 +702,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.close_connection = True
         self.end_headers()
         self.wfile.write(body)
 
@@ -625,8 +744,15 @@ def print_banner():
     print("  本機連線地址: http://127.0.0.1:%d" % PORT, flush=True)
 
 
+class NotesServer(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+    # 多個前端同時連線（含 SSE 長連線）時避免連線佇列過短
+    request_queue_size = 64
+
+
 if __name__ == "__main__":
-    server = ThreadingHTTPServer((HOST, PORT), NotesHandler)
+    server = NotesServer((HOST, PORT), NotesHandler)
     print_banner()
     try:
         server.serve_forever()

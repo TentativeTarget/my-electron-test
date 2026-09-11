@@ -1227,6 +1227,48 @@
             gap: 16px;
         }
 
+        .remote-update-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #bfdbfe;
+            border-radius: 999px;
+            padding: 6px 12px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 12px;
+            cursor: pointer;
+            animation: remote-badge-pulse 1.8s ease-in-out infinite;
+        }
+
+        .remote-update-badge[hidden] {
+            display: none;
+        }
+
+        .remote-update-badge b {
+            font-weight: 700;
+            text-decoration: underline;
+        }
+
+        .remote-update-badge:hover {
+            background: #dbeafe;
+        }
+
+        @keyframes remote-badge-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        [data-theme="dark"] .remote-update-badge {
+            background: #1e293b;
+            border-color: #334155;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .remote-update-badge:hover {
+            background: #24324a;
+        }
+
         .editor-header .left .status {
             display: flex;
             align-items: center;
@@ -2821,6 +2863,11 @@
                         <span id="syncStatusText">已同步</span>
                         <i id="syncStatusIcon" class="fas fa-check-circle" style="font-size:12px;"></i>
                     </div>
+                    <button class="remote-update-badge" id="remoteUpdateBadge" type="button" hidden>
+                        <i class="fas fa-arrows-rotate" aria-hidden="true"></i>
+                        <span>其他人已更新這則筆記</span>
+                        <b>載入最新版本</b>
+                    </button>
                 </div>
                 <div class="right">
                     <div class="avatar-stack" id="presenceAvatarStack" aria-label="正在此筆記協作的使用者"></div>
@@ -3146,6 +3193,7 @@
             const syncStatusBadge = document.querySelector('.editor-header .left .status');
             const syncStatusText = document.getElementById('syncStatusText');
             const syncStatusIcon = document.getElementById('syncStatusIcon');
+            const remoteUpdateBadge = document.getElementById('remoteUpdateBadge');
             let serverConnected = true;
             let savePending = false;
             let connectionMonitorTimer = null;
@@ -3196,6 +3244,7 @@
             function showAuthScreen(autoFocusUsername = false) {
                 stopConnectionMonitor();
                 stopPresenceMonitor();
+                stopEventStream();
                 renderPresenceRoster([]);
                 appContainer.classList.remove('authenticated');
                 authScreen.style.display = 'block';
@@ -3213,6 +3262,7 @@
                 authScreen.style.display = 'none';
                 appContainer.classList.add('authenticated');
                 startConnectionMonitor();
+                startEventStream();
             }
 
             function setAuthMode(mode) {
@@ -3410,11 +3460,13 @@
                 saveTimer = setTimeout(async () => {
                     savePending = true;
                     setEditorStatus('saving');
+                    const payload = { title: data.title, content: data.content };
                     try {
                         await apiRequest(`/api/notes/${data.id}`, {
                             method: 'PUT',
-                            body: JSON.stringify({ title: data.title, content: data.content })
+                            body: JSON.stringify(payload)
                         });
+                        lastSyncedContent.set(data.id, payload.content);
                         serverConnected = true;
                         setEditorStatus('synced');
                     } catch (error) {
@@ -3443,10 +3495,149 @@
                 }).catch(error => console.error('關閉前儲存失敗', error));
             }
 
+            // ─── 即時同步：接收伺服器推送的變更 ───
+            function updateRemoteUpdateBadge() {
+                if (!remoteUpdateBadge) return;
+                remoteUpdateBadge.hidden = !pendingRemoteNotes.has(activeId);
+            }
+
+            function applyRemoteNote(remote) {
+                const local = notesData.find(item => item.id === remote.id);
+                if (!local) return;
+                local.title = remote.title;
+                local.content = remote.content;
+                local.time = remote.time ?? local.time;
+                local.tag = remote.tag ?? local.tag;
+                local.tagStyle = remote.tagStyle ?? local.tagStyle;
+                lastSyncedContent.set(remote.id, remote.content);
+                pendingRemoteNotes.delete(remote.id);
+                if (remote.id === activeId) {
+                    noteTitleInput.value = remote.title;
+                    setEditorContent(remote.content);
+                }
+                updateNoteRow(local);
+                updateRemoteUpdateBadge();
+            }
+
+            function onRemoteNoteCreated() {
+                // 直接向伺服器重抓清單，避免本地推測順序
+                syncNotesFromServer();
+            }
+
+            function onRemoteNoteUpdated(remote) {
+                if (!remote || !notesData.some(item => item.id === remote.id)) {
+                    syncNotesFromServer();
+                    return;
+                }
+                if (remote.id !== activeId) {
+                    applyRemoteNote(remote);
+                    return;
+                }
+                if (isNoteDirty(remote.id)) {
+                    // 使用者正在編輯：先不覆蓋，改用提示讓他自己決定
+                    pendingRemoteNotes.set(remote.id, remote);
+                    updateRemoteUpdateBadge();
+                    return;
+                }
+                applyRemoteNote(remote);
+            }
+
+            function onRemoteNoteDeleted(noteId) {
+                const index = notesData.findIndex(item => item.id === noteId);
+                if (index >= 0) notesData.splice(index, 1);
+                noteList.querySelector(`[data-id="${noteId}"]`)?.remove();
+                lastSyncedContent.delete(noteId);
+                pendingRemoteNotes.delete(noteId);
+                if (activeId === noteId) {
+                    activeId = notesData[0]?.id;
+                    if (activeId !== undefined) switchNote(activeId);
+                    else {
+                        noteTitleInput.value = '';
+                        noteContent.innerHTML = '';
+                    }
+                }
+                updateRemoteUpdateBadge();
+            }
+
+            function handleRealtimeEvent(message) {
+                let event;
+                try {
+                    event = JSON.parse(message.data);
+                } catch (error) {
+                    return;
+                }
+                if (!event || typeof event.type !== 'string') return;
+                // 忽略自己造成的變更（同一個登入 session）
+                if (event.sid && currentSid && event.sid === currentSid) return;
+                if (event.type === 'note-created') onRemoteNoteCreated(event.note);
+                else if (event.type === 'note-updated') onRemoteNoteUpdated(event.note);
+                else if (event.type === 'note-deleted') onRemoteNoteDeleted(event.noteId);
+                else if (event.type === 'presence' && event.noteId === activeId) {
+                    renderPresenceRoster(event.people || []);
+                }
+            }
+
+            async function syncNotesFromServer() {
+                if (!authToken) return;
+                try {
+                    mergeServerNotes(await apiRequest('/api/notes'));
+                } catch (error) {
+                    console.error('即時同步失敗', error);
+                }
+            }
+
+            function startEventStream() {
+                stopEventStream();
+                if (!authToken) return;
+                try {
+                    eventSource = new EventSource(`${apiBaseUrl}/api/events?token=${encodeURIComponent(authToken)}`);
+                } catch (error) {
+                    console.error('無法建立即時連線', error);
+                    eventSource = null;
+                    return;
+                }
+                eventSource.addEventListener('open', function() {
+                    // 重連成功後補回斷線期間漏掉的變更
+                    if (eventStreamOpenedBefore) syncNotesFromServer();
+                    eventStreamOpenedBefore = true;
+                });
+                eventSource.addEventListener('message', handleRealtimeEvent);
+                eventSource.addEventListener('error', function() {
+                    // EventSource 會自動重連，連線狀態交由 checkServerHealth 顯示
+                });
+            }
+
+            function stopEventStream() {
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                eventStreamOpenedBefore = false;
+                pendingRemoteNotes.clear();
+                updateRemoteUpdateBadge();
+            }
+
+            if (remoteUpdateBadge) {
+                remoteUpdateBadge.addEventListener('click', function() {
+                    const remote = pendingRemoteNotes.get(activeId);
+                    if (remote) applyRemoteNote(remote);
+                    updateRemoteUpdateBadge();
+                });
+            }
+
             const notesData = [];
 
             // ─── 狀態 ───
             let activeId = 1;
+
+            // ─── 即時同步（Server-Sent Events）───
+            let eventSource = null;
+            let eventStreamOpenedBefore = false;
+            let currentSid = '';
+            // 伺服器已確認的內容，用來判斷編輯區是否有尚未同步的本地修改
+            const lastSyncedContent = new Map();
+            // 別人更新了、但本地正在編輯而暫不覆蓋的版本
+            const pendingRemoteNotes = new Map();
 
             // ─── 編輯內容：HTML ⇄ 純文字 ───
             function escapeHtmlText(text) {
@@ -3488,9 +3679,18 @@
                 if (!data) return;
 
                 activeId = id;
+                const pending = pendingRemoteNotes.get(id);
+                if (pending && !isNoteDirty(id)) {
+                    data.title = pending.title;
+                    data.content = pending.content;
+                    lastSyncedContent.set(id, pending.content);
+                    pendingRemoteNotes.delete(id);
+                    updateNoteRow(data);
+                }
                 noteTitleInput.value = data.title;
                 setEditorContent(data.content);
                 if (authToken) sendPresenceBeat();
+                updateRemoteUpdateBadge();
 
                 // 可選：更新標題旁的 tag (但我們保留靜態 UI，不強制更新)
                 // 此處僅做內容與標題同步
@@ -3527,6 +3727,9 @@
                     const deletedIndex = notesData.findIndex(note => note.id === noteId);
                     notesData.splice(deletedIndex, 1);
                     noteItem?.remove();
+                    lastSyncedContent.delete(noteId);
+                    pendingRemoteNotes.delete(noteId);
+                    updateRemoteUpdateBadge();
                     closeDeleteDialog();
 
                     if (activeId === noteId) {
@@ -4214,24 +4417,80 @@
             noteContent.addEventListener('focus', syncFontSizeDisplay);
             window.addEventListener('pagehide', saveActiveNoteImmediately);
 
+            function renderNoteList() {
+                noteList.replaceChildren();
+                notesData.forEach(note => {
+                    const item = document.createElement('div');
+                    item.className = 'note-item';
+                    item.dataset.id = note.id;
+                    item.innerHTML = `
+                        <div class="note-icon"><i class="fas fa-file-alt"></i></div>
+                        <div class="note-content">
+                            <div class="note-title">${escapeHtmlText(note.title)}<span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
+                            <div class="note-meta"><span><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
+                        </div>
+                        <div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>`;
+                    noteList.appendChild(item);
+                });
+            }
+
+            function updateNoteRow(note) {
+                const item = noteList.querySelector(`[data-id="${note.id}"]`);
+                if (!item) return;
+                const titleSpan = item.querySelector('.note-title');
+                const tagEl = titleSpan?.querySelector('.tag');
+                if (titleSpan && tagEl) {
+                    titleSpan.childNodes.forEach(node => {
+                        if (node.nodeType === 3) node.textContent = `${note.title} `;
+                    });
+                } else if (titleSpan) {
+                    titleSpan.textContent = note.title;
+                }
+                const timeSpan = item.querySelector('.note-meta span');
+                if (timeSpan) timeSpan.innerHTML = `<i class="far fa-clock"></i> ${escapeHtmlText(note.time)}`;
+            }
+
+            function isNoteDirty(id) {
+                const local = notesData.find(item => item.id === id);
+                if (!local) return false;
+                return local.content !== lastSyncedContent.get(id);
+            }
+
+            // 重連後補上漏掉的事件：重新載入清單，但不覆蓋正在編輯的內容
+            function mergeServerNotes(serverNotes) {
+                const localActive = notesData.find(item => item.id === activeId);
+                const keepLocal = localActive ? isNoteDirty(localActive.id) : false;
+                const localContent = localActive?.content;
+                const localTitle = localActive?.title;
+
+                notesData.splice(0, notesData.length, ...serverNotes);
+                serverNotes.forEach(item => lastSyncedContent.set(item.id, item.content));
+
+                const activeRemote = serverNotes.find(item => item.id === activeId);
+                if (activeRemote && keepLocal) {
+                    activeRemote.content = localContent;
+                    activeRemote.title = localTitle;
+                }
+                renderNoteList();
+                if (activeRemote) {
+                    switchNote(activeId);
+                } else {
+                    activeId = serverNotes[0]?.id;
+                    if (activeId !== undefined) switchNote(activeId);
+                    else {
+                        noteTitleInput.value = '';
+                        noteContent.innerHTML = '';
+                    }
+                }
+                updateRemoteUpdateBadge();
+            }
+
             async function loadNotes() {
                 try {
                     const serverNotes = await apiRequest('/api/notes');
                     notesData.splice(0, notesData.length, ...serverNotes);
-                    noteList.replaceChildren();
-                    serverNotes.forEach(note => {
-                        const item = document.createElement('div');
-                        item.className = 'note-item';
-                        item.dataset.id = note.id;
-                        item.innerHTML = `
-                            <div class="note-icon"><i class="fas fa-file-alt"></i></div>
-                            <div class="note-content">
-                                <div class="note-title">${note.title}<span class="tag" style="${note.tagStyle}">${note.tag}</span></div>
-                                <div class="note-meta"><span><i class="far fa-clock"></i> ${note.time}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
-                            </div>
-                            <div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>`;
-                        noteList.appendChild(item);
-                    });
+                    serverNotes.forEach(note => lastSyncedContent.set(note.id, note.content));
+                    renderNoteList();
                     activeId = serverNotes[0]?.id;
                     if (activeId !== undefined) switchNote(activeId);
                     else {
@@ -4613,6 +4872,7 @@
                         })
                     });
                     authToken = result.token;
+                    currentSid = result.sid || '';
                     localStorage.setItem('collabNoteToken', authToken);
                     setCurrentUser(result.username, result.title, result.avatarUrl, result.displayName);
                     rememberUser(result.username);
@@ -4634,6 +4894,7 @@
                     console.error('登出请求失败', error);
                 }
                 authToken = null;
+                currentSid = '';
                 setCurrentUser('');
                 localStorage.removeItem('collabNoteToken');
                 notesData.splice(0, notesData.length);
@@ -4749,6 +5010,7 @@
             if (authToken) {
                 apiRequest('/api/auth/me')
                     .then(user => {
+                        currentSid = user.sid || currentSid;
                         setCurrentUser(user.username, user.title, user.avatarUrl, user.displayName);
                         showWorkspace();
                         return loadNotes();

@@ -1162,10 +1162,29 @@
             opacity: 0.6;
         }
 
-        .note-item .note-meta .readonly-badge {
+        .note-item .note-meta .access-badge {
             display: inline-flex;
             align-items: center;
             gap: 3px;
+            margin-left: 6px;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .note-item .note-meta .access-badge i {
+            font-size: 9px;
+            margin-right: 0;
+        }
+
+        .note-item .note-meta .access-badge.edit {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .note-item .note-meta .access-badge.view {
+            background: #fef3c7;
             color: #b45309;
         }
 
@@ -2795,7 +2814,13 @@
             color: #fbbf24;
         }
 
-        [data-theme="dark"] .note-item .note-meta .readonly-badge {
+        [data-theme="dark"] .note-item .note-meta .access-badge.edit {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .note-item .note-meta .access-badge.view {
+            background: rgba(245, 158, 11, 0.16);
             color: #fbbf24;
         }
 
@@ -3405,7 +3430,7 @@
             <form class="share-invite-form" id="shareInviteForm" hidden>
                 <input id="shareInviteInput" type="text" placeholder="輸入登錄名邀請協作" autocomplete="off" maxlength="32" />
                 <select id="shareAccessSelect" title="邀請權限" aria-label="邀請權限">
-                    <option value="edit">可編輯</option>
+                    <option value="edit">編輯</option>
                     <option value="view">只讀</option>
                 </select>
                 <button type="submit" id="shareInviteBtn" title="邀請協作"><i class="fas fa-user-plus" aria-hidden="true"></i></button>
@@ -4814,10 +4839,10 @@
                     item.className = 'note-item';
                     item.dataset.id = note.id;
                     const ownerLabel = escapeHtmlText(note.ownerName || note.owner || '未知');
-                    const sharedMark = note.access === 'edit'
-                        ? '<span class="shared-badge" title="別人邀請你協作這篇筆記"><i class="fas fa-user-friends"></i></span>'
+                    const accessMark = note.access === 'edit'
+                        ? '<span class="access-badge edit" title="別人邀請你編輯這篇筆記"><i class="fas fa-user-friends"></i> 編輯</span>'
                         : note.access === 'view'
-                            ? '<span class="readonly-badge" title="你只有閱讀權限"><i class="fas fa-lock"></i></span>'
+                            ? '<span class="access-badge view" title="你只有閱讀權限"><i class="fas fa-lock"></i> 只讀</span>'
                             : '';
                     const deleteAction = note.canManage === false
                         ? ''
@@ -4826,7 +4851,7 @@
                         <div class="note-icon"><i class="fas fa-file-alt"></i></div>
                         <div class="note-content">
                             <div class="note-title">${escapeHtmlText(note.title)}<span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
-                            <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${sharedMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
+                            <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${accessMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span><span class="editors"><i class="fas fa-user-edit"></i><span class="dot green"></span></span></div>
                         </div>
                         ${deleteAction}`;
                     noteList.appendChild(item);
@@ -4971,25 +4996,29 @@
                     empty.textContent = '尚未邀請其他人，只有你可編輯。';
                     shareMemberList.appendChild(empty);
                 }
-                const people = [...(data.members || []), ...(data.viewers || [])];
+                // 舊版後端不一定帶 access 欄位，這時依名單來源判定
+                const people = [
+                    ...(data.members || []).map(person => ({ ...person, access: person.access || 'edit' })),
+                    ...(data.viewers || []).map(person => ({ ...person, access: person.access || 'view' }))
+                ];
                 people.forEach(person => {
                     const actions = canManage
                         ? [
-                            makeActionButton(person.access === 'view' ? '設為可編輯' : '設為只讀', 'share-role-btn', button =>
+                            makeActionButton(person.access === 'view' ? '改為編輯' : '改為只讀', 'share-role-btn', button =>
                                 changeNoteMemberAccess(person.username, person.access === 'view' ? 'edit' : 'view', button)),
                             makeActionButton('移除', 'share-remove-btn', button => removeNoteMember(person.username, button))
                         ]
                         : [];
-                    shareMemberList.appendChild(buildShareRow(person, person.access === 'view' ? '只讀' : '可編輯', actions));
+                    shareMemberList.appendChild(buildShareRow(person, person.access === 'view' ? '只讀' : '編輯', actions));
                 });
                 shareInviteForm.hidden = !canManage;
                 shareFriendSection.hidden = !canManage;
                 shareHint.hidden = canManage;
-                if (canManage) renderShareFriends(data.members);
+                if (canManage) renderShareFriends(people);
             }
 
-            function renderShareFriends(members) {
-                const taken = new Set([currentUsername, ...members.map(person => person.username)]);
+            function renderShareFriends(people) {
+                const taken = new Set([currentUsername, ...people.map(person => person.username)]);
                 const candidates = friendDirectory.filter(person => !taken.has(person.username));
                 shareFriendList.replaceChildren();
                 if (!candidates.length) {
@@ -5002,7 +5031,7 @@
                 candidates.forEach(person => {
                     const invite = makeActionButton('邀請', 'share-invite-btn', button =>
                         inviteNoteMember(person.username, shareAccessSelect.value, button));
-                    shareFriendList.appendChild(buildShareRow(person, '可編輯／只讀', [invite]));
+                    shareFriendList.appendChild(buildShareRow(person, shareAccessSelect.value === 'view' ? '將設為只讀' : '將設為編輯', [invite]));
                 });
             }
 
@@ -5363,6 +5392,11 @@
             shareCloseBtn.addEventListener('click', closeShareDialog);
             shareDialog.addEventListener('click', function(event) {
                 if (event.target === shareDialog) closeShareDialog();
+            });
+            shareAccessSelect.addEventListener('change', function() {
+                document.querySelectorAll('#shareFriendList .share-role').forEach(role => {
+                    role.textContent = shareAccessSelect.value === 'view' ? '將設為只讀' : '將設為編輯';
+                });
             });
             shareInviteForm.addEventListener('submit', async function(event) {
                 event.preventDefault();

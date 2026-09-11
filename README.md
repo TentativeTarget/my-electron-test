@@ -451,6 +451,7 @@ Authorization: Bearer <token>
 - JSON 文件和头像目录应定期备份。
 - 账号、笔记、权限与密码哈希都只保存在后端：`users.json`（账号 + PBKDF2-SHA256 哈希）、`notes.json`（笔记内文 + `owner`/`members`/`viewers`）。两者都不纳入版本控制，前端不会留下副本，localStorage 只存主题、服务器地址、最近账号与登录 token。
 - `data/avatars/`、`data/images/` 为后端持有的上传文件；旧版放在 `frontend/assets/` 的档案会在后端启动时自动搬移。打包出的客户端不含这些文件。
+- 上述后端运行时数据全部由 `.gitignore` 挡住（`/users.json`、`/notes.json`、`/data/`、`/frontend/assets/`、`/.collabnote-pids.json`，以及写入中断可能留下的 `/tmp*`），`git add` 与 `git add -A` 都不会把它们推上 GitHub。这些文件仍需自行备份，换机器时手动复制。
 - 监控接口 `/api/monitor/status` 与 `/api/monitor/logs` 只接受 `127.0.0.1` 的连线；要让其他机器存取必须设置 `COLLABNOTE_MONITOR_TOKEN` 并携带 `X-Monitor-Token`，否则回 `403`。
 - 后端默认监听 `0.0.0.0`，同一局域网内的其他设备都能访问；仅在受信任网络中使用，公网部署前应改为 `COLLABNOTE_HOST=127.0.0.1` 并置于反向代理之后。
 - 前端只有在登录页或 `COLLABNOTE_API_URL` 指定地址时才会连接外部服务器，不会主动扫描网络。

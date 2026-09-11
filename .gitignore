@@ -5,7 +5,6 @@
 node_modules/
 __pycache__/
 *.pyc
-.collabnote-pids.json
 
 # Logs
 logs
@@ -20,12 +19,19 @@ lerna-debug.log*
 .env.*
 !.env.example
 
-# 使用者資料：由 app 執行時寫入後端，不隨程式碼提交
-notes.json
-users.json
-data/
-# 舊版上傳目錄，已搬到 data/
-frontend/assets/
+# ─── 後端執行時產生的使用者資料：一律不提交 ───
+# 帳號、密碼雜湊與好友關係
+/users.json
+# 筆記內文與讀寫權限
+/notes.json
+# 頭像與筆記圖片（後端上傳目錄）
+/data/
+# 舊版上傳目錄，已搬到 data/（保留規則避免舊版再度寫入）
+/frontend/assets/
+# 啟動器的 PID 檔（launcher.js 會在專案根目錄產生）
+/.collabnote-pids.json
+# 原子寫入中斷時可能留在根目錄的暫存檔，內容等同 notes.json / users.json
+/tmp*
 
 # 打包輸出
-dist/
+/dist/

@@ -1133,6 +1133,42 @@
             font-size: 12px;
         }
 
+        .share-role {
+            padding: 3px 9px;
+            border-radius: 20px;
+            background: #e2e8f0;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .share-role.view-only {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .share-role-btn {
+            border: 0;
+            border-radius: 8px;
+            padding: 5px 10px;
+            background: #f1f5f9;
+            color: #334155;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .share-role-btn:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .note-item .note-meta .readonly-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            color: #b45309;
+        }
+
         .share-empty {
             padding: 6px 2px;
         }
@@ -1177,6 +1213,17 @@
             border-radius: 9px;
             font-size: 13px;
             color: #334155;
+        }
+
+        .share-invite-form select {
+            flex-shrink: 0;
+            padding: 0 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 13px;
+            cursor: pointer;
         }
 
         .share-invite-form button {
@@ -1496,6 +1543,32 @@
         .editor-header .right .note-owner-chip i {
             color: #94a3b8;
             font-size: 11px;
+        }
+
+        .editor-header .right .note-readonly-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 30px;
+            background: #fef3c7;
+            color: #b45309;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* 只讀權限：鎖住編輯區與工具列 */
+        body.note-readonly .toolbar {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        body.note-readonly .note-title-input {
+            color: #94a3b8;
+        }
+
+        body.note-readonly .editor-content .note-editor {
+            cursor: default;
         }
 
         .editor-header .right .avatar-stack {
@@ -2717,6 +2790,36 @@
             color: #7d8ea8;
         }
 
+        [data-theme="dark"] .editor-header .right .note-readonly-chip {
+            background: rgba(245, 158, 11, 0.16);
+            color: #fbbf24;
+        }
+
+        [data-theme="dark"] .note-item .note-meta .readonly-badge {
+            color: #fbbf24;
+        }
+
+        [data-theme="dark"] .share-role {
+            background: #22304c;
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .share-role.view-only {
+            background: rgba(245, 158, 11, 0.16);
+            color: #fbbf24;
+        }
+
+        [data-theme="dark"] .share-role-btn {
+            background: #22304c;
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .share-invite-form select {
+            background: #0c172a;
+            border-color: #26354f;
+            color: #d7e0ee;
+        }
+
         [data-theme="dark"] .share-owner-line,
         [data-theme="dark"] .share-hint,
         [data-theme="dark"] .share-role,
@@ -3091,6 +3194,7 @@
                 </div>
                 <div class="right">
                     <span class="note-owner-chip" id="noteOwnerChip" hidden></span>
+                    <span class="note-readonly-chip" id="noteReadOnlyChip" hidden><i class="fas fa-lock" aria-hidden="true"></i> 只讀</span>
                     <button class="share-btn" id="shareNoteBtn" type="button" title="管理這篇筆記的協作權限">
                         <i class="fas fa-user-plus" aria-hidden="true"></i>
                         <span class="share-btn-label">共用</span>
@@ -3295,11 +3399,15 @@
             <h2 id="shareDialogTitle">筆記協作權限</h2>
             <p class="share-owner-line" id="shareOwnerLine">建立者：—</p>
             <div class="share-section">
-                <div class="share-section-title">可以編輯這篇筆記的人</div>
+                <div class="share-section-title">協作名單</div>
                 <div class="share-list" id="shareMemberList"></div>
             </div>
             <form class="share-invite-form" id="shareInviteForm" hidden>
                 <input id="shareInviteInput" type="text" placeholder="輸入登錄名邀請協作" autocomplete="off" maxlength="32" />
+                <select id="shareAccessSelect" title="邀請權限" aria-label="邀請權限">
+                    <option value="edit">可編輯</option>
+                    <option value="view">只讀</option>
+                </select>
                 <button type="submit" id="shareInviteBtn" title="邀請協作"><i class="fas fa-user-plus" aria-hidden="true"></i></button>
             </form>
             <p class="share-hint" id="shareHint" hidden>只有建立者可以邀請或移除協作。</p>
@@ -3705,7 +3813,7 @@
 
             function saveActiveNote() {
                 const data = notesData.find(d => d.id === activeId);
-                if (!data) return;
+                if (!data || data.canEdit === false) return;
                 clearTimeout(saveTimer);
                 saveTimer = setTimeout(async () => {
                     savePending = true;
@@ -3738,7 +3846,7 @@
 
             function saveActiveNoteImmediately() {
                 const data = notesData.find(d => d.id === activeId);
-                if (!data) return;
+                if (!data || data.canEdit === false) return;
                 fetch(`${apiBaseUrl}/api/notes/${data.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -4189,6 +4297,8 @@
             const messageDialogText = document.getElementById('messageDialogText');
             const messageOkBtn = document.getElementById('messageOkBtn');
             const noteOwnerChip = document.getElementById('noteOwnerChip');
+            const noteReadOnlyChip = document.getElementById('noteReadOnlyChip');
+            const shareAccessSelect = document.getElementById('shareAccessSelect');
             const shareNoteBtn = document.getElementById('shareNoteBtn');
             const shareDialog = document.getElementById('shareDialog');
             const shareOwnerLine = document.getElementById('shareOwnerLine');
@@ -4706,7 +4816,9 @@
                     const ownerLabel = escapeHtmlText(note.ownerName || note.owner || '未知');
                     const sharedMark = note.access === 'edit'
                         ? '<span class="shared-badge" title="別人邀請你協作這篇筆記"><i class="fas fa-user-friends"></i></span>'
-                        : '';
+                        : note.access === 'view'
+                            ? '<span class="readonly-badge" title="你只有閱讀權限"><i class="fas fa-lock"></i></span>'
+                            : '';
                     const deleteAction = note.canManage === false
                         ? ''
                         : '<div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>';
@@ -4747,14 +4859,28 @@
             let shareNoteId = null;
             let friendDirectory = [];
 
+            let noteReadOnly = false;
+
+            function setNoteReadOnly(readOnly) {
+                noteReadOnly = !!readOnly;
+                noteContent.setAttribute('contenteditable', noteReadOnly ? 'false' : 'true');
+                noteTitleInput.readOnly = noteReadOnly;
+                document.body.classList.toggle('note-readonly', noteReadOnly);
+                noteReadOnlyChip.hidden = !noteReadOnly;
+                if (noteReadOnly) clearImageSelection();
+            }
+
             function updateNoteSharingUi(note) {
                 if (!note) {
                     noteOwnerChip.hidden = true;
                     shareNoteBtn.hidden = true;
+                    setNoteReadOnly(false);
                     return;
                 }
                 const ownerLabel = note.ownerName || note.owner || '未知';
                 const isOwner = note.canManage !== false;
+                // 只讀權限的筆記：看得到但不能改
+                setNoteReadOnly(note.access === 'view');
                 noteOwnerChip.replaceChildren();
                 const icon = document.createElement('i');
                 icon.className = isOwner ? 'fas fa-user-pen' : 'fas fa-user-friends';
@@ -4781,7 +4907,7 @@
                 return avatar;
             }
 
-            function buildShareRow(person, actionButton) {
+            function buildShareRow(person, roleText, actions) {
                 const row = document.createElement('div');
                 row.className = 'share-member';
                 row.appendChild(createAvatarElement(person));
@@ -4790,7 +4916,11 @@
                 name.textContent = person.displayName || person.username;
                 name.title = `${person.displayName || person.username} (${person.username})`;
                 row.appendChild(name);
-                if (actionButton) row.appendChild(actionButton);
+                const role = document.createElement('span');
+                role.className = `share-role${person.access === 'view' ? ' view-only' : ''}`;
+                role.textContent = roleText;
+                row.appendChild(role);
+                (actions || []).forEach(action => row.appendChild(action));
                 return row;
             }
 
@@ -4835,22 +4965,22 @@
                 const owner = data.owner;
                 shareOwnerLine.textContent = `建立者：${owner ? (owner.displayName || owner.username) : '未知'}`;
                 shareMemberList.replaceChildren();
-                if (!data.members.length) {
+                if (!(data.members || []).length && !(data.viewers || []).length) {
                     const empty = document.createElement('div');
                     empty.className = 'share-empty';
                     empty.textContent = '尚未邀請其他人，只有你可編輯。';
                     shareMemberList.appendChild(empty);
                 }
-                data.members.forEach(person => {
-                    const remove = canManage
-                        ? makeActionButton('移除', 'share-remove-btn', button => removeNoteMember(person.username, button))
-                        : (() => {
-                            const role = document.createElement('span');
-                            role.className = 'share-role';
-                            role.textContent = '可編輯';
-                            return role;
-                        })();
-                    shareMemberList.appendChild(buildShareRow(person, remove));
+                const people = [...(data.members || []), ...(data.viewers || [])];
+                people.forEach(person => {
+                    const actions = canManage
+                        ? [
+                            makeActionButton(person.access === 'view' ? '設為可編輯' : '設為只讀', 'share-role-btn', button =>
+                                changeNoteMemberAccess(person.username, person.access === 'view' ? 'edit' : 'view', button)),
+                            makeActionButton('移除', 'share-remove-btn', button => removeNoteMember(person.username, button))
+                        ]
+                        : [];
+                    shareMemberList.appendChild(buildShareRow(person, person.access === 'view' ? '只讀' : '可編輯', actions));
                 });
                 shareInviteForm.hidden = !canManage;
                 shareFriendSection.hidden = !canManage;
@@ -4870,28 +5000,46 @@
                     return;
                 }
                 candidates.forEach(person => {
-                    const invite = makeActionButton('邀請', 'share-invite-btn', button => inviteNoteMember(person.username, button));
-                    shareFriendList.appendChild(buildShareRow(person, invite));
+                    const invite = makeActionButton('邀請', 'share-invite-btn', button =>
+                        inviteNoteMember(person.username, shareAccessSelect.value, button));
+                    shareFriendList.appendChild(buildShareRow(person, '可編輯／只讀', [invite]));
                 });
             }
 
-            async function inviteNoteMember(username, button) {
+            async function inviteNoteMember(username, access, button) {
                 if (shareNoteId === null || !username) return;
                 showShareMessage('');
                 if (button) button.disabled = true;
                 try {
                     await apiRequest(`/api/notes/${shareNoteId}/members`, {
                         method: 'POST',
-                        body: JSON.stringify({ username })
+                        body: JSON.stringify({ username, access: access === 'view' ? 'view' : 'edit' })
                     });
                     await refreshShareDialog();
                     return true;
                 } catch (error) {
                     showShareMessage(error.status === 404 ? '找不到該用戶。'
-                        : error.status === 409 ? '對方已經有這篇筆記的權限。'
+                        : error.status === 409 ? '對方已經是這個權限。'
                         : error.status === 403 ? '只有建立者可以邀請協作。'
                         : '邀請失敗，請確認後端是否正在執行。');
                     return false;
+                } finally {
+                    if (button) button.disabled = false;
+                }
+            }
+
+            async function changeNoteMemberAccess(username, access, button) {
+                if (shareNoteId === null) return;
+                showShareMessage('');
+                if (button) button.disabled = true;
+                try {
+                    await apiRequest(`/api/notes/${shareNoteId}/members`, {
+                        method: 'POST',
+                        body: JSON.stringify({ username, access })
+                    });
+                    await refreshShareDialog();
+                } catch (error) {
+                    showShareMessage(error.status === 403 ? '只有建立者可以調整權限。' : '權限調整失敗，請確認後端是否正在執行。');
                 } finally {
                     if (button) button.disabled = false;
                 }
@@ -5220,7 +5368,7 @@
                 event.preventDefault();
                 const invited = shareInviteInput.value.trim();
                 if (!invited) return;
-                if (await inviteNoteMember(invited, shareInviteBtn)) shareInviteInput.value = '';
+                if (await inviteNoteMember(invited, shareAccessSelect.value, shareInviteBtn)) shareInviteInput.value = '';
             });
 
             friendRequestsList.addEventListener('click', async function(event) {

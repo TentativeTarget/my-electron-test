@@ -118,7 +118,7 @@ LEGACY_NOTE_MEMBERS = ("LimeSev",)
 
 
 def note_access(note, username):
-    """回傳使用者對這篇筆記的權限：owner / edit / None（看不到）。"""
+    """回傳使用者對這篇筆記的權限：owner / edit / view / None（看不到）。"""
     if not username:
         return None
     owner = note.get("owner")
@@ -129,7 +129,13 @@ def note_access(note, username):
         return "owner"
     if username in (note.get("members") or []):
         return "edit"
+    if username in (note.get("viewers") or []):
+        return "view"
     return None
+
+
+def note_can_edit(note, username):
+    return note_access(note, username) in ("owner", "edit")
 
 
 def note_visible_to(note, username):
@@ -144,6 +150,7 @@ def public_note(note, username):
     return {
         **note,
         "access": access,
+        "canEdit": access in ("owner", "edit"),
         "canManage": access == "owner",
         "ownerName": (owner_record.get("displayName") or owner) if owner_record else owner,
     }
@@ -430,8 +437,8 @@ class NotesHandler(BaseHTTPRequestHandler):
             for note in notes:
                 if note["id"] != note_id:
                     continue
-                if not note_visible_to(note, session["username"]):
-                    self.send_json(403, {"error": "沒有這篇筆記的權限"})
+                if not note_can_edit(note, session["username"]):
+                    self.send_json(403, {"error": "只有編輯權限才能修改這篇筆記"})
                     return
                 note.update({key: payload[key] for key in ("title", "content") if key in payload})
                 save_notes(notes)
@@ -512,15 +519,20 @@ class NotesHandler(BaseHTTPRequestHandler):
 
     def note_members_payload(self, note, username):
         owner_record = find_user(note.get("owner") or "")
-        members = []
-        for name in note.get("members") or []:
-            record = find_user(name)
-            if record:
-                members.append(public_user(record))
+
+        def people(names, access):
+            result = []
+            for name in names:
+                record = find_user(name)
+                if record:
+                    result.append({**public_user(record), "access": access})
+            return result
+
         return {
             "noteId": note["id"],
             "owner": public_user(owner_record) if owner_record else None,
-            "members": members,
+            "members": people(note.get("members") or [], "edit"),
+            "viewers": people(note.get("viewers") or [], "view"),
             "canManage": note_access(note, username) == "owner",
         }
 
@@ -560,7 +572,9 @@ class NotesHandler(BaseHTTPRequestHandler):
         if note_access(note, session["username"]) != "owner":
             self.send_json(403, {"error": "只有建立者可以邀請協作"})
             return
-        username = str(self.read_payload().get("username", "")).strip()
+        payload_input = self.read_payload()
+        username = str(payload_input.get("username", "")).strip()
+        access = "view" if payload_input.get("access") == "view" else "edit"
         if not USERNAME_PATTERN.fullmatch(username):
             self.send_json(400, {"error": "请输入有效的登录名"})
             return
@@ -576,10 +590,14 @@ class NotesHandler(BaseHTTPRequestHandler):
                 if item["id"] != note["id"]:
                     continue
                 members = item.setdefault("members", [])
-                if username in members:
-                    self.send_json(409, {"error": "對方已經有權限"})
+                viewers = item.setdefault("viewers", [])
+                if (username in members and access == "edit") or (username in viewers and access == "view"):
+                    self.send_json(409, {"error": "對方已經是這個權限"})
                     return
-                members.append(username)
+                # 已在另一份名單時視為調整權限
+                item["members"] = [name for name in members if name != username]
+                item["viewers"] = [name for name in viewers if name != username]
+                (item["members"] if access == "edit" else item["viewers"]).append(username)
                 save_notes(notes)
                 updated = dict(item)
                 break
@@ -604,10 +622,12 @@ class NotesHandler(BaseHTTPRequestHandler):
                 if item["id"] != note["id"]:
                     continue
                 members = item.get("members") or []
-                if username not in members:
+                viewers = item.get("viewers") or []
+                if username not in members and username not in viewers:
                     self.send_json(404, {"error": "對方不在協作名單中"})
                     return
                 item["members"] = [name for name in members if name != username]
+                item["viewers"] = [name for name in viewers if name != username]
                 save_notes(notes)
                 updated = dict(item)
                 break

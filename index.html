@@ -3105,6 +3105,8 @@
     html:not([data-theme="dark"]) .app-container,
     html:not([data-theme="dark"]) .sidebar,
     html:not([data-theme="dark"]) .editor-panel,
+    html:not([data-theme="dark"]) .finance-sidebar,
+    html:not([data-theme="dark"]) .finance-panel,
     html:not([data-theme="dark"]) .friends-rail,
     html:not([data-theme="dark"]) .friends-rail .friends-panel,
     html:not([data-theme="dark"]) .user-profile-card {
@@ -3159,13 +3161,1429 @@
                 updateSelected();
             }
 
-            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', create);
-            else create();
-            new MutationObserver(create).observe(document.body, {childList:true, subtree:true});
+            function startObserver(){
+                if(!document.body) return;
+                new MutationObserver(create).observe(document.body, {childList:true, subtree:true});
+            }
+
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', () => { create(); startObserver(); });
+            else { create(); startObserver(); }
             window.addEventListener('storage', (e)=>{ if(e.key===KEY){ if(document.documentElement.getAttribute('data-theme')!=='dark') document.documentElement.style.setProperty('--theme-tint', e.newValue); updateSelected(); }});
             // hide in dark mode is handled by CSS rule
         })();
     </script>
+
+    <style>
+        /* ═══════════ 金融工作區（P1 本地預覽） ═══════════ */
+
+        /* ─── 工作區切換 ─── */
+        .workspace-switch {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            margin-bottom: 20px;
+            border-radius: 14px;
+            background: #f1f5f9;
+            border: 1px solid #eef2f8;
+        }
+
+        .workspace-switch-btn {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 8px 0;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: #64748b;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+        }
+
+        .workspace-switch-btn i {
+            font-size: 12px;
+        }
+
+        .workspace-switch-btn:hover {
+            color: #334155;
+        }
+
+        .workspace-switch-btn.active {
+            background: #ffffff;
+            color: #2563eb;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        /* ─── 金融工作區顯隱 ─── */
+        .finance-sidebar,
+        .finance-panel {
+            display: none;
+        }
+
+        body.workspace-finance .sidebar,
+        body.workspace-finance .editor-panel {
+            display: none;
+        }
+
+        body.workspace-finance .finance-sidebar {
+            display: flex;
+        }
+
+        body.workspace-finance .finance-panel {
+            display: flex;
+        }
+
+        /* ─── 金融側邊欄 ─── */
+        .finance-sidebar {
+            width: 320px;
+            min-width: 320px;
+            flex-direction: column;
+            background: #fafcff;
+            border-right: 1px solid #edf2f7;
+            padding: 24px 16px 20px 20px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #d1d9e6 transparent;
+            position: relative;
+        }
+
+        .finance-sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .finance-sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .finance-sidebar::-webkit-scrollbar-thumb {
+            background: #d1d9e6;
+            border-radius: 10px;
+        }
+
+        .finance-sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-right: 4px;
+        }
+
+        .finance-sidebar-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0b1a2b;
+            letter-spacing: -0.3px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .finance-sidebar-header h2 i {
+            color: #3b82f6;
+            font-size: 20px;
+        }
+
+        .finance-sidebar-header .badge {
+            background: #eef3ff;
+            color: #2563eb;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 30px;
+        }
+
+        /* ─── 賬本列表 ─── */
+        .ledger-list {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .ledger-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 12px;
+            border: 1px solid transparent;
+            border-radius: 16px;
+            background: transparent;
+            color: inherit;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .ledger-item:hover {
+            background: #f1f5f9;
+        }
+
+        .ledger-item.active {
+            background: #eef3ff;
+            border-color: #b9d0fd;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+        }
+
+        .ledger-icon {
+            width: 38px;
+            height: 38px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 15px;
+        }
+
+        .ledger-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .ledger-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #0b1a2b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ledger-item.active .ledger-name {
+            color: #1d4ed8;
+        }
+
+        .ledger-meta {
+            font-size: 11px;
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ─── 側邊欄底部：快速記賬 ─── */
+        .finance-sidebar-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 14px;
+            border-top: 1px solid #edf2f7;
+            margin-top: 10px;
+        }
+
+        .quick-entry {
+            display: flex;
+            gap: 6px;
+        }
+
+        .quick-entry input {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #334155;
+            font-family: inherit;
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .quick-entry input:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+        }
+
+        .quick-entry input.shake {
+            animation: quick-entry-shake 0.3s ease;
+        }
+
+        @keyframes quick-entry-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .quick-entry button {
+            width: 38px;
+            flex-shrink: 0;
+            border: 0;
+            border-radius: 10px;
+            background: #3b82f6;
+            color: #ffffff;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .quick-entry button:hover {
+            background: #2563eb;
+        }
+
+        .btn-new-ledger {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 0;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            background: transparent;
+            color: #64748b;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+
+        .btn-new-ledger:hover {
+            border-color: #93c5fd;
+            color: #2563eb;
+            background: #f8fbff;
+        }
+
+        /* ─── 金融主面板 ─── */
+        .finance-panel {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            flex-direction: column;
+            background: #ffffff;
+            padding: 28px 36px 30px 36px;
+            overflow: hidden;
+            container-type: inline-size;
+            container-name: financePanel;
+        }
+
+        .finance-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .finance-header-left {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .finance-header-left h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0b1a2b;
+            letter-spacing: -0.3px;
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .finance-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .finance-chip.shared {
+            background: #eef3ff;
+            color: #2563eb;
+        }
+
+        .finance-chip.personal {
+            background: #e6f7f2;
+            color: #0f766e;
+        }
+
+        .finance-chip.preview {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .finance-mini-avatars {
+            display: flex;
+        }
+
+        .finance-mini-avatars span {
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            margin-left: -6px;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .finance-mini-avatars span:first-child {
+            margin-left: 0;
+        }
+
+        .finance-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .finance-period {
+            display: flex;
+            gap: 2px;
+            padding: 3px;
+            border-radius: 12px;
+            background: #f1f5f9;
+        }
+
+        .finance-period button {
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #64748b;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .finance-period button:hover {
+            color: #334155;
+        }
+
+        .finance-period button.active {
+            background: #ffffff;
+            color: #2563eb;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+        }
+
+        .finance-share-btn,
+        .finance-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 0;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 9px 16px;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .finance-share-btn {
+            background: #f1f5f9;
+            color: #0b1a2b;
+        }
+
+        .finance-share-btn i {
+            color: #3b82f6;
+        }
+
+        .finance-share-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .finance-add-btn {
+            background: #3b82f6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .finance-add-btn:hover {
+            background: #2563eb;
+        }
+
+        .finance-add-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* ─── 看板內容 ─── */
+        .finance-body {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: #d1d9e6 transparent;
+        }
+
+        .finance-body::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .finance-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .finance-body::-webkit-scrollbar-thumb {
+            background: #d1d9e6;
+            border-radius: 10px;
+        }
+
+        .finance-card {
+            background: #ffffff;
+            border: 1px solid #eef2f8;
+            border-radius: 18px;
+            padding: 16px 18px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+        }
+
+        .finance-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .finance-card-head h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0b1a2b;
+        }
+
+        .finance-card-sub {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        /* ─── KPI 卡片 ─── */
+        .finance-kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .finance-kpi {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #ffffff;
+            border: 1px solid #eef2f8;
+            border-radius: 18px;
+            padding: 16px 18px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+        }
+
+        .kpi-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .kpi-icon {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .kpi-icon.income {
+            background: #e8faf0;
+            color: #16a34a;
+        }
+
+        .kpi-icon.expense {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .kpi-icon.balance {
+            background: #eef3ff;
+            color: #2563eb;
+        }
+
+        .kpi-icon.average {
+            background: #fef8ec;
+            color: #b45309;
+        }
+
+        .kpi-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0b1a2b;
+            letter-spacing: -0.4px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-foot {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            row-gap: 4px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .kpi-delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-delta.pos {
+            background: #e8faf0;
+            color: #16a34a;
+        }
+
+        .kpi-delta.neg {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .kpi-delta.neutral {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        /* ─── 圖表區 ─── */
+        .finance-charts-row,
+        .finance-bottom-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+            gap: 14px;
+            align-items: start;
+        }
+
+        .finance-side-col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .finance-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .finance-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .finance-legend i {
+            width: 8px;
+            height: 8px;
+            border-radius: 3px;
+        }
+
+        .finance-legend .line i {
+            width: 14px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .finance-trend {
+            color: #0b1a2b;
+        }
+
+        .finance-trend svg {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        /* ─── 圓環圖 ─── */
+        .finance-donut-wrap {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .finance-donut {
+            position: relative;
+            width: 132px;
+            height: 132px;
+            flex-shrink: 0;
+            color: #0b1a2b;
+        }
+
+        .finance-donut svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .finance-donut-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            pointer-events: none;
+        }
+
+        .finance-donut-center b {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0b1a2b;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .finance-donut-center span {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        .finance-donut-legend {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .donut-legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        .donut-legend-row .dot {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            border-radius: 3px;
+        }
+
+        .donut-legend-row .name {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .donut-legend-row .amt {
+            flex-shrink: 0;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .donut-legend-row .pct {
+            flex-shrink: 0;
+            color: #94a3b8;
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ─── 交易列表 ─── */
+        .finance-txn-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .txn-day {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 2px 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+
+        .txn-day:first-child {
+            padding-top: 0;
+        }
+
+        .txn-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 8px;
+            border-radius: 12px;
+            transition: background 0.15s;
+        }
+
+        .txn-row:hover {
+            background: #f8fafc;
+        }
+
+        .txn-row.new {
+            animation: txn-in 0.4s ease;
+        }
+
+        @keyframes txn-in {
+            from {
+                opacity: 0;
+                transform: translateY(-6px);
+                background: #eef3ff;
+            }
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .txn-icon {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 11px;
+            font-size: 13px;
+        }
+
+        .txn-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .txn-note {
+            font-size: 13px;
+            font-weight: 600;
+            color: #0b1a2b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .txn-meta {
+            display: flex;
+            gap: 6px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .txn-amount {
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .txn-amount.expense {
+            color: #dc2626;
+        }
+
+        .txn-amount.income {
+            color: #16a34a;
+        }
+
+        /* ─── 結算 ─── */
+        .settle-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 4px;
+            border-bottom: 1px dashed #eef2f8;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        .settle-row:last-child {
+            border-bottom: 0;
+        }
+
+        .settle-row.clearing {
+            opacity: 0;
+            transform: translateX(8px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .settle-people {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .settle-people b {
+            color: #0b1a2b;
+        }
+
+        .settle-amount {
+            font-weight: 700;
+            color: #0b1a2b;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .settle-clear-btn {
+            border: 0;
+            border-radius: 8px;
+            padding: 4px 9px;
+            background: #e8faf0;
+            color: #15803d;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .settle-clear-btn:hover {
+            background: #d1fae5;
+        }
+
+        /* ─── 預算 ─── */
+        .budget-line {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .budget-line b {
+            font-size: 15px;
+            color: #0b1a2b;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .budget-pct {
+            font-weight: 700;
+            color: #16a34a;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .budget-pct.warn {
+            color: #b45309;
+        }
+
+        .budget-pct.danger {
+            color: #dc2626;
+        }
+
+        .budget-track {
+            height: 8px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .budget-fill {
+            height: 100%;
+            border-radius: 6px;
+            background: #22c55e;
+            transition: width 0.4s ease, background 0.3s ease;
+        }
+
+        .budget-fill.warn {
+            background: #f59e0b;
+        }
+
+        .budget-fill.danger {
+            background: #ef4444;
+        }
+
+        .budget-hint {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        /* ─── 空狀態 / 提示 ─── */
+        .finance-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 18px 8px;
+            color: #94a3b8;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .finance-empty i {
+            font-size: 18px;
+            color: #cbd5e1;
+        }
+
+        .finance-footnote {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 2px 6px 4px;
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        .finance-footnote i {
+            color: #cbd5e1;
+        }
+
+        /* ─── 輕提示 ─── */
+        .finance-toast {
+            position: absolute;
+            left: 50%;
+            bottom: 26px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: #0b1a2b;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.28);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-50%) translateY(10px);
+            transition: opacity 0.22s ease, transform 0.22s ease;
+        }
+
+        .finance-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .finance-toast i {
+            color: #4ade80;
+        }
+
+        /* ─── 金融工作區深色模式 ─── */
+        [data-theme="dark"] .workspace-switch {
+            background: #141f34;
+            border-color: #22304c;
+        }
+
+        [data-theme="dark"] .workspace-switch-btn {
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .workspace-switch-btn:hover {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .workspace-switch-btn.active {
+            background: #1b2a45;
+            color: #93c5fd;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .finance-sidebar {
+            background: #101a2c;
+            border-color: #1d2940;
+        }
+
+        [data-theme="dark"] .finance-panel {
+            background: #0c1422;
+        }
+
+        [data-theme="dark"] .finance-body::-webkit-scrollbar-thumb {
+            background: #2b3b58;
+        }
+
+        [data-theme="dark"] .finance-sidebar-header h2 {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .finance-sidebar-header h2 i {
+            color: #60a5fa;
+        }
+
+        [data-theme="dark"] .finance-sidebar-header .badge {
+            background: #1a2b49;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .ledger-item:hover {
+            background: #16233c;
+        }
+
+        [data-theme="dark"] .ledger-item.active {
+            background: #1a2b49;
+            border-color: #2b4270;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .ledger-name {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .ledger-item.active .ledger-name {
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .ledger-meta {
+            color: #7d8ea8;
+        }
+
+        [data-theme="dark"] .finance-sidebar-footer {
+            border-top-color: #1d2940;
+        }
+
+        [data-theme="dark"] .quick-entry input {
+            background: #0c172a;
+            border-color: #2a3a57;
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .quick-entry input::placeholder {
+            color: #6b7f9e;
+        }
+
+        [data-theme="dark"] .quick-entry input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+
+        [data-theme="dark"] .btn-new-ledger {
+            border-color: #2a3a57;
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .btn-new-ledger:hover {
+            border-color: #34517f;
+            color: #93c5fd;
+            background: #141f34;
+        }
+
+        [data-theme="dark"] .finance-header-left h1 {
+            color: #eaf1fb;
+        }
+
+        [data-theme="dark"] .finance-chip.shared {
+            background: #1a2b49;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .finance-chip.personal {
+            background: rgba(20, 184, 166, 0.16);
+            color: #5eead4;
+        }
+
+        [data-theme="dark"] .finance-chip.preview {
+            background: rgba(245, 158, 11, 0.16);
+            color: #fbbf24;
+        }
+
+        [data-theme="dark"] .finance-mini-avatars span {
+            border-color: #0c1422;
+        }
+
+        [data-theme="dark"] .finance-period {
+            background: #141f34;
+        }
+
+        [data-theme="dark"] .finance-period button {
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .finance-period button:hover {
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .finance-period button.active {
+            background: #1b2a45;
+            color: #93c5fd;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .finance-share-btn {
+            background: #141f34;
+            color: #d7e0ee;
+        }
+
+        [data-theme="dark"] .finance-share-btn:hover {
+            background: #1b2a45;
+        }
+
+        [data-theme="dark"] .finance-card,
+        [data-theme="dark"] .finance-kpi {
+            background: #141f34;
+            border-color: #22304c;
+            box-shadow: none;
+        }
+
+        [data-theme="dark"] .finance-card-head h3,
+        [data-theme="dark"] .kpi-value,
+        [data-theme="dark"] .txn-note,
+        [data-theme="dark"] .donut-legend-row,
+        [data-theme="dark"] .settle-row,
+        [data-theme="dark"] .budget-line b {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .kpi-label,
+        [data-theme="dark"] .kpi-foot,
+        [data-theme="dark"] .finance-legend {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .kpi-icon.income {
+            background: rgba(34, 197, 94, 0.16);
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .kpi-icon.expense {
+            background: rgba(239, 68, 68, 0.16);
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .kpi-icon.balance {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .kpi-icon.average {
+            background: rgba(245, 158, 11, 0.16);
+            color: #fbbf24;
+        }
+
+        [data-theme="dark"] .kpi-delta.pos {
+            background: rgba(34, 197, 94, 0.16);
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .kpi-delta.neg {
+            background: rgba(239, 68, 68, 0.16);
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .kpi-delta.neutral {
+            background: #22304c;
+            color: #c9d5e6;
+        }
+
+        [data-theme="dark"] .finance-trend {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .finance-trend circle {
+            stroke: #141f34;
+        }
+
+        [data-theme="dark"] .finance-donut {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .finance-donut-center b {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .txn-row:hover {
+            background: #16233c;
+        }
+
+        [data-theme="dark"] .txn-day {
+            color: #7d8ea8;
+        }
+
+        [data-theme="dark"] .txn-amount.expense {
+            color: #f87171;
+        }
+
+        [data-theme="dark"] .txn-amount.income {
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .settle-row {
+            border-bottom-color: #22304c;
+        }
+
+        [data-theme="dark"] .settle-people b,
+        [data-theme="dark"] .settle-amount {
+            color: #eaf1fb;
+        }
+
+        [data-theme="dark"] .settle-clear-btn {
+            background: rgba(34, 197, 94, 0.16);
+            color: #4ade80;
+        }
+
+        [data-theme="dark"] .settle-clear-btn:hover {
+            background: rgba(34, 197, 94, 0.26);
+        }
+
+        [data-theme="dark"] .budget-line {
+            color: #93a5c0;
+        }
+
+        [data-theme="dark"] .budget-track {
+            background: #22304c;
+        }
+
+        [data-theme="dark"] .budget-hint {
+            color: #7d8ea8;
+        }
+
+        [data-theme="dark"] .finance-empty {
+            color: #7d8ea8;
+        }
+
+        [data-theme="dark"] .finance-empty i {
+            color: #3b4a66;
+        }
+
+        [data-theme="dark"] .finance-footnote {
+            color: #7d8ea8;
+        }
+
+        [data-theme="dark"] .finance-footnote i {
+            color: #3b4a66;
+        }
+
+        [data-theme="dark"] .finance-toast {
+            background: #1b2a45;
+            border: 1px solid #2b4270;
+            color: #e6edf6;
+        }
+
+        /* ─── 金融工作區響應式 ─── */
+        @media (max-width: 900px) {
+            .finance-sidebar {
+                width: 100%;
+                min-width: unset;
+                flex: 0 0 auto;
+                border-right: none;
+                border-bottom: 1px solid #edf2f7;
+                max-height: none;
+                padding: 18px 16px 16px 16px;
+            }
+
+            /* 窄屏：賬本改為橫向卡片列表，避免縱向被壓縮 */
+            .ledger-list {
+                flex: 0 0 auto;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding-bottom: 4px;
+            }
+
+            .ledger-item {
+                width: auto;
+                flex: 0 0 auto;
+                min-width: 176px;
+            }
+
+            .finance-sidebar-footer {
+                flex-direction: row;
+                align-items: center;
+            }
+
+            .quick-entry {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .btn-new-ledger {
+                width: auto;
+                padding: 10px 14px;
+                white-space: nowrap;
+            }
+
+            .finance-panel {
+                padding: 22px 20px 24px 20px;
+                overflow-y: auto;
+            }
+
+            .finance-body {
+                overflow: visible;
+            }
+
+            .finance-kpi-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .finance-charts-row,
+            .finance-bottom-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .finance-header-left h1 {
+                font-size: 20px;
+                max-width: 200px;
+            }
+        }
+
+        /* ─── 金融面板：容器查詢（好友欄展開 / 面板變窄時自動重排小模組）─── */
+        @container financePanel (max-width: 860px) {
+            .finance-donut-wrap {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .finance-donut-legend {
+                width: 100%;
+            }
+        }
+
+        @container financePanel (max-width: 720px) {
+            .finance-kpi-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .finance-charts-row,
+            .finance-bottom-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .finance-header-left h1 {
+                font-size: 20px;
+                max-width: 200px;
+            }
+        }
+    </style>
   </head>
 <body>
 
@@ -3202,6 +4620,16 @@
     <div class="app-container">
         <!-- ===== 左側邊欄 ===== -->
         <aside class="sidebar">
+
+            <!-- 工作區切換 -->
+            <div class="workspace-switch" aria-label="工作区切换">
+                <button class="workspace-switch-btn active" type="button" data-workspace="notes" aria-pressed="true">
+                    <i class="fas fa-pencil-alt"></i><span>笔记</span>
+                </button>
+                <button class="workspace-switch-btn" type="button" data-workspace="finance" aria-pressed="false">
+                    <i class="fas fa-coins"></i><span>金融</span>
+                </button>
+            </div>
 
             <!-- 標題 -->
             <div class="sidebar-header">
@@ -3306,6 +4734,120 @@
                 <div class="right-info" id="footerPeopleList" aria-label="正在此筆記的使用者"></div>
             </div>
 
+        </main>
+
+        <!-- ===== 金融工作區：側邊欄 ===== -->
+        <aside class="finance-sidebar">
+            <div class="workspace-switch" aria-label="工作区切换">
+                <button class="workspace-switch-btn" type="button" data-workspace="notes" aria-pressed="false">
+                    <i class="fas fa-pencil-alt"></i><span>笔记</span>
+                </button>
+                <button class="workspace-switch-btn active" type="button" data-workspace="finance" aria-pressed="true">
+                    <i class="fas fa-coins"></i><span>金融</span>
+                </button>
+            </div>
+
+            <div class="finance-sidebar-header">
+                <h2><i class="fas fa-wallet"></i> 共享账本</h2>
+                <span class="badge">预览</span>
+            </div>
+
+            <div class="ledger-list" id="ledgerList"></div>
+
+            <div class="finance-sidebar-footer">
+                <div class="quick-entry">
+                    <input id="quickEntryInput" type="text" placeholder="午餐 -35 餐饮，回车记一笔" autocomplete="off" />
+                    <button id="quickEntryBtn" type="button" title="记一笔" aria-label="记一笔"><i class="fas fa-plus"></i></button>
+                </div>
+                <button class="btn-new-ledger" id="newLedgerBtn" type="button">
+                    <i class="fas fa-folder-plus"></i> 新建账本
+                </button>
+            </div>
+        </aside>
+
+        <!-- ===== 金融工作區：主面板 ===== -->
+        <main class="finance-panel" id="financePanel">
+            <div class="finance-header">
+                <div class="finance-header-left">
+                    <h1 id="financeLedgerName">家庭账本</h1>
+                    <span class="finance-chip shared" id="financeShareChip"><i class="fas fa-user-group"></i> 共享 · 3 人</span>
+                    <div class="finance-mini-avatars" id="financeMemberAvatars"></div>
+                    <span class="finance-chip preview"><i class="fas fa-flask"></i> 本地预览</span>
+                </div>
+                <div class="finance-header-right">
+                    <div class="finance-period" id="financePeriod" aria-label="统计周期">
+                        <button type="button" class="active" data-period="month">本月</button>
+                        <button type="button" data-period="quarter">本季</button>
+                        <button type="button" data-period="year">今年</button>
+                    </div>
+                    <button class="finance-share-btn" id="financeShareBtn" type="button"><i class="fas fa-arrows-rotate"></i> 共用</button>
+                    <button class="finance-add-btn" id="financeAddBtn" type="button"><i class="fas fa-plus"></i> 记一笔</button>
+                </div>
+            </div>
+
+            <div class="finance-body">
+                <div class="finance-kpi-row" id="financeKpiRow"></div>
+
+                <div class="finance-charts-row">
+                    <section class="finance-card finance-trend-card">
+                        <div class="finance-card-head">
+                            <h3>收支趋势</h3>
+                            <div class="finance-legend">
+                                <span><i style="background:#22c55e"></i>收入</span>
+                                <span><i style="background:#ef4444"></i>支出</span>
+                                <span class="line"><i style="background:#3b82f6"></i>结余</span>
+                            </div>
+                        </div>
+                        <div class="finance-trend" id="financeTrend"></div>
+                    </section>
+
+                    <section class="finance-card finance-donut-card">
+                        <div class="finance-card-head">
+                            <h3>分类占比</h3>
+                            <span class="finance-card-sub">本月支出</span>
+                        </div>
+                        <div class="finance-donut-wrap">
+                            <div class="finance-donut" id="financeDonut"></div>
+                            <div class="finance-donut-legend" id="financeDonutLegend"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="finance-bottom-row">
+                    <section class="finance-card finance-txn-card">
+                        <div class="finance-card-head">
+                            <h3>最近交易</h3>
+                            <span class="finance-card-sub" id="financeTxnCount"></span>
+                        </div>
+                        <div class="finance-txn-list" id="financeTxnList"></div>
+                    </section>
+
+                    <div class="finance-side-col">
+                        <section class="finance-card finance-settle-card">
+                            <div class="finance-card-head">
+                                <h3>AA 结算</h3>
+                                <span class="finance-card-sub">谁欠谁</span>
+                            </div>
+                            <div id="financeSettlement"></div>
+                        </section>
+
+                        <section class="finance-card finance-budget-card">
+                            <div class="finance-card-head">
+                                <h3>本月预算</h3>
+                                <span class="finance-card-sub" id="financeBudgetSub"></span>
+                            </div>
+                            <div id="financeBudget"></div>
+                        </section>
+                    </div>
+                </div>
+
+                <div class="finance-footnote">
+                    <i class="fas fa-flask"></i>
+                    <span>P1 本地预览：数据为演示用假数据，仅存在于当前窗口内存，刷新即还原，未接后端。</span>
+                </div>
+            </div>
+
+            <div class="finance-toast" id="financeToast" role="status" aria-live="polite"></div>
         </main>
     </div>
 
@@ -5908,6 +7450,625 @@
                 });
             }
             syncFriendsVisibility();
+        })();
+    </script>
+
+    <script>
+        // ─── 金融工作區（P1 本地預覽）：共享賬本看板 ───
+        (function () {
+            'use strict';
+
+            const els = {
+                ledgerList: document.getElementById('ledgerList'),
+                quickInput: document.getElementById('quickEntryInput'),
+                quickBtn: document.getElementById('quickEntryBtn'),
+                newLedgerBtn: document.getElementById('newLedgerBtn'),
+                ledgerName: document.getElementById('financeLedgerName'),
+                shareChip: document.getElementById('financeShareChip'),
+                memberAvatars: document.getElementById('financeMemberAvatars'),
+                period: document.getElementById('financePeriod'),
+                shareBtn: document.getElementById('financeShareBtn'),
+                addBtn: document.getElementById('financeAddBtn'),
+                kpiRow: document.getElementById('financeKpiRow'),
+                trend: document.getElementById('financeTrend'),
+                donut: document.getElementById('financeDonut'),
+                donutLegend: document.getElementById('financeDonutLegend'),
+                txnList: document.getElementById('financeTxnList'),
+                txnCount: document.getElementById('financeTxnCount'),
+                settlement: document.getElementById('financeSettlement'),
+                budget: document.getElementById('financeBudget'),
+                budgetSub: document.getElementById('financeBudgetSub'),
+                toast: document.getElementById('financeToast')
+            };
+            if (!els.ledgerList) return;
+
+            // ─── 分類定義（圖示 / 顏色 / 關鍵詞）───
+            const CATEGORIES = {
+                '餐饮': { icon: 'fa-utensils', color: '#f97316', keywords: ['餐', '饭', '外卖', '咖啡', '奶茶', '早餐', '午餐', '晚餐'] },
+                '交通': { icon: 'fa-bus', color: '#3b82f6', keywords: ['打车', '地铁', '公交', '加油', '停车', '高铁', '机票'] },
+                '购物': { icon: 'fa-bag-shopping', color: '#ec4899', keywords: ['买', '购', '超市', '淘宝', '京东', '商场'] },
+                '居住': { icon: 'fa-house-chimney', color: '#14b8a6', keywords: ['房租', '水费', '电费', '物业', '燃气', '宽带'] },
+                '娱乐': { icon: 'fa-gamepad', color: '#8b5cf6', keywords: ['电影', '游戏', '健身', '唱歌', '演出', '充值'] },
+                '医疗': { icon: 'fa-notes-medical', color: '#ef4444', keywords: ['药', '医', '挂号', '体检'] },
+                '工资': { icon: 'fa-briefcase', color: '#22c55e', keywords: ['工资', '薪', '奖金', '报销', '入账'] },
+                '存入': { icon: 'fa-piggy-bank', color: '#10b981', keywords: ['存入', '旅行', '旅游', '基金', '攒'] },
+                '其他': { icon: 'fa-ellipsis', color: '#94a3b8', keywords: [] }
+            };
+            const INCOME_CATEGORIES = ['工资', '存入'];
+            const AVATAR_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#14b8a6'];
+            const MONTH_LABELS = ['4月', '5月', '6月', '7月', '8月', '9月'];
+
+            // ─── 演示數據（僅存在內存，未接後端）───
+            const DATA = {
+                ledgers: [
+                    {
+                        id: 'home',
+                        name: '家庭账本',
+                        icon: 'fa-house',
+                        iconColor: '#3b82f6',
+                        iconBg: 'rgba(59, 130, 246, 0.12)',
+                        members: ['你', '阿明', '小夏'],
+                        budget: 8000,
+                        months: [
+                            { income: 9800, expense: 6120 },
+                            { income: 9800, expense: 6890 },
+                            { income: 10200, expense: 7230 },
+                            { income: 9800, expense: 6480 },
+                            { income: 10800, expense: 7010 },
+                            { income: 0, expense: 0 }
+                        ],
+                        transactions: [
+                            { type: 'expense', amount: 35, category: '餐饮', note: '午餐', day: '今天', time: '12:30', by: '你' },
+                            { type: 'expense', amount: 6, category: '交通', note: '地铁', day: '今天', time: '08:45', by: '你' },
+                            { type: 'expense', amount: 28, category: '餐饮', note: '咖啡', day: '今天', time: '10:10', by: '阿明' },
+                            { type: 'expense', amount: 268, category: '购物', note: '超市采购', day: '昨天', time: '19:20', by: '小夏' },
+                            { type: 'expense', amount: 88, category: '娱乐', note: '电影票', day: '昨天', time: '14:00', by: '你' },
+                            { type: 'expense', amount: 2800, category: '居住', note: '房租', day: '9月26日', time: '11:00', by: '你' },
+                            { type: 'expense', amount: 156, category: '居住', note: '电费', day: '9月26日', time: '20:15', by: '阿明' },
+                            { type: 'income', amount: 9800, category: '工资', note: '工资入账', day: '9月25日', time: '09:00', by: '你' },
+                            { type: 'expense', amount: 42, category: '交通', note: '打车', day: '9月24日', time: '22:40', by: '小夏' }
+                        ],
+                        settlement: [
+                            { from: '阿明', to: '你', amount: 120 },
+                            { from: '你', to: '小夏', amount: 64 },
+                            { from: '小夏', to: '阿明', amount: 18 }
+                        ]
+                    },
+                    {
+                        id: 'travel',
+                        name: '旅行基金',
+                        icon: 'fa-plane',
+                        iconColor: '#8b5cf6',
+                        iconBg: 'rgba(139, 92, 246, 0.12)',
+                        members: ['你', '阿明'],
+                        budget: 0,
+                        months: [
+                            { income: 2000, expense: 0 },
+                            { income: 2000, expense: 0 },
+                            { income: 2000, expense: 1580 },
+                            { income: 2000, expense: 0 },
+                            { income: 2000, expense: 4260 },
+                            { income: 0, expense: 0 }
+                        ],
+                        transactions: [
+                            { type: 'income', amount: 2000, category: '存入', note: '存入旅行金', day: '9月20日', time: '21:00', by: '你' },
+                            { type: 'income', amount: 2000, category: '存入', note: '存入旅行金', day: '9月18日', time: '20:30', by: '阿明' }
+                        ],
+                        settlement: []
+                    },
+                    {
+                        id: 'personal',
+                        name: '个人日常',
+                        icon: 'fa-user',
+                        iconColor: '#14b8a6',
+                        iconBg: 'rgba(20, 184, 166, 0.12)',
+                        members: ['你'],
+                        budget: 3200,
+                        months: [
+                            { income: 5200, expense: 2380 },
+                            { income: 5200, expense: 2640 },
+                            { income: 5400, expense: 2210 },
+                            { income: 5200, expense: 2890 },
+                            { income: 5200, expense: 2470 },
+                            { income: 0, expense: 0 }
+                        ],
+                        transactions: [
+                            { type: 'expense', amount: 42, category: '餐饮', note: '外卖', day: '今天', time: '12:05', by: '你' },
+                            { type: 'expense', amount: 38, category: '交通', note: '打车', day: '昨天', time: '21:30', by: '你' },
+                            { type: 'expense', amount: 59, category: '购物', note: '手机壳', day: '9月27日', time: '15:40', by: '你' },
+                            { type: 'expense', amount: 299, category: '娱乐', note: '健身房月卡', day: '9月25日', time: '19:00', by: '你' },
+                            { type: 'expense', amount: 128, category: '娱乐', note: '游戏充值', day: '9月22日', time: '22:15', by: '你' },
+                            { type: 'income', amount: 8200, category: '工资', note: '工资入账', day: '9月21日', time: '09:10', by: '你' },
+                            { type: 'expense', amount: 46, category: '医疗', note: '感冒药', day: '9月19日', time: '10:25', by: '你' },
+                            { type: 'expense', amount: 213, category: '购物', note: '超市', day: '9月17日', time: '18:50', by: '你' },
+                            { type: 'expense', amount: 1800, category: '居住', note: '房租', day: '9月15日', time: '11:30', by: '你' }
+                        ],
+                        settlement: []
+                    }
+                ]
+            };
+
+            const state = { activeLedgerId: 'home' };
+
+            // ─── 小工具 ───
+            function activeLedger() {
+                return DATA.ledgers.find(ledger => ledger.id === state.activeLedgerId) || DATA.ledgers[0];
+            }
+
+            function money(value) {
+                const rounded = Math.round(value * 100) / 100;
+                return '¥' + rounded.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+            }
+
+            function shortMoney(value) {
+                if (value >= 10000) {
+                    const wan = value / 10000;
+                    return '¥' + (Number.isInteger(wan) ? wan : wan.toFixed(1)) + '万';
+                }
+                return '¥' + Math.round(value).toLocaleString('zh-CN');
+            }
+
+            function escapeHtml(text) {
+                return String(text).replace(/[&<>"']/g, ch => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                }[ch]));
+            }
+
+            function hexToRgba(hex, alpha) {
+                const raw = hex.replace('#', '');
+                const full = raw.length === 3 ? raw.split('').map(ch => ch + ch).join('') : raw;
+                const value = parseInt(full, 16);
+                return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
+            }
+
+            function categoryOf(name) {
+                return CATEGORIES[name] || CATEGORIES['其他'];
+            }
+
+            function niceCeil(value) {
+                const base = Math.max(1, value);
+                const power = Math.pow(10, Math.floor(Math.log10(base)));
+                const steps = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+                const norm = base / power;
+                for (const step of steps) {
+                    if (norm <= step + 1e-9) return step * power;
+                }
+                return 10 * power;
+            }
+
+            function deltaPct(current, previous) {
+                if (!previous) return null;
+                return ((current - previous) / previous) * 100;
+            }
+
+            function deltaBadge(pct, downIsGood) {
+                if (pct === null || !Number.isFinite(pct)) {
+                    return '<span class="kpi-delta neutral">—</span>';
+                }
+                const up = pct >= 0.05;
+                const down = pct <= -0.05;
+                let cls = 'neutral';
+                if (up) cls = downIsGood ? 'neg' : 'pos';
+                if (down) cls = downIsGood ? 'pos' : 'neg';
+                const arrow = up ? '↑' : (down ? '↓' : '→');
+                return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+            }
+
+            // 當前月（9 月）由交易流水推導，保證 KPI / 圓環 / 趨勢一致
+            function recomputeCurrentMonth(ledger) {
+                const transactions = ledger.transactions;
+                const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+                const expense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+                ledger.months[ledger.months.length - 1] = { income, expense };
+            }
+
+            // ─── 渲染：頭部 / 賬本列表 ───
+            function renderHeader() {
+                const ledger = activeLedger();
+                els.ledgerName.textContent = ledger.name;
+                if (ledger.members.length > 1) {
+                    els.shareChip.className = 'finance-chip shared';
+                    els.shareChip.innerHTML = `<i class="fas fa-user-group"></i> 共享 · ${ledger.members.length} 人`;
+                } else {
+                    els.shareChip.className = 'finance-chip personal';
+                    els.shareChip.innerHTML = '<i class="fas fa-lock"></i> 仅自己';
+                }
+                els.memberAvatars.innerHTML = ledger.members.map((name, index) =>
+                    `<span style="background:${AVATAR_COLORS[index % AVATAR_COLORS.length]}" title="${escapeHtml(name)}">${escapeHtml(name.slice(0, 1))}</span>`
+                ).join('');
+            }
+
+            function renderLedgerList() {
+                els.ledgerList.innerHTML = DATA.ledgers.map(ledger => {
+                    const current = ledger.months[ledger.months.length - 1];
+                    const balance = current.income - current.expense;
+                    const meta = ledger.members.length > 1
+                        ? `${ledger.members.length} 人共享 · 结余 ${money(balance)}`
+                        : `个人账本 · 结余 ${money(balance)}`;
+                    const active = ledger.id === state.activeLedgerId ? ' active' : '';
+                    return `<button class="ledger-item${active}" type="button" data-ledger="${ledger.id}">
+                        <span class="ledger-icon" style="background:${ledger.iconBg};color:${ledger.iconColor}"><i class="fas ${ledger.icon}"></i></span>
+                        <span class="ledger-info">
+                            <span class="ledger-name">${escapeHtml(ledger.name)}</span>
+                            <span class="ledger-meta">${meta}</span>
+                        </span>
+                    </button>`;
+                }).join('');
+            }
+
+            // ─── 渲染：KPI 卡片 ───
+            function kpiCard(label, value, type, icon, foot) {
+                return `<div class="finance-kpi">
+                    <div class="kpi-top">
+                        <span class="kpi-label">${label}</span>
+                        <span class="kpi-icon ${type}"><i class="fas ${icon}"></i></span>
+                    </div>
+                    <div class="kpi-value">${value}</div>
+                    <div class="kpi-foot">${foot}</div>
+                </div>`;
+            }
+
+            function renderKpis() {
+                const ledger = activeLedger();
+                const months = ledger.months;
+                const current = months[months.length - 1];
+                const previous = months[months.length - 2] || { income: 0, expense: 0 };
+                const income = current.income;
+                const expense = current.expense;
+                const balance = income - expense;
+                const rate = income > 0 ? Math.round((balance / income) * 100) : 0;
+                const dayOfMonth = Math.max(1, new Date().getDate());
+                const average = Math.round(expense / dayOfMonth);
+                const incomeDelta = deltaPct(income, previous.income);
+                const expenseDelta = deltaPct(expense, previous.expense);
+
+                els.kpiRow.innerHTML = [
+                    kpiCard('本月收入', money(income), 'income', 'fa-arrow-trend-up',
+                        `${deltaBadge(incomeDelta, false)}<span>较上月</span>`),
+                    kpiCard('本月支出', money(expense), 'expense', 'fa-arrow-trend-down',
+                        `${deltaBadge(expenseDelta, true)}<span>较上月</span>`),
+                    kpiCard('本月结余', money(balance), 'balance', 'fa-scale-balanced',
+                        `<span class="kpi-delta neutral">结余率 ${rate}%</span><span>收入 − 支出</span>`),
+                    kpiCard('日均支出', money(average), 'average', 'fa-calculator',
+                        `${deltaBadge(expenseDelta, true)}<span>按 ${dayOfMonth} 天计</span>`)
+                ].join('');
+            }
+
+            // ─── 渲染：收支趨勢（內聯 SVG）───
+            function barRect(x, yTop, width, height, gradientId, title) {
+                const h = Math.max(0, height);
+                if (!h) return '';
+                return `<rect x="${x.toFixed(1)}" y="${yTop.toFixed(1)}" width="${width.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="url(#${gradientId})"><title>${title}</title></rect>`;
+            }
+
+            function renderTrend() {
+                const months = activeLedger().months;
+                const W = 640;
+                const H = 240;
+                const PL = 48;
+                const PR = 10;
+                const PT = 14;
+                const PB = 30;
+                const plotW = W - PL - PR;
+                const plotH = H - PT - PB;
+                const values = [];
+                months.forEach(month => {
+                    values.push(month.income, month.expense, Math.max(0, month.income - month.expense));
+                });
+                const niceMax = niceCeil(Math.max(1, ...values));
+                const y = value => PT + plotH - (value / niceMax) * plotH;
+
+                let grid = '';
+                for (let i = 0; i <= 4; i++) {
+                    const gridValue = (niceMax / 4) * i;
+                    const gy = y(gridValue);
+                    grid += `<line x1="${PL}" y1="${gy.toFixed(1)}" x2="${W - PR}" y2="${gy.toFixed(1)}" stroke="currentColor" stroke-opacity="0.08" stroke-dasharray="3 4"/>`;
+                    grid += `<text x="${PL - 8}" y="${(gy + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="currentColor" fill-opacity="0.45">${shortMoney(gridValue)}</text>`;
+                }
+
+                const groupW = plotW / months.length;
+                const barW = Math.min(22, groupW * 0.26);
+                let bars = '';
+                months.forEach((month, index) => {
+                    const cx = PL + groupW * (index + 0.5);
+                    bars += barRect(cx - barW - 3, y(month.income), barW, PT + plotH - y(month.income), 'finInc', `${MONTH_LABELS[index]} 收入 ${money(month.income)}`);
+                    bars += barRect(cx + 3, y(month.expense), barW, PT + plotH - y(month.expense), 'finExp', `${MONTH_LABELS[index]} 支出 ${money(month.expense)}`);
+                    bars += `<text x="${cx.toFixed(1)}" y="${H - PB + 18}" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.5">${MONTH_LABELS[index]}</text>`;
+                });
+
+                const points = months.map((month, index) => ({
+                    x: PL + groupW * (index + 0.5),
+                    y: y(Math.max(0, month.income - month.expense)),
+                    balance: month.income - month.expense
+                }));
+                const path = points.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+                const dots = points.map(point => `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3.2" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5"><title>结余 ${money(point.balance)}</title></circle>`).join('');
+
+                els.trend.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="近 6 个月收支趋势">
+                    <defs>
+                        <linearGradient id="finInc" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#34d399"/>
+                            <stop offset="100%" stop-color="#22c55e"/>
+                        </linearGradient>
+                        <linearGradient id="finExp" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#fb7185"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                    </defs>
+                    ${grid}
+                    ${bars}
+                    <path d="${path}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>
+                    ${dots}
+                </svg>`;
+            }
+
+            // ─── 渲染：分類圓環（內聯 SVG）───
+            function renderDonut() {
+                const ledger = activeLedger();
+                const expenses = ledger.transactions.filter(t => t.type === 'expense');
+                const total = expenses.reduce((sum, t) => sum + t.amount, 0);
+                if (!expenses.length) {
+                    els.donut.innerHTML = `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="52" fill="none" stroke="currentColor" stroke-opacity="0.1" stroke-width="14"/></svg>
+                        <div class="finance-donut-center"><b>—</b><span>暂无支出</span></div>`;
+                    els.donutLegend.innerHTML = '<div class="finance-empty"><i class="fas fa-chart-pie"></i>本月还没有支出</div>';
+                    return;
+                }
+                const byCategory = {};
+                expenses.forEach(t => {
+                    byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+                });
+                const rows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+                const radius = 52;
+                const circumference = 2 * Math.PI * radius;
+                let accumulated = 0;
+                let segments = '';
+                rows.forEach(([name, value]) => {
+                    const fraction = value / total;
+                    const length = Math.max(0, fraction * circumference - 3);
+                    const color = categoryOf(name).color;
+                    segments += `<circle cx="66" cy="66" r="${radius}" fill="none" stroke="${color}" stroke-width="14" stroke-dasharray="${length.toFixed(2)} ${(circumference - length).toFixed(2)}" stroke-dashoffset="${(-accumulated).toFixed(2)}" transform="rotate(-90 66 66)"><title>${name} ${money(value)}</title></circle>`;
+                    accumulated += fraction * circumference;
+                });
+                els.donut.innerHTML = `<svg viewBox="0 0 132 132">${segments}</svg>
+                    <div class="finance-donut-center"><b>${money(total)}</b><span>本月支出</span></div>`;
+                els.donutLegend.innerHTML = rows.map(([name, value]) => {
+                    const percent = Math.round((value / total) * 100);
+                    return `<div class="donut-legend-row">
+                        <span class="dot" style="background:${categoryOf(name).color}"></span>
+                        <span class="name">${name}</span>
+                        <span class="amt">${money(value)}</span>
+                        <span class="pct">${percent}%</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // ─── 渲染：交易列表 ───
+            function renderTransactions() {
+                const ledger = activeLedger();
+                if (!ledger.transactions.length) {
+                    els.txnCount.textContent = '';
+                    els.txnList.innerHTML = '<div class="finance-empty"><i class="fas fa-receipt"></i>还没有交易，左侧快速记一笔试试</div>';
+                    return;
+                }
+                els.txnCount.textContent = `共 ${ledger.transactions.length} 笔`;
+                const groups = [];
+                ledger.transactions.forEach(txn => {
+                    let group = groups.find(item => item.day === txn.day);
+                    if (!group) {
+                        group = { day: txn.day, items: [] };
+                        groups.push(group);
+                    }
+                    group.items.push(txn);
+                });
+                els.txnList.innerHTML = groups.map(group => {
+                    const income = group.items.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+                    const expense = group.items.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+                    const parts = [];
+                    if (income) parts.push(`收入 ${money(income)}`);
+                    if (expense) parts.push(`支出 ${money(expense)}`);
+                    const rows = group.items.map(txn => {
+                        const category = categoryOf(txn.category);
+                        const newClass = txn._new ? ' new' : '';
+                        return `<div class="txn-row${newClass}">
+                            <span class="txn-icon" style="background:${hexToRgba(category.color, 0.12)};color:${category.color}"><i class="fas ${category.icon}"></i></span>
+                            <span class="txn-main">
+                                <span class="txn-note">${escapeHtml(txn.note)}</span>
+                                <span class="txn-meta"><span>${txn.category}</span><span>·</span><span>${escapeHtml(txn.by)}</span><span>·</span><span>${txn.time}</span></span>
+                            </span>
+                            <span class="txn-amount ${txn.type}">${txn.type === 'expense' ? '-' : '+'}${money(txn.amount)}</span>
+                        </div>`;
+                    }).join('');
+                    return `<div class="txn-day"><span>${group.day}</span><span>${parts.join(' · ')}</span></div>${rows}`;
+                }).join('');
+                ledger.transactions.forEach(txn => { delete txn._new; });
+            }
+
+            // ─── 渲染：結算 / 預算 ───
+            function renderSettlement() {
+                const ledger = activeLedger();
+                if (!ledger.settlement.length) {
+                    els.settlement.innerHTML = '<div class="finance-empty"><i class="fas fa-handshake"></i>当前没有待结算的款项</div>';
+                    return;
+                }
+                els.settlement.innerHTML = ledger.settlement.map((item, index) => `<div class="settle-row">
+                    <span class="settle-people"><b>${escapeHtml(item.from)}</b> → <b>${escapeHtml(item.to)}</b></span>
+                    <span class="settle-amount">${money(item.amount)}</span>
+                    <button class="settle-clear-btn" type="button" data-index="${index}">结清</button>
+                </div>`).join('');
+            }
+
+            function renderBudget() {
+                const ledger = activeLedger();
+                if (!ledger.budget) {
+                    els.budgetSub.textContent = '';
+                    els.budget.innerHTML = '<div class="finance-empty"><i class="fas fa-bullseye"></i>还未设置预算</div>';
+                    return;
+                }
+                const used = ledger.months[ledger.months.length - 1].expense;
+                const percent = Math.min(100, Math.round((used / ledger.budget) * 100));
+                const remain = ledger.budget - used;
+                const level = percent >= 90 ? 'danger' : percent >= 70 ? 'warn' : '';
+                const hint = level === 'danger' ? '注意控制支出' : level === 'warn' ? '接近预算上限' : '';
+                els.budgetSub.textContent = `已用 ${percent}%`;
+                els.budget.innerHTML = `
+                    <div class="budget-line">
+                        <span><b>${money(used)}</b> / ${money(ledger.budget)}</span>
+                        <span class="budget-pct ${level}">${percent}%</span>
+                    </div>
+                    <div class="budget-track"><div class="budget-fill ${level}" style="width:${percent}%"></div></div>
+                    <div class="budget-hint"><span>${remain >= 0 ? `剩余 ${money(remain)}` : `已超出 ${money(-remain)}`}</span><span>${hint}</span></div>`;
+            }
+
+            function renderAll() {
+                renderHeader();
+                renderLedgerList();
+                renderKpis();
+                renderTrend();
+                renderDonut();
+                renderTransactions();
+                renderSettlement();
+                renderBudget();
+            }
+
+            // ─── 輕提示 ───
+            let toastTimer = null;
+            function toast(message) {
+                els.toast.innerHTML = `<i class="fas fa-check-circle"></i><span>${escapeHtml(message)}</span>`;
+                els.toast.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2400);
+            }
+
+            // ─── 工作區切換 ───
+            function setWorkspace(name) {
+                document.body.classList.toggle('workspace-finance', name === 'finance');
+                document.querySelectorAll('.workspace-switch-btn').forEach(button => {
+                    const active = button.dataset.workspace === name;
+                    button.classList.toggle('active', active);
+                    button.setAttribute('aria-pressed', String(active));
+                });
+            }
+
+            // ─── 快速記賬：解析「午餐 -35 餐饮」───
+            function parseQuickEntry(raw) {
+                const text = String(raw || '').trim();
+                if (!text) return null;
+                const match = text.match(/([+-]?\d+(?:\.\d{1,2})?)/);
+                if (!match) return null;
+                const token = match[1];
+                const amount = Math.abs(parseFloat(token));
+                if (!amount) return null;
+                let type = token.charAt(0) === '+' ? 'income' : 'expense';
+                let rest = (text.slice(0, match.index) + ' ' + text.slice(match.index + token.length)).replace(/\s+/g, ' ').trim();
+
+                let category = null;
+                for (const name of Object.keys(CATEGORIES)) {
+                    if (name === '其他') continue;
+                    if (rest.includes(name)) {
+                        category = name;
+                        rest = rest.replace(name, ' ').replace(/\s+/g, ' ').trim();
+                        break;
+                    }
+                }
+                if (!category) {
+                    for (const [name, definition] of Object.entries(CATEGORIES)) {
+                        if (definition.keywords.some(keyword => rest.includes(keyword))) {
+                            category = name;
+                            break;
+                        }
+                    }
+                }
+                if (!category) category = '其他';
+                if (token.charAt(0) !== '+' && token.charAt(0) !== '-' && INCOME_CATEGORIES.includes(category)) {
+                    type = 'income';
+                }
+                const note = rest || (category !== '其他' ? category : (type === 'income' ? '一笔收入' : '一笔支出'));
+                return { type, amount, category, note };
+            }
+
+            function submitQuickEntry() {
+                const raw = els.quickInput.value;
+                if (!raw.trim()) return;
+                const parsed = parseQuickEntry(raw);
+                if (!parsed) {
+                    els.quickInput.classList.remove('shake');
+                    void els.quickInput.offsetWidth;
+                    els.quickInput.classList.add('shake');
+                    toast('没看懂，试试「午餐 -35 餐饮」');
+                    return;
+                }
+                const ledger = activeLedger();
+                const now = new Date();
+                const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                ledger.transactions.unshift({
+                    type: parsed.type,
+                    amount: parsed.amount,
+                    category: parsed.category,
+                    note: parsed.note,
+                    day: '今天',
+                    time,
+                    by: '你',
+                    _new: true
+                });
+                recomputeCurrentMonth(ledger);
+                els.quickInput.value = '';
+                renderAll();
+                toast(`已记录：${parsed.category} · ${parsed.note} ${money(parsed.amount)}`);
+            }
+
+            // ─── 事件綁定 ───
+            document.querySelectorAll('.workspace-switch-btn').forEach(button => {
+                button.addEventListener('click', () => setWorkspace(button.dataset.workspace));
+            });
+
+            els.ledgerList.addEventListener('click', event => {
+                const item = event.target.closest('.ledger-item');
+                if (!item || !item.dataset.ledger) return;
+                if (item.dataset.ledger === state.activeLedgerId) return;
+                state.activeLedgerId = item.dataset.ledger;
+                renderAll();
+            });
+
+            els.quickBtn.addEventListener('click', submitQuickEntry);
+            els.quickInput.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitQuickEntry();
+                }
+            });
+            els.quickInput.addEventListener('animationend', () => els.quickInput.classList.remove('shake'));
+
+            els.settlement.addEventListener('click', event => {
+                const button = event.target.closest('.settle-clear-btn');
+                if (!button) return;
+                const index = Number(button.dataset.index);
+                const row = button.closest('.settle-row');
+                if (!Number.isInteger(index) || !row) return;
+                row.classList.add('clearing');
+                setTimeout(() => {
+                    activeLedger().settlement.splice(index, 1);
+                    renderSettlement();
+                    toast('已标记结清');
+                }, 200);
+            });
+
+            els.period.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', () => {
+                    els.period.querySelectorAll('button').forEach(item => item.classList.toggle('active', item === button));
+                });
+            });
+
+            els.newLedgerBtn.addEventListener('click', () => toast('新建账本将在数据阶段（P2）接入'));
+            els.shareBtn.addEventListener('click', () => toast('共用账本将在数据阶段（P2）接入'));
+            els.addBtn.addEventListener('click', () => {
+                setWorkspace('finance');
+                els.quickInput.focus();
+            });
+
+            // ─── 初始化 ───
+            DATA.ledgers.forEach(recomputeCurrentMonth);
+            renderAll();
+            setWorkspace('notes');
         })();
     </script>
 </body>

@@ -1,1 +1,4 @@
 Pillow>=10.0
+PyMySQL>=1.1,<2
+bleach>=6.1,<7
+tinycss2>=1.2,<2

@@ -25,15 +25,53 @@ import zipfile
 
 REPO = pathlib.Path(__file__).resolve().parent
 DEFAULT_OUT = REPO / "dist" / "backend"
+MYSQL_DIR_CANDIDATES = (
+    REPO.parent / "Documents" / "OH-WorkSpace" / "邺珞-mysql",
+    REPO.parent / "OH-WorkSpace" / "邺珞-mysql",
+)
 SERVER_NAME = "CollabNote-Server"
 EMBED_VERSION = "3.12.10"
 EMBED_URL = ("https://registry.npmmirror.com/-/binary/python/%s/python-%s-embed-amd64.zip"
              % (EMBED_VERSION, EMBED_VERSION))
-PILLOW_SPEC = "Pillow>=10.0"
+PYTHON_PACKAGES = ("Pillow>=10.0", "PyMySQL>=1.1,<2", "bleach>=6.1,<7", "tinycss2>=1.2,<2", "webencodings>=0.5")
 
 MAC_LAUNCHER = "啟動後端.command"
+MAC_BUNDLE_LAUNCHER = "一鍵啟動.command"
+MAC_BUNDLE_STOPPER = "停止後端.command"
 WIN_LAUNCHER = "啟動後端.bat"
 DOC_NAME = "使用說明.txt"
+
+MAC_BUNDLE_LAUNCHER_BODY = r'''#!/bin/bash
+set -e
+DIR="$(cd "$(dirname "$0")" && pwd)"
+MYSQL="$DIR/mysql/bin"
+MYSQL_DATA="$DIR/mysql-data"
+SOCK="$DIR/run/mysql.sock"
+PORT="${COLLABNOTE_DB_PORT:-13307}"
+mkdir -p "$DIR/logs" "$DIR/run" "$MYSQL_DATA"
+if ! "$MYSQL/mysqladmin" --socket="$SOCK" -u root ping >/dev/null 2>&1; then
+  nohup "$MYSQL/mysqld" --basedir="$DIR/mysql" --datadir="$MYSQL_DATA" --port="$PORT" --socket="$SOCK" --pid-file="$DIR/run/mysqld.pid" --log-error="$DIR/logs/mysql.err" --mysqlx=0 --bind-address=127.0.0.1 >/dev/null 2>&1 &
+  for _ in $(seq 1 60); do "$MYSQL/mysqladmin" --socket="$SOCK" -u root ping >/dev/null 2>&1 && break; sleep 1; done
+fi
+if ! "$MYSQL/mysqladmin" --socket="$SOCK" -u root ping >/dev/null 2>&1; then echo "MySQL 启动失败，请查看 logs/mysql.err" >&2; exit 1; fi
+"$MYSQL/mysql" --socket="$SOCK" -u root <<'SQL'
+CREATE DATABASE IF NOT EXISTS collabnote CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'collabnote'@'127.0.0.1' IDENTIFIED BY 'collabnote-local';
+ALTER USER 'collabnote'@'127.0.0.1' IDENTIFIED BY 'collabnote-local';
+GRANT ALL PRIVILEGES ON collabnote.* TO 'collabnote'@'127.0.0.1';
+FLUSH PRIVILEGES;
+SQL
+export COLLABNOTE_STORAGE=mysql COLLABNOTE_DB_HOST=127.0.0.1 COLLABNOTE_DB_PORT="$PORT" COLLABNOTE_DB_NAME=collabnote COLLABNOTE_DB_USER=collabnote COLLABNOTE_DB_PASSWORD=collabnote-local
+export COLLABNOTE_PORT="${COLLABNOTE_PORT:-8765}"
+export COLLABNOTE_HOST="${COLLABNOTE_HOST:-0.0.0.0}"
+cd "$DIR"
+exec "$DIR/CollabNote-Server" "$@"
+'''
+MAC_BUNDLE_STOPPER_BODY = r'''#!/bin/bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$DIR/mysql/bin/mysqladmin" ]; then "$DIR/mysql/bin/mysqladmin" --socket="$DIR/run/mysql.sock" -u root shutdown >/dev/null 2>&1 || true; fi
+pkill -f "$DIR/CollabNote-Server" >/dev/null 2>&1 || true
+'''
 
 LAUNCHER_BODY = """#!/bin/bash
 # CollabNote 後端：雙擊本檔即可啟動，會開啟終端機顯示即時日誌。
@@ -135,8 +173,16 @@ def _download(url, dest, context):
         shutil.copyfileobj(response, target)
 
 
-def write_docs(target, platform_name):
-    if platform_name == "win":
+def write_docs(target, platform_name, bundled=False):
+    if bundled and platform_name != "win":
+        launcher = target / MAC_BUNDLE_LAUNCHER
+        launcher.write_text(MAC_BUNDLE_LAUNCHER_BODY, encoding="utf-8")
+        launcher.chmod(0o755)
+        stopper = target / MAC_BUNDLE_STOPPER
+        stopper.write_text(MAC_BUNDLE_STOPPER_BODY, encoding="utf-8")
+        stopper.chmod(0o755)
+        doc = MAC_DOC.replace("啟動後端.command", "一鍵啟動.command")
+    elif platform_name == "win":
         body = WIN_LAUNCHER_BODY.replace("\n", "\r\n")
         (target / WIN_LAUNCHER).write_text(body, encoding="utf-8")
         # 用解壓縮工具解到 Windows 時中文檔名偶爾會亂碼，另留一個 ASCII 入口
@@ -152,7 +198,33 @@ def write_docs(target, platform_name):
     (target / DOC_NAME).write_text(doc, encoding="utf-8")
 
 
-def build_frozen(out_dir):
+def copy_runtime_data(target, include_data=True):
+    if not include_data:
+        return
+    source = REPO / "data"
+    if source.is_dir():
+        shutil.copytree(source, target / "data", symlinks=True)
+
+
+def copy_mysql_bundle(target, mysql_dir, empty_data=False):
+    mysql_dir = pathlib.Path(mysql_dir).expanduser().resolve()
+    binary_source = mysql_dir / "mysql-8.4.11-macos15-x86_64"
+    data_source = mysql_dir / "data"
+    if not binary_source.is_dir():
+        raise RuntimeError(f"找不到 MySQL runtime：{binary_source}")
+    if not data_source.is_dir() and not empty_data:
+        raise RuntimeError(f"找不到 MySQL 数据目录：{data_source}")
+    shutil.copytree(binary_source, target / "mysql", symlinks=True)
+    if empty_data:
+        (target / "mysql-data").mkdir()
+        subprocess.run([str(target / "mysql" / "bin" / "mysqld"), "--initialize-insecure", f"--basedir={target / 'mysql'}", f"--datadir={target / 'mysql-data'}", f"--log-error={target / 'mysql-data' / 'init.err'}"], check=True)
+    else:
+        shutil.copytree(data_source, target / "mysql-data", symlinks=True)
+    (target / "run").mkdir()
+    (target / "logs").mkdir()
+
+
+def build_frozen(out_dir, mysql_dir=None, empty_data=False):
     """用 PyInstaller 把 server.py 凍結成可攜資料夾（macOS / Linux）。"""
     arch = platform.machine()
     system = "macOS" if sys.platform == "darwin" else platform.system()
@@ -167,7 +239,7 @@ def build_frozen(out_dir):
         python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
         print("· 安裝打包工具（PyInstaller、Pillow）…")
         subprocess.run([str(python), "-m", "pip", "install", "--quiet", "--upgrade", "pip"], check=True)
-        subprocess.run([str(python), "-m", "pip", "install", "--quiet", "pillow", "pyinstaller"], check=True)
+        subprocess.run([str(python), "-m", "pip", "install", "--quiet", "pyinstaller", *PYTHON_PACKAGES], check=True)
 
         print("· 凍結後端執行檔…")
         subprocess.run([
@@ -184,7 +256,15 @@ def build_frozen(out_dir):
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
-    write_docs(target, "mac" if sys.platform == "darwin" else "posix")
+    # PyInstaller 不會自動帶入外部 schema；MySQL 模式首次啟動需要它。
+    for name in ("database.py", "schema.sql"):
+        shutil.copy2(REPO / name, target / name)
+    if mysql_dir:
+        copy_runtime_data(target)
+        copy_mysql_bundle(target, mysql_dir, empty_data=empty_data)
+        write_docs(target, "mac" if sys.platform == "darwin" else "posix", bundled=True)
+    else:
+        write_docs(target, "mac" if sys.platform == "darwin" else "posix")
     return target
 
 
@@ -208,7 +288,7 @@ def build_embed(out_dir):
         wheels = work / "wheels"
         subprocess.run([sys.executable, "-m", "pip", "download", "--quiet", "--only-binary=:all:",
                         "--platform", "win_amd64", "--python-version", EMBED_VERSION.rsplit(".", 1)[0],
-                        "--implementation", "cp", "--no-deps", PILLOW_SPEC, "-d", str(wheels)], check=True)
+                        "--implementation", "cp", "--no-deps", *PYTHON_PACKAGES, "-d", str(wheels)], check=True)
         site_packages = runtime / "Lib" / "site-packages"
         site_packages.mkdir(parents=True)
         for wheel in wheels.glob("*.whl"):
@@ -221,7 +301,7 @@ def build_embed(out_dir):
     (runtime / "python312._pth").write_text(
         "python312.zip\r\n.\r\nLib\\site-packages\r\n", encoding="ascii")
 
-    for name in ("server.py", "monitor.py"):
+    for name in ("server.py", "monitor.py", "database.py", "schema.sql"):
         shutil.copy2(REPO / name, target / name)
     write_docs(target, "win")
     return target
@@ -232,19 +312,23 @@ def main(argv=None):
     parser.add_argument("--out", default=str(DEFAULT_OUT), help="輸出目錄（預設 dist/backend）")
     parser.add_argument("--platform", default="auto", choices=["auto", "mac", "win"],
                         help="目標平台；auto 依目前系統決定")
+    parser.add_argument("--mysql-dir", default=None, help="MySQL runtime 所在目录；macOS 默认使用工作区内的版本")
+    parser.add_argument("--empty-data", action="store_true", help="生成空白 MySQL 数据目录")
     args = parser.parse_args(argv)
 
     out_dir = pathlib.Path(args.out).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    default_mysql = next((path for path in MYSQL_DIR_CANDIDATES if path.is_dir()), None)
+    mysql_dir = args.mysql_dir or (str(default_mysql) if default_mysql and args.platform in ("auto", "mac") else None)
     if args.platform == "win":
         targets = [build_embed(out_dir)]
     elif args.platform == "mac":
-        targets = [build_frozen(out_dir)]
+        targets = [build_frozen(out_dir, mysql_dir=mysql_dir, empty_data=args.empty_data)]
     elif sys.platform == "win32":
         targets = [build_embed(out_dir)]
     else:
-        targets = [build_frozen(out_dir)]
+        targets = [build_frozen(out_dir, mysql_dir=mysql_dir, empty_data=args.empty_data)]
 
     for target in targets:
         print("✓ 完成：%s" % target)

@@ -24,6 +24,13 @@ from threading import Lock
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from PIL import Image, UnidentifiedImageError
+from database import StorageConfigError, create_storage
+
+try:
+    import bleach
+    from bleach.css_sanitizer import CSSSanitizer
+except ImportError as error:
+    raise RuntimeError("Missing backend dependencies; run: python3 -m pip install -r requirements.txt") from error
 
 # 預設綁定所有網卡，讓同一區域網內的多位使用者都能連上這台伺服器。
 # 只想本機使用時可設定 COLLABNOTE_HOST=127.0.0.1。
@@ -52,6 +59,7 @@ LEGACY_AVATAR_DIR = BASE_DIR / "frontend" / "assets" / "avatars"
 LEGACY_IMAGE_DIR = BASE_DIR / "frontend" / "assets" / "images"
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 DATA_LOCK = Lock()
+STORAGE = None
 SESSIONS = {}
 PRESENCE = {}
 PRESENCE_LOCK = Lock()
@@ -79,42 +87,29 @@ SERVER_STARTED_MONOTONIC = time.monotonic()
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{3,32}$")
 
 
+def storage():
+    global STORAGE
+    if STORAGE is None:
+        STORAGE = create_storage(BASE_DIR)
+        if hasattr(STORAGE, "initialize"):
+            STORAGE.initialize()
+    return STORAGE
+
+
 def load_notes():
-    if not DATA_FILE.exists():
-        save_notes([])
-    try:
-        notes = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-        return notes if isinstance(notes, list) else []
-    except (OSError, json.JSONDecodeError):
-        return []
+    return storage().load_notes()
 
 
 def save_notes(notes):
-    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with NamedTemporaryFile("w", encoding="utf-8", dir=DATA_FILE.parent, delete=False) as temp_file:
-        json.dump(notes, temp_file, ensure_ascii=False, indent=2)
-        temp_file.write("\n")
-        temp_path = Path(temp_file.name)
-    os.replace(temp_path, DATA_FILE)
+    storage().save_notes(notes)
 
 
 def load_users():
-    if not USERS_FILE.exists():
-        save_users([])
-    try:
-        users = json.loads(USERS_FILE.read_text(encoding="utf-8"))
-        return users if isinstance(users, list) else []
-    except (OSError, json.JSONDecodeError):
-        return []
+    return storage().load_users()
 
 
 def save_users(users):
-    USERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with NamedTemporaryFile("w", encoding="utf-8", dir=USERS_FILE.parent, delete=False) as temp_file:
-        json.dump(users, temp_file, ensure_ascii=False, indent=2)
-        temp_file.write("\n")
-        temp_path = Path(temp_file.name)
-    os.replace(temp_path, USERS_FILE)
+    storage().save_users(users)
 
 
 def hash_password(password, salt=None):
@@ -177,6 +172,49 @@ def note_can_edit(note, username):
 
 def note_visible_to(note, username):
     return note_access(note, username) is not None
+
+
+ALLOWED_HTML_TAGS = [
+    "a", "b", "blockquote", "br", "div", "em", "h1", "h2", "h3",
+    "h4", "h5", "h6", "i", "img", "li", "ol", "p", "pre", "s",
+    "span", "strong", "table", "tbody", "td", "th", "thead", "tr",
+    "u", "ul",
+]
+ALLOWED_HTML_ATTRS = {
+    "*": ["class", "style"],
+    "a": ["href", "title"],
+    "img": ["src", "alt", "title", "width", "height"],
+}
+HTML_CSS_SANITIZER = CSSSanitizer(allowed_css_properties={"font-size", "width", "height", "text-align"})
+
+
+# 純文字型內容（不含任何排版標籤）不應該原樣帶到前端 innerHTML：
+# 使用者打的 `<div>` 這種文字若被當 HTML，切換筆記後就會變成看不懂的標籤源碼。
+def contains_real_markup(value):
+    return bool(re.search(r"<\s*/?\s*([a-z][a-z0-9]*)\b[^>]*>", str(value or ""), re.IGNORECASE))
+
+
+def normalize_note_content(value):
+    """保存用户内容：只做危险标签清洗，不改写用户打的普通文字。
+
+    以前这里会对「不像标签的文字」自动转义，结果用户输入 <div> 时被
+    改写成 &lt;div&gt;，反而把源码写进了笔记。现在保存端不碰纯文字。
+    """
+    text = str(value or "")
+    if contains_real_markup(text):
+        return sanitize_note_html(text)
+    return text
+
+
+def sanitize_note_html(value):
+    return bleach.clean(
+        str(value or ""),
+        tags=ALLOWED_HTML_TAGS,
+        attributes=ALLOWED_HTML_ATTRS,
+        protocols=["http", "https"],
+        css_sanitizer=HTML_CSS_SANITIZER,
+        strip=True,
+    )
 
 
 def public_note(note, username):
@@ -645,7 +683,10 @@ class NotesHandler(BaseHTTPRequestHandler):
                 if not note_can_edit(note, session["username"]):
                     self.send_json(403, {"error": "只有編輯權限才能修改這篇筆記"})
                     return
-                note.update({key: payload[key] for key in ("title", "content") if key in payload})
+                if "title" in payload:
+                    note["title"] = str(payload["title"])[:255]
+                if "content" in payload:
+                    note["content"] = normalize_note_content(payload["content"])
                 save_notes(notes)
                 result = public_note(note, session["username"])
                 publish_note_event("note-updated", note, self.current_session_sid())
@@ -708,17 +749,15 @@ class NotesHandler(BaseHTTPRequestHandler):
         with DATA_LOCK:
             notes = load_notes()
             note = {
-                "id": int(datetime.now(timezone.utc).timestamp() * 1000),
-                "title": payload.get("title", "未命名筆記"),
+                "title": str(payload.get("title", "未命名筆記"))[:255],
                 "tag": "草稿",
                 "tagStyle": "background:#f1f5f9;color:#475569;",
-                "content": payload.get("content", "開始撰寫你的筆記…"),
+                "content": normalize_note_content(payload.get("content", "開始撰寫你的筆記…")),
                 "time": "剛剛",
                 "owner": session["username"],
                 "members": [],
             }
-            notes.insert(0, note)
-            save_notes(notes)
+            note = storage().create_note(note)
         result = public_note(note, session["username"])
         publish_note_event("note-created", note, self.current_session_sid())
         log_event(f"{session['username']} 新增筆記 #{note['id']}「{note['title']}」")
@@ -1067,6 +1106,7 @@ class NotesHandler(BaseHTTPRequestHandler):
             return
         if len(title) > 40:
             self.send_json(400, {"error": "头衔不能超过 40 个字符"})
+            return
 
         avatar_file = user.get("avatarFile")
         if avatar_data:
@@ -1240,10 +1280,21 @@ def open_monitor_window():
     command = monitor_command()
     try:
         if sys.platform == "darwin":
-            # 外層 shell 跑完就 exit，Terminal 會視設定自動關窗；關不掉時再由 close_monitor_window 收尾
-            script = 'tell application "Terminal"\n  do script %s\n  activate\nend tell' % applescript_quote(command + "; exit")
-            subprocess.Popen(["osascript", "-e", script],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # 不把含中文与多层 shell 引号的整串命令直接塞进 AppleScript，
+            # 先写一个临时 command 文件，再让 Terminal 执行它，避免 -2741 解析错误。
+            launch_file = Path(gettempdir()) / ("collabnote-monitor-launch-%d.command" % PORT)
+            launch_file.write_text(
+                "#!/bin/bash\n"
+                "rm -f %s\n"
+                "exec %s\n" % (shlex.quote(str(launch_file)), command),
+                encoding="utf-8",
+            )
+            launch_file.chmod(0o700)
+            script = 'tell application "Terminal"\n  do script %s\n  activate\nend tell' % applescript_quote("bash " + shlex.quote(str(launch_file)))
+            result = subprocess.run(["osascript", "-e", script],
+                                    capture_output=True, text=True)
+            if result.returncode != 0:
+                log_event("無法開啟監控視窗：osascript " + (result.stderr.strip() or "exit %d" % result.returncode), "WARN")
         elif sys.platform.startswith("win"):
             subprocess.Popen('start "%s" cmd /c "%s"' % (MONITOR_WINDOW_TITLE, command),
                              shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -1340,8 +1391,8 @@ if __name__ == "__main__":
     log_event(f"伺服器啟動：http://{HOST}:{PORT}")
 
     def stop_on_signal(signum, frame):
-        # launcher 用 SIGTERM 關閉後端，轉成 KeyboardInterrupt 才會走收尾流程
-        raise KeyboardInterrupt
+        # launcher 用 SIGTERM 關閉後端；直接退出例外會讓凍結版印出 traceback。
+        raise SystemExit(0)
 
     signal.signal(signal.SIGTERM, stop_on_signal)
     # 開一個終端視窗跑監控器（COLLABNOTE_MONITOR_WINDOW=0 可關閉）

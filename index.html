@@ -28,12 +28,34 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            /* 視窗底色：不透明，配合 macOS 原生圆角 */
             background: #f5f7fb;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 30px;
+            /* 上下留白對稱：頂部與標題到卡片之間保持一致 */
+            padding: 18px 30px 30px 30px;
+            -webkit-app-region: drag;
+        }
+
+        /* 可互動元素不參與拖拽，恢復正常點擊 */
+        button,
+        input,
+        textarea,
+        select,
+        a,
+        .note-item,
+        .note-editor,
+        .note-list,
+        .sidebar,
+        .editor-panel,
+        .finance-sidebar,
+        .finance-panel,
+        .friends-rail,
+        .workspace-switch,
+        [contenteditable="true"] {
+            -webkit-app-region: no-drag;
         }
 
         /* ─── 主容器 ─── */
@@ -41,13 +63,85 @@
             width: 1440px;
             max-width: 100%;
             height: 900px;
-            max-height: calc(100vh - 60px);
+            max-height: calc(100vh - 92px);
             background: #ffffff;
             border-radius: 28px;
             box-shadow: 0 25px 60px -15px rgba(0, 20, 30, 0.25);
             display: flex;
+            flex-direction: column;
             overflow: hidden;
             transition: all 0.2s ease;
+        }
+
+        /* 卡片外的獨立標題：居中、無邊框、可拖拽 */
+        .app-floating-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #3f4f66;
+            letter-spacing: -0.3px;
+            -webkit-app-region: drag;
+        }
+
+        .app-floating-title i {
+            color: #3b82f6;
+            font-size: 19px;
+        }
+
+        .app-floating-title .badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 3px 11px;
+            border-radius: 30px;
+        }
+
+        /* 整個外框：直向排列（上標題 + 卡片） */
+        .app-shell {
+            width: 1440px;
+            max-width: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app-shell.authenticated {
+            display: flex;
+        }
+
+        .app-shell.authenticated {
+            display: flex;
+        }
+
+        [data-theme="dark"] .app-floating-title {
+            color: #9db1c9;
+        }
+
+        [data-theme="dark"] .app-floating-title .badge {
+            background: rgba(96, 165, 250, 0.16);
+            color: #93c5fd;
+        }
+
+        /* 標題欄下方的內容區（側邊欄 + 編輯區） */
+        .app-body {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .app-floating-title {
+            color: #9db1c9;
+        }
+
+        [data-theme="dark"] .app-floating-title .badge {
+            background: rgba(96, 165, 250, 0.16);
+            color: #93c5fd;
         }
 
         .app-container {
@@ -194,8 +288,9 @@
 
         /* ─── 側邊欄 ─── */
         .sidebar {
-            width: 320px;
-            min-width: 320px;
+            width: var(--sidebar-width, 320px);
+            min-width: var(--sidebar-width, 320px);
+            max-width: 60vw;
             background: #fafcff;
             border-right: 1px solid #edf2f7;
             display: flex;
@@ -203,6 +298,58 @@
             padding: 24px 16px 20px 20px;
             overflow-y: auto;
             position: relative;
+            flex: 0 0 auto;
+        }
+
+        /* 拖拽調整側邊欄寬度 */
+        .sidebar-resizer {
+            flex: 0 0 auto;
+            width: 6px;
+            margin-left: -3px;
+            cursor: col-resize;
+            background: transparent;
+            position: relative;
+            z-index: 20;
+            transition: background 0.15s ease;
+        }
+
+        .sidebar-resizer::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 46px;
+            border-radius: 999px;
+            background: #dbe3ee;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .sidebar-resizer:hover,
+        .sidebar-resizer.dragging {
+            background: rgba(59, 130, 246, 0.12);
+        }
+
+        .sidebar-resizer:hover::after,
+        .sidebar-resizer.dragging::after {
+            opacity: 1;
+            background: #60a5fa;
+        }
+
+        body.sidebar-resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        [data-theme="dark"] .sidebar-resizer::after {
+            background: #3b4a63;
+        }
+
+        [data-theme="dark"] .sidebar-resizer:hover,
+        [data-theme="dark"] .sidebar-resizer.dragging {
+            background: rgba(96, 165, 250, 0.18);
         }
 
         /* 好友欄（獨立停靠於右側） */
@@ -859,6 +1006,8 @@
             margin-bottom: 4px;
             position: relative;
             border: 1px solid transparent;
+            gap: 0;
+            min-width: 0;
         }
 
         .note-item:hover {
@@ -893,6 +1042,7 @@
         .note-item .note-content {
             flex: 1;
             min-width: 0;
+            overflow: hidden;
         }
 
         .note-item .note-title {
@@ -903,8 +1053,14 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            white-space: nowrap;
+            min-width: 0;
+        }
+
+        /* 標題文字才是可省略的部分，tag 與按鈕不被壓縮 */
+        .note-item .note-title .note-title-text {
+            min-width: 0;
             overflow: hidden;
+            white-space: nowrap;
             text-overflow: ellipsis;
         }
 
@@ -917,6 +1073,7 @@
             color: #2563eb;
             letter-spacing: 0.2px;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .note-item .note-meta {
@@ -925,12 +1082,14 @@
             gap: 12px;
             font-size: 12px;
             color: #64748b;
+            min-width: 0;
         }
 
         .note-item .note-meta i {
             font-size: 11px;
             margin-right: 2px;
             color: #94a3b8;
+            flex-shrink: 0;
         }
 
         .note-item .note-meta .note-owner {
@@ -947,33 +1106,70 @@
             white-space: nowrap;
         }
 
-        .note-item .note-actions {
+        /* 筆記項右鍵選單 */
+        .note-context-menu {
+            position: fixed;
+            z-index: 120;
+            min-width: 150px;
+            padding: 6px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #e5eaf2;
+            box-shadow: 0 12px 30px -10px rgba(15, 30, 50, 0.28);
+            display: none;
+        }
+
+        .note-context-menu.visible {
+            display: block;
+        }
+
+        .note-context-menu button {
+            width: 100%;
             display: flex;
             align-items: center;
-            gap: 4px;
-            opacity: 0;
-            transition: opacity 0.15s;
-            margin-left: 6px;
-        }
-
-        .note-item:hover .note-actions {
-            opacity: 1;
-        }
-
-        .note-item .note-actions button {
-            background: transparent;
-            border: none;
-            color: #94a3b8;
-            padding: 4px 6px;
+            gap: 9px;
+            padding: 8px 11px;
+            border: 0;
             border-radius: 8px;
-            cursor: pointer;
+            background: transparent;
+            color: #334155;
             font-size: 13px;
-            transition: color 0.15s, background 0.15s;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
         }
 
-        .note-item .note-actions button:hover {
-            color: #0b1a2b;
-            background: #e2e8f0;
+        .note-context-menu button:hover {
+            background: #eef3ff;
+            color: #1d4ed8;
+        }
+
+        .note-context-menu button.danger:hover {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .note-context-menu button[hidden] {
+            display: none;
+        }
+
+        [data-theme="dark"] .note-context-menu {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        [data-theme="dark"] .note-context-menu button {
+            color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .note-context-menu button:hover {
+            background: #24324a;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .note-context-menu button.danger:hover {
+            background: #3b1f22;
+            color: #f87171;
         }
 
         .delete-dialog-backdrop {
@@ -2229,19 +2425,29 @@
         /* ─── 響應式 ─── */
         @media (max-width: 900px) {
             .app-container {
-                flex-direction: column;
                 height: auto;
                 border-radius: 20px;
                 max-height: calc(100vh - 60px);
+            }
+            /* 窄螢幕改成上下堆叠：標題欄下方內容區也縱向排列 */
+            .app-body {
+                flex-direction: column;
+                overflow-y: auto;
             }
 
             .sidebar {
                 width: 100%;
                 min-width: unset;
+                max-width: none;
                 border-right: none;
                 border-bottom: 1px solid #edf2f7;
                 max-height: 380px;
                 padding: 18px 16px 16px 16px;
+            }
+
+            /* 窄螢幕改成上下堆叠時，隱藏水平拖拽條 */
+            .sidebar-resizer {
+                display: none;
             }
 
             .editor-panel {
@@ -2322,7 +2528,8 @@
         }
 
         /* 選取文字標示 */
-        .note-item.active .note-title {
+        .note-item.active .note-title,
+        .note-item.active .note-title .note-title-text {
             color: #1d4ed8;
         }
 
@@ -2692,15 +2899,6 @@
 
         [data-theme="dark"] .note-item .note-meta i {
             color: #7d8fa8;
-        }
-
-        [data-theme="dark"] .note-item .note-actions button {
-            color: #7d8fa8;
-        }
-
-        [data-theme="dark"] .note-item .note-actions button:hover {
-            color: #e6edf6;
-            background: #24334f;
         }
 
         [data-theme="dark"] .delete-dialog-backdrop,
@@ -4617,7 +4815,16 @@
         <button class="auth-switch" id="authSwitch" type="button">还没有账号？注册</button>
     </section>
 
-    <div class="app-container">
+    <div class="app-shell">
+        <!-- 卡片上方：獨立的居中標題，不屬於卡片、無邊框 -->
+        <div class="app-floating-title">
+            <i class="fas fa-pencil-alt"></i>
+            <span>CollabNote</span>
+            <span class="badge"><i class="fas fa-users" style="margin-right: 4px;"></i>團隊</span>
+        </div>
+
+        <div class="app-container">
+        <div class="app-body">
         <!-- ===== 左側邊欄 ===== -->
         <aside class="sidebar">
 
@@ -4629,14 +4836,6 @@
                 <button class="workspace-switch-btn" type="button" data-workspace="finance" aria-pressed="false">
                     <i class="fas fa-coins"></i><span>金融</span>
                 </button>
-            </div>
-
-            <!-- 標題 -->
-            <div class="sidebar-header">
-                <h2>
-                    <i class="fas fa-pencil-alt"></i> CollabNote
-                </h2>
-                <span class="badge"><i class="fas fa-users" style="margin-right: 4px;"></i>團隊</span>
             </div>
 
             <!-- 搜尋 -->
@@ -4655,6 +4854,9 @@
                 </button>
             </div>
         </aside>
+
+        <!-- 側邊欄寬度拖拽條 -->
+        <div class="sidebar-resizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="調整側邊欄寬度" tabindex="0"></div>
 
         <!-- ===== 右側編輯區 ===== -->
         <main class="editor-panel">
@@ -4849,6 +5051,8 @@
 
             <div class="finance-toast" id="financeToast" role="status" aria-live="polite"></div>
         </main>
+        </div>
+    </div>
     </div>
 
     <!-- ===== 好友欄：獨立固定於右側 ===== -->
@@ -4923,6 +5127,13 @@
     <button class="friends-toggle-btn" id="friendsToggleBtn" type="button" title="收起好友欄" aria-label="收起好友欄">
         <i class="fas fa-chevron-right" aria-hidden="true"></i>
     </button>
+
+    <!-- 筆記項右鍵選單 -->
+    <div class="note-context-menu" id="noteContextMenu" role="menu" aria-label="筆記操作">
+        <button type="button" id="contextDeleteNote" class="danger" role="menuitem">
+            <i class="fas fa-trash-alt"></i> 刪除筆記
+        </button>
+    </div>
 
     <div class="delete-dialog-backdrop" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteDialogTitle">
         <div class="delete-dialog">
@@ -5072,6 +5283,7 @@
             const recentUsersStorageKey = 'collabnoteRecentUsers';
             let savedCredentialMap = null;
             const appContainer = document.querySelector('.app-container');
+            const appShell = document.querySelector('.app-shell');
             const logoutBtn = document.getElementById('logoutBtn');
             const userProfileAvatar = document.getElementById('userProfileAvatar');
             const userProfileName = document.getElementById('userProfileName');
@@ -5149,6 +5361,10 @@
             const remoteUpdateBadge = document.getElementById('remoteUpdateBadge');
             let serverConnected = true;
             let savePending = false;
+            // 已同步状態的最短停留時間（毫秒）：避免連續編輯時在保存中／已同步之間閃爍
+            const SYNCED_MIN_HOLD = 1200;
+            let lastSyncedAt = 0;
+            let syncHoldTimer = null;
             let connectionMonitorTimer = null;
             let pendingDeleteId;
             let dialogCloseTimer;
@@ -5189,6 +5405,69 @@
                 connectionRetryBtn.focus();
             }
 
+            // ─── 側邊欄寬度：可拖拽並記住偏好 ───
+            (function initSidebarResize() {
+                const resizer = document.getElementById('sidebarResizer');
+                const sidebar = document.querySelector('.sidebar');
+                if (!resizer || !sidebar) return;
+                const STORAGE_KEY = 'collabnote-sidebar-width';
+                const MIN_WIDTH = 220;
+                const MIN_EDITOR_WIDTH = 420;
+
+                const maxWidth = () => Math.max(MIN_WIDTH, Math.min(window.innerWidth * 0.6, sidebar.getBoundingClientRect().width + document.querySelector('.editor-panel').getBoundingClientRect().width - MIN_EDITOR_WIDTH));
+
+                const applyWidth = width => {
+                    const clamped = Math.round(Math.max(MIN_WIDTH, Math.min(maxWidth(), width)));
+                    document.documentElement.style.setProperty('--sidebar-width', clamped + 'px');
+                    return clamped;
+                };
+
+                const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '', 10);
+                applyWidth(Number.isFinite(saved) ? saved : 320);
+
+                let dragging = false;
+                const onMove = event => {
+                    if (!dragging) return;
+                    const left = sidebar.getBoundingClientRect().left;
+                    applyWidth(event.clientX - left);
+                };
+                const stop = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    resizer.classList.remove('dragging');
+                    document.body.classList.remove('sidebar-resizing');
+                    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
+                    if (Number.isFinite(current)) {
+                        try { localStorage.setItem(STORAGE_KEY, String(current)); } catch (error) {}
+                    }
+                };
+
+                resizer.addEventListener('mousedown', event => {
+                    event.preventDefault();
+                    dragging = true;
+                    resizer.classList.add('dragging');
+                    document.body.classList.add('sidebar-resizing');
+                });
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', stop);
+
+                // 鍵盤也能調：左右方向鍵微調
+                resizer.addEventListener('keydown', event => {
+                    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                    event.preventDefault();
+                    const step = event.shiftKey ? 40 : 12;
+                    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10) || 320;
+                    const next = applyWidth(current + (event.key === 'ArrowRight' ? step : -step));
+                    try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (error) {}
+                });
+
+                // 視窗變小時把超出範圍的寬度收回來
+                window.addEventListener('resize', () => {
+                    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
+                    if (Number.isFinite(current)) applyWidth(current);
+                });
+            })();
+
             function hideConnectionError() {
                 connectionDialogVisible = false;
                 connectionDialog.classList.remove('visible');
@@ -5200,6 +5479,7 @@
                 stopEventStream();
                 renderPresenceRoster([]);
                 appContainer.classList.remove('authenticated');
+                if (appShell) appShell.classList.remove('authenticated');
                 authScreen.style.display = 'block';
                 renderRecentUsers();
                 if (autoFocusUsername) {
@@ -5214,6 +5494,7 @@
             function showWorkspace() {
                 authScreen.style.display = 'none';
                 appContainer.classList.add('authenticated');
+                if (appShell) appShell.classList.add('authenticated');
                 startConnectionMonitor();
                 startEventStream();
             }
@@ -5324,9 +5605,16 @@
                 }
             }
 
-            // ─── 編輯器同步狀態與連線監測 ───
+            // Editor sync state and connection monitoring.
             function setEditorStatus(state) {
                 if (!syncStatusBadge || !syncStatusText) return;
+                if (state === 'synced') {
+                    lastSyncedAt = Date.now();
+                }
+                if (syncHoldTimer !== null) {
+                    clearTimeout(syncHoldTimer);
+                    syncHoldTimer = null;
+                }
                 syncStatusBadge.classList.remove('synced', 'saving', 'offline');
                 syncStatusBadge.classList.add(state);
                 if (state === 'saving') {
@@ -5342,6 +5630,26 @@
                 updateFooterSaveStatus(state);
             }
 
+            // 輸入時先標記「有未同步修改」，但不動狀態文字，
+            // 等真正發請求時才顯示保存中，減少閃爍。
+            function markEditorDirty() {
+                if (!serverConnected || !syncStatusText) return;
+                if (syncStatusText.textContent === '已同步') {
+                    setEditorStatus('saving');
+                }
+            }
+
+            // 回到已同步：距上次同步太短就先等一段，避免一閃一閃。
+            function settleEditorSynced() {
+                const elapsed = Date.now() - lastSyncedAt;
+                if (elapsed >= SYNCED_MIN_HOLD) {
+                    setEditorStatus('synced');
+                    return;
+                }
+                if (syncHoldTimer !== null) clearTimeout(syncHoldTimer);
+                syncHoldTimer = setTimeout(() => setEditorStatus('synced'), SYNCED_MIN_HOLD - elapsed);
+            }
+
             async function checkServerHealth() {
                 if (document.hidden) return;
                 try {
@@ -5350,10 +5658,10 @@
                     if (!serverConnected || connectionDialogVisible) {
                         serverConnected = true;
                         hideConnectionError();
-                        setEditorStatus('synced');
+                        settleEditorSynced();
                         if (authToken) loadNotes();
-                    } else if (!savePending) {
-                        setEditorStatus('synced');
+                    } else if (!savePending && syncStatusText && syncStatusText.textContent === '已同步' && !isNoteDirty(activeId)) {
+                        settleEditorSynced();
                     }
                 } catch (error) {
                     if (serverConnected) serverConnected = false;
@@ -5409,6 +5717,7 @@
             function saveActiveNote() {
                 const data = notesData.find(d => d.id === activeId);
                 if (!data || data.canEdit === false) return;
+                markEditorDirty();
                 clearTimeout(saveTimer);
                 saveTimer = setTimeout(async () => {
                     savePending = true;
@@ -5421,14 +5730,14 @@
                         });
                         lastSyncedContent.set(data.id, payload.content);
                         serverConnected = true;
-                        setEditorStatus('synced');
+                        settleEditorSynced();
                     } catch (error) {
                         const networkError = error.name === 'TypeError' || error.message === 'fetch failed';
                         if (networkError) {
                             serverConnected = false;
                             setEditorStatus('offline');
                         } else {
-                            setEditorStatus('synced');
+                            settleEditorSynced();
                         }
                         // 權限被移除時，這篇筆記已經不該留在清單裡
                         if (error.status === 403) syncNotesFromServer();
@@ -5613,11 +5922,43 @@
                 return temp.textContent || '';
             }
 
+            // 安全渲染（方案 B）：只有編輯器結構才交給 innerHTML。
+            // 判斷方式：拿掉所有合法結構標籤後，若還剩下裸的尖括号，
+            // 就代表那段是使用者打的字，整體當純文字顯示。
+            const EDITOR_TAG_RE = /<\/?\s*(div|p|br|b|strong|i|em|u|s|strike|blockquote|ul|ol|li|h[1-6]|table|thead|tbody|tr|th|td|img|a|span|pre)\b[^>]*>/gi;
+
+            function looksLikeEditorContent(text) {
+                const s = String(text || '');
+                if (!/<\s*\/?\s*[a-z]/i.test(s)) return false;
+                const stripped = s.replace(EDITOR_TAG_RE, '');
+                return !/[<>]/.test(stripped);
+            }
+
             function setEditorContent(value) {
                 clearImageSelection();
                 const text = typeof value === 'string' ? value : '';
-                noteContent.innerHTML = /^\s*</.test(text) ? text : plainTextToHtml(text);
+                noteContent.innerHTML = looksLikeEditorContent(text) ? text : plainTextToHtml(text);
             }
+
+            // 貼上時保留使用者原始文字：直接寫進編輯區，
+            // 瀏覽器會自行轉義，畫面上仍是 <div> 原樣。
+            function pastePlainTextIntoEditor(plain) {
+                const fragment = String(plain || '').split('\n')
+                    .map((line, index) => (index ? '<br>' : '') + escapeHtmlText(line)).join('');
+                document.execCommand('insertHTML', false, fragment);
+            }
+
+            noteContent.addEventListener('paste', function(event) {
+                const clipboard = event.clipboardData;
+                if (!clipboard) return;
+                const html = clipboard.getData('text/html');
+                const text = clipboard.getData('text/plain');
+                // 外部純文字才走安全黏貼；從編輯器複製的富文本保留格式。
+                if (!html) {
+                    event.preventDefault();
+                    pastePlainTextIntoEditor(text || '');
+                }
+            });
 
             // ─── 函式：切換筆記 ───
             function switchNote(id) {
@@ -5705,15 +6046,63 @@
 
             // ─── 事件：點擊筆記項目 ───
             noteList.addEventListener('click', function(e) {
-                const actionButton = e.target.closest('.note-actions button');
-                if (actionButton) {
-                    e.stopPropagation();
-                    openDeleteDialog(parseInt(e.target.closest('.note-item')?.dataset.id));
-                    return;
-                }
                 const item = e.target.closest('.note-item');
                 const id = parseInt(item?.dataset.id);
                 if (!isNaN(id) && id !== activeId) switchNote(id);
+            });
+
+            // ─── 右鍵選單：刪除筆記 ───
+            const noteContextMenu = document.getElementById('noteContextMenu');
+            const contextDeleteNote = document.getElementById('contextDeleteNote');
+            let contextNoteId = null;
+
+            function closeNoteContextMenu() {
+                noteContextMenu.classList.remove('visible');
+                contextNoteId = null;
+            }
+
+            noteList.addEventListener('contextmenu', function(event) {
+                const item = event.target.closest('.note-item');
+                if (!item) return;
+                event.preventDefault();
+                const id = parseInt(item.dataset.id);
+                const note = notesData.find(entry => entry.id === id);
+                if (!note) return;
+
+                // 先收集這篇筆記可用的操作，沒有就幹脆不彈菜单（避免空壳條）
+                const canDelete = note.canManage !== false;
+
+                if (!canDelete) {
+                    closeNoteContextMenu();
+                    return;
+                }
+
+                contextNoteId = id;
+                contextDeleteNote.hidden = !canDelete;
+                noteContextMenu.classList.add('visible');
+                const rect = noteContextMenu.getBoundingClientRect();
+                const left = Math.min(event.clientX, window.innerWidth - rect.width - 8);
+                const top = Math.min(event.clientY, window.innerHeight - rect.height - 8);
+                noteContextMenu.style.left = Math.max(8, left) + 'px';
+                noteContextMenu.style.top = Math.max(8, top) + 'px';
+            });
+
+            contextDeleteNote.addEventListener('click', function() {
+                const id = contextNoteId;
+                closeNoteContextMenu();
+                if (id !== null) openDeleteDialog(id);
+            });
+
+            document.addEventListener('click', function(event) {
+                if (!noteContextMenu.classList.contains('visible')) return;
+                if (!noteContextMenu.contains(event.target)) closeNoteContextMenu();
+            });
+            document.addEventListener('contextmenu', function(event) {
+                if (noteContextMenu.classList.contains('visible') && !noteContextMenu.contains(event.target)) closeNoteContextMenu();
+            }, true);
+            window.addEventListener('resize', closeNoteContextMenu);
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') closeNoteContextMenu();
             });
 
             // ─── 事件：搜尋過濾 ───
@@ -5768,15 +6157,12 @@
                     <div class="note-icon"><i class="fas fa-file-alt"></i></div>
                     <div class="note-content">
                         <div class="note-title">
-                            未命名筆記
+                            <span class="note-title-text">未命名筆記</span>
                             <span class="tag" style="${newNote.tagStyle}">草稿</span>
                         </div>
                         <div class="note-meta">
                             <span><i class="far fa-clock"></i> 剛剛</span>
                         </div>
-                    </div>
-                    <div class="note-actions">
-                            <button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 `;
 
@@ -5813,19 +6199,12 @@
                 const val = this.value.trim() || '未命名筆記';
                 const activeItem = document.querySelector('.note-item.active');
                 if (activeItem) {
-                    const titleSpan = activeItem.querySelector('.note-title');
-                    if (titleSpan) {
-                        // 保留 tag
-                        const tagEl = titleSpan.querySelector('.tag');
-                        if (tagEl) {
-                            titleSpan.childNodes.forEach(node => {
-                                if (node.nodeType === 3) {
-                                    node.textContent = val + ' ';
-                                }
-                            });
-                        } else {
-                            titleSpan.textContent = val;
-                        }
+                    const titleText = activeItem.querySelector('.note-title .note-title-text');
+                    if (titleText) {
+                        titleText.textContent = val;
+                    } else {
+                        const titleSpan = activeItem.querySelector('.note-title');
+                        if (titleSpan) titleSpan.textContent = val;
                     }
                 }
                 // 同步資料
@@ -5838,6 +6217,16 @@
             });
 
             // ─── 事件：編輯內容即時更新資料 (模擬) ───
+            // 方案 B：使用者手打的 < > 要在輸入當下就轉成文字，
+            // 只有工具列產生的結構才是真標籤，存成 HTML。
+            noteContent.addEventListener('keypress', function(event) {
+                if (event.key !== '<' && event.key !== '>') return;
+                const marker = event.key === '<' ? '&lt;' : '&gt;';
+                event.preventDefault();
+                document.execCommand('insertHTML', false, marker);
+                noteContent.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+
             noteContent.addEventListener('input', function() {
                 const data = notesData.find(d => d.id === activeId);
                 if (data) {
@@ -6407,16 +6796,12 @@
                     const accessMark = note.access === 'view'
                         ? '<span class="access-badge view" title="你只有閱讀權限"><i class="fas fa-lock"></i> 只讀</span>'
                         : '';
-                    const deleteAction = note.canManage === false
-                        ? ''
-                        : '<div class="note-actions"><button title="刪除筆記" type="button"><i class="fas fa-trash-alt"></i></button></div>';
                     item.innerHTML = `
                         <div class="note-icon"><i class="fas fa-file-alt"></i></div>
                         <div class="note-content">
-                            <div class="note-title">${escapeHtmlText(note.title)}<span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
+                            <div class="note-title"><span class="note-title-text">${escapeHtmlText(note.title)}</span><span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
                             <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${accessMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span></div>
-                        </div>
-                        ${deleteAction}`;
+                        </div>`;
                     noteList.appendChild(item);
                 });
             }
@@ -6424,14 +6809,12 @@
             function updateNoteRow(note) {
                 const item = noteList.querySelector(`[data-id="${note.id}"]`);
                 if (!item) return;
-                const titleSpan = item.querySelector('.note-title');
-                const tagEl = titleSpan?.querySelector('.tag');
-                if (titleSpan && tagEl) {
-                    titleSpan.childNodes.forEach(node => {
-                        if (node.nodeType === 3) node.textContent = `${note.title} `;
-                    });
-                } else if (titleSpan) {
-                    titleSpan.textContent = note.title;
+                const titleText = item.querySelector('.note-title .note-title-text');
+                if (titleText) {
+                    titleText.textContent = note.title;
+                } else {
+                    const titleSpan = item.querySelector('.note-title');
+                    if (titleSpan) titleSpan.textContent = note.title;
                 }
                 const timeSpan = item.querySelector('.note-meta .note-time');
                 if (timeSpan) timeSpan.innerHTML = `<i class="far fa-clock"></i> ${escapeHtmlText(note.time)}`;

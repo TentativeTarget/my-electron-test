@@ -1,0 +1,56 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username VARCHAR(32) NOT NULL,
+    password_salt VARCHAR(64) NOT NULL,
+    password_hash CHAR(64) NOT NULL,
+    display_name VARCHAR(32) NULL,
+    title VARCHAR(40) NULL,
+    avatar_file VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id), UNIQUE KEY uq_users_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notes (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    owner_id BIGINT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content MEDIUMTEXT NOT NULL,
+    tag VARCHAR(64) NOT NULL DEFAULT '草稿',
+    tag_style VARCHAR(255) NOT NULL DEFAULT '',
+    time_label VARCHAR(64) NOT NULL DEFAULT '剛剛',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id), KEY idx_notes_owner (owner_id),
+    CONSTRAINT fk_notes_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS note_members (
+    note_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    permission ENUM('edit', 'view') NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (note_id, user_id),
+    CONSTRAINT fk_members_note FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+    CONSTRAINT fk_members_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS friendships (
+    user_id BIGINT UNSIGNED NOT NULL,
+    friend_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, friend_id),
+    CONSTRAINT fk_friendships_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_friendships_friend FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS friend_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    requester_id BIGINT UNSIGNED NOT NULL,
+    target_id BIGINT UNSIGNED NOT NULL,
+    status ENUM('pending', 'accepted', 'rejected') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id), UNIQUE KEY uq_pending_request (requester_id, target_id, status),
+    CONSTRAINT fk_requests_requester FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_requests_target FOREIGN KEY (target_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

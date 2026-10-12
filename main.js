@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, safeStorage } = require('electron/main')
+const { app, BrowserWindow, ipcMain, safeStorage, nativeTheme } = require('electron/main')
 const { shell } = require('electron')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -44,10 +44,22 @@ function decryptStoredPassword(encoded) {
 }
 
 const createWindow = () => {
+  const darkMode = nativeTheme.shouldUseDarkColors
   const win = new BrowserWindow({
     width: 1280,
     height: 720,
+    // 最小尺寸：不讓視窗縮到界面擁擠、佈局崩掉
+    minWidth: 1024,
+    minHeight: 660,
     show: false,
+    // macOS：隱藏標題欄但保留紅綠燈（hiddenInset）。
+    // 不要開整窗透明：macOS 视窗本身就带系统圆角，
+    // 而且 transparent 会让 trafficLightPosition 失效。
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 24 } }
+      : { frame: false }),
+    // 底色跟隨系統主題，避免和頁面深/浅色對不上而露出色塊
+    backgroundColor: darkMode ? '#0a101d' : '#f5f7fb',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       // 讓 preload 取得設定檔名稱（即使只用 --profile= 參數啟動）

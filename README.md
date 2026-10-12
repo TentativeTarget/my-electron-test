@@ -38,6 +38,10 @@
 - 深色/浅色主题切换，登录页与笔记工作区均可操作，偏好保存在本地。
 - 昵称、自定义头衔与 JPG/PNG 头像设置，头像由后端裁剪压缩为 `256x256` JPEG。
 - 后端不可用时显示连接错误窗口，并支持重新连接。
+- 窗口隐藏系统标题栏（macOS 保留红绿灯按钮），App 名称独立居中显示在卡片上方；窗口可拖动，并限制最小尺寸 `1024×660`，避免缩得太小导致布局拥挤。
+- 左侧笔记栏宽度可拖拽调整（240px 至窗口 60%），松手后自动记住；也支持方向键微调。
+- 笔记列表右键弹出菜单，可删除自己建立的笔记（没有删除权限的笔记不弹菜单）。
+- 编辑器顶部同步状态做了防抖：输入时保持安静，真正保存时才显示「保存中…」，成功后「已同步」有最短停留，不再来回闪烁。
 
 **新增功能：金融工作区（P1 本地预览）**
 
@@ -55,15 +59,69 @@
 - 后端启动时自动开一个终端窗口运行监控器，关闭时先通知监控器结束、再收掉该窗口；设 `COLLABNOTE_MONITOR_WINDOW=0` 可关闭自动开窗。
 - 监控接口 `/api/monitor/*` 默认只接受本机连线，需要远端查看时以 `COLLABNOTE_MONITOR_TOKEN` 开放。
 
+## 数据库配置（MySQL）
+
+当前后端默认使用 MySQL 存储用户、笔记、好友关系与笔记权限。数据库密码只从环境变量读取，不要写入仓库。
+
+先创建数据库和账号（示例）：
+
+```sql
+CREATE DATABASE collabnote CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'collabnote'@'localhost' IDENTIFIED BY '请换成强密码';
+GRANT ALL PRIVILEGES ON collabnote.* TO 'collabnote'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+复制 `.env.example` 为本地配置并设置环境变量（项目不会自动读取 `.env` 文件）：
+
+```bash
+export COLLABNOTE_STORAGE=mysql
+export COLLABNOTE_DB_HOST=127.0.0.1
+export COLLABNOTE_DB_PORT=3306
+export COLLABNOTE_DB_NAME=collabnote
+export COLLABNOTE_DB_USER=collabnote
+export COLLABNOTE_DB_PASSWORD='你的数据库密码'
+```
+
+首次启动会自动执行 `schema.sql`。旧版 `users.json`、`notes.json` 迁移前先做备份，然后先预览：
+
+```bash
+python3 migrate_json_to_mysql.py --dry-run
+python3 migrate_json_to_mysql.py
+```
+
+迁移脚本不会删除或修改原 JSON 文件。若暂时没有 MySQL，只想继续运行旧版 JSON 存储，显式使用：
+
+```bash
+COLLABNOTE_STORAGE=json npm run backend
+```
+
+当前 MySQL 接入是第一阶段兼容层，API 先保持不变；后续还需要把高频的“整批读取再写回”操作改成事务内的按行 SQL，才能充分发挥多人并发能力。
+
 ## 快速开始
 
-需要 Node.js（含 npm）与 Python 3。安装依赖：
+需要 Node.js（含 npm）与 Python 3，以及一个可连接的 MySQL 8.x（配置见上一节）。安装依赖：
 
 ```bash
 npm install
 python3 -m pip install -r requirements.txt
 ```
 
+配置好数据库环境变量后，一键启动（自动检查依赖 → 后端 → 前端）：
+
+```bash
+./start-collabnote.sh
+```
+
+或分开启动：
+
+```bash
+npm run launcher -- start all      # 后端 + 一个前端
+npm run launcher -- status all     # 查看状态
+npm run launcher -- stop all       # 停止
+```
+
+> 仓库不包含数据库文件、用户数据与打包产物。`users.json`、`notes.json`、`data/`、`dist/` 已在 `.gitignore` 中排除，请勿提交。
 ### 一键启动
 
 同时启动 Python 后端和 Electron 前端：
@@ -343,17 +401,22 @@ my-electron-app/
 ├── main.js                    Electron 主进程：窗口生命周期、凭据存取与 --profile 多实例
 ├── preload.js                 安全桥接，向页面暴露默认 API 地址与设定档名称
 ├── server.py                  Python HTTP 后端：API、认证、好友、笔记、头像
+├── database.py                存储层：MySQL 与 JSON 两种实现
+├── schema.sql                 MySQL 建表脚本（首次启动自动执行）
+├── migrate_json_to_mysql.py   把旧版 JSON 数据导入 MySQL（支持 --dry-run）
 ├── monitor.py                 后端终端监控器：连线用户 + 即时日志
 ├── launcher.js                前后端进程启动器（支持 frontend:<设定档> 多实例）
 ├── build-backend.py           打包免安装后端（macOS 用 PyInstaller、Windows 用嵌入式 Python）
 ├── start-frontend.js          启动前端：补齐 Electron 并移除 ELECTRON_RUN_AS_NODE
+├── start-collabnote.sh        一键启动：检查依赖 → 后端 → 前端
+├── .env.example               数据库环境变量模板（密码不写入仓库）
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
-├── notes.json                 笔记数据文件（运行时产生，不纳入版本控制）
-├── users.json                 用户账号、密码哈希与好友关系（运行时产生，不纳入版本控制）
+├── notes.json / users.json    JSON 模式运行时数据（默认不纳入版本控制）
 ├── data/
 │   ├── avatars/               头像文件（运行时由后端写入）
 │   └── images/                笔记图片文件（运行时由后端写入）
+├── .local/                    本机运行环境（MySQL、打包产物，不纳入版本控制）
 └── frontend/
     └── vendor/                前端静态依赖（Font Awesome 等）
 ```
@@ -363,7 +426,7 @@ Electron 与 Python 是两个独立进程，前端不直接读取数据文件，
 1. 用户注册或登录，后端返回会话 Token。
 2. 前端将 Token 保存在 `localStorage`。
 3. 后续业务请求携带 `Authorization: Bearer <token>`。
-4. 后端验证会话后读写 JSON 数据或头像文件。
+4. 后端验证会话后通过存储层读写 MySQL 或 JSON 数据、头像与图片文件。
 5. 后端重启后内存会话清空，用户需要重新登录。
 
 ## 使用指南

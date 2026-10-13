@@ -92,15 +92,6 @@
             font-size: 19px;
         }
 
-        .app-floating-title .badge {
-            background: rgba(59, 130, 246, 0.1);
-            color: #2563eb;
-            font-size: 12px;
-            font-weight: 600;
-            padding: 3px 11px;
-            border-radius: 30px;
-        }
-
         /* 整個外框：直向排列（上標題 + 卡片） */
         .app-shell {
             width: 1440px;
@@ -114,17 +105,8 @@
             display: flex;
         }
 
-        .app-shell.authenticated {
-            display: flex;
-        }
-
         [data-theme="dark"] .app-floating-title {
             color: #9db1c9;
-        }
-
-        [data-theme="dark"] .app-floating-title .badge {
-            background: rgba(96, 165, 250, 0.16);
-            color: #93c5fd;
         }
 
         /* 標題欄下方的內容區（側邊欄 + 編輯區） */
@@ -133,15 +115,6 @@
             display: flex;
             min-height: 0;
             overflow: hidden;
-        }
-
-        [data-theme="dark"] .app-floating-title {
-            color: #9db1c9;
-        }
-
-        [data-theme="dark"] .app-floating-title .badge {
-            background: rgba(96, 165, 250, 0.16);
-            color: #93c5fd;
         }
 
         .app-container {
@@ -297,6 +270,8 @@
             flex-direction: column;
             padding: 24px 16px 20px 20px;
             overflow-y: auto;
+            /* 預留滾動條槽，不論是否出現都不影響內容寬度 */
+            scrollbar-gutter: stable;
             position: relative;
             flex: 0 0 auto;
         }
@@ -2446,7 +2421,8 @@
             }
 
             /* 窄螢幕改成上下堆叠時，隱藏水平拖拽條 */
-            .sidebar-resizer {
+            .sidebar-resizer,
+            .finance-resizer {
                 display: none;
             }
 
@@ -2520,11 +2496,17 @@
             }
         }
 
-        /* 自訂捲軸 (Firefox) */
+        /* 自訂捲軸 (Firefox)：兩個側欄統一，避免滾動條占寬不同 */
         .sidebar,
+        .finance-sidebar,
         .editor-panel {
             scrollbar-width: thin;
             scrollbar-color: #d1d9e6 transparent;
+        }
+
+        .sidebar::-webkit-scrollbar,
+        .finance-sidebar::-webkit-scrollbar {
+            width: 6px;
         }
 
         /* 選取文字標示 */
@@ -3376,6 +3358,7 @@
 
         /* ─── 工作區切換 ─── */
         .workspace-switch {
+            position: relative;
             display: flex;
             gap: 4px;
             padding: 4px;
@@ -3385,7 +3368,27 @@
             border: 1px solid #eef2f8;
         }
 
+        /* 滑動指示塊：淺色主題為白色實心塊，深色主題為亮一層的藍灰 */
+        .workspace-switch-thumb {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 0;
+            width: 0;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+            pointer-events: none;
+        }
+
+        /* 位置與寬度分開過渡：位置平滑滑，寬度即時對齊，避免切換時閃跳 */
+        .workspace-switch-thumb.ready {
+            transition: transform 0.3s cubic-bezier(0.34, 1.25, 0.64, 1);
+        }
+
         .workspace-switch-btn {
+            position: relative;
+            z-index: 1;
             flex: 1;
             display: inline-flex;
             align-items: center;
@@ -3400,11 +3403,12 @@
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+            transition: color 0.22s ease;
         }
 
         .workspace-switch-btn i {
             font-size: 12px;
+            transition: transform 0.28s cubic-bezier(0.34, 1.3, 0.64, 1);
         }
 
         .workspace-switch-btn:hover {
@@ -3412,20 +3416,66 @@
         }
 
         .workspace-switch-btn.active {
-            background: #ffffff;
+            background: transparent;
             color: #2563eb;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            box-shadow: none;
+        }
+
+        .workspace-switch-btn.active i {
+            transform: scale(1.12);
+        }
+
+        [data-theme="dark"] .workspace-switch-thumb {
+            background: #26385a;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
         }
 
         /* ─── 金融工作區顯隱 ─── */
         .finance-sidebar,
         .finance-panel {
-            display: none;
+            /* 不用 display:none：改以絕對定位隱藏，保留尺寸 */
+            position: absolute;
+            inset: 0;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 切換工作區：非當前區以絕對定位隱藏，不用過渡避免閃爍 */
+        .sidebar,
+        .editor-panel,
+        .finance-sidebar,
+        .finance-panel {
+            /* 切換要即時，不做淡入淡出 */
+        }
+
+        /* 筆記工作區：金融區隱藏、筆記區正常（class 加在 body 上） */
+        body:not(.workspace-finance) .finance-sidebar,
+        body:not(.workspace-finance) .finance-panel,
+        body:not(.workspace-finance) .finance-resizer {
+            position: absolute;
+            inset: 0;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
         }
 
         body.workspace-finance .sidebar,
-        body.workspace-finance .editor-panel {
-            display: none;
+        body.workspace-finance .editor-panel,
+        body.workspace-finance .sidebar-resizer:not(.finance-resizer) {
+            position: absolute;
+            inset: 0;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        body.workspace-finance .finance-sidebar,
+        body.workspace-finance .finance-panel {
+            position: static;
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
         }
 
         body.workspace-finance .finance-sidebar {
@@ -3438,13 +3488,17 @@
 
         /* ─── 金融側邊欄 ─── */
         .finance-sidebar {
-            width: 320px;
-            min-width: 320px;
+            width: var(--sidebar-width, 320px);
+            min-width: var(--sidebar-width, 320px);
+            max-width: 60vw;
+            flex: 0 0 auto;
             flex-direction: column;
             background: #fafcff;
             border-right: 1px solid #edf2f7;
             padding: 24px 16px 20px 20px;
             overflow-y: auto;
+            /* 與筆記側欄一致：預留滾動條槽 */
+            scrollbar-gutter: stable;
             scrollbar-width: thin;
             scrollbar-color: #d1d9e6 transparent;
             position: relative;
@@ -3502,7 +3556,8 @@
             flex-direction: column;
             gap: 8px;
             overflow-y: auto;
-            padding-right: 2px;
+            /* 與筆記列表一致，避免卡片右邊緣差幾像素 */
+            padding-right: 4px;
         }
 
         .ledger-item {
@@ -3586,6 +3641,19 @@
             gap: 6px;
         }
 
+        /* 內容欄與金額欄分開：內容較寬，金額固定較窄 */
+        .quick-entry #quickEntryNote {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .quick-entry #quickEntryAmount {
+            flex: 0 0 96px;
+            width: 96px;
+            min-width: 0;
+            text-align: right;
+        }
+
         .quick-entry input {
             flex: 1;
             min-width: 0;
@@ -3636,15 +3704,15 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            padding: 10px 0;
+            gap: 10px;
+            padding: 12px 0;
             border: 1px dashed #cbd5e1;
-            border-radius: 12px;
+            border-radius: 16px;
             background: transparent;
             color: #64748b;
             font-family: inherit;
-            font-size: 13px;
-            font-weight: 500;
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
             transition: border-color 0.15s, color 0.15s, background 0.15s;
         }
@@ -4413,7 +4481,7 @@
         }
 
         [data-theme="dark"] .workspace-switch-btn.active {
-            background: #1b2a45;
+            background: transparent;
             color: #93c5fd;
             box-shadow: none;
         }
@@ -4692,11 +4760,16 @@
             .finance-sidebar {
                 width: 100%;
                 min-width: unset;
+                max-width: none;
                 flex: 0 0 auto;
                 border-right: none;
                 border-bottom: 1px solid #edf2f7;
                 max-height: none;
                 padding: 18px 16px 16px 16px;
+            }
+
+            .finance-resizer {
+                display: none;
             }
 
             /* 窄屏：賬本改為橫向卡片列表，避免縱向被壓縮 */
@@ -4820,7 +4893,6 @@
         <div class="app-floating-title">
             <i class="fas fa-pencil-alt"></i>
             <span>CollabNote</span>
-            <span class="badge"><i class="fas fa-users" style="margin-right: 4px;"></i>團隊</span>
         </div>
 
         <div class="app-container">
@@ -4829,7 +4901,8 @@
         <aside class="sidebar">
 
             <!-- 工作區切換 -->
-            <div class="workspace-switch" aria-label="工作区切换">
+            <div class="workspace-switch" aria-label="工作区切换" data-active="notes">
+                <span class="workspace-switch-thumb" aria-hidden="true"></span>
                 <button class="workspace-switch-btn active" type="button" data-workspace="notes" aria-pressed="true">
                     <i class="fas fa-pencil-alt"></i><span>笔记</span>
                 </button>
@@ -4940,7 +5013,8 @@
 
         <!-- ===== 金融工作區：側邊欄 ===== -->
         <aside class="finance-sidebar">
-            <div class="workspace-switch" aria-label="工作区切换">
+            <div class="workspace-switch" aria-label="工作区切换" data-active="finance">
+                <span class="workspace-switch-thumb" aria-hidden="true"></span>
                 <button class="workspace-switch-btn" type="button" data-workspace="notes" aria-pressed="false">
                     <i class="fas fa-pencil-alt"></i><span>笔记</span>
                 </button>
@@ -4949,16 +5023,12 @@
                 </button>
             </div>
 
-            <div class="finance-sidebar-header">
-                <h2><i class="fas fa-wallet"></i> 共享账本</h2>
-                <span class="badge">预览</span>
-            </div>
-
             <div class="ledger-list" id="ledgerList"></div>
 
             <div class="finance-sidebar-footer">
                 <div class="quick-entry">
-                    <input id="quickEntryInput" type="text" placeholder="午餐 -35 餐饮，回车记一笔" autocomplete="off" />
+                    <input id="quickEntryNote" type="text" placeholder="内容，如：午餐" autocomplete="off" />
+                    <input id="quickEntryAmount" type="text" inputmode="decimal" placeholder="金额，-35 或 +9800" autocomplete="off" />
                     <button id="quickEntryBtn" type="button" title="记一笔" aria-label="记一笔"><i class="fas fa-plus"></i></button>
                 </div>
                 <button class="btn-new-ledger" id="newLedgerBtn" type="button">
@@ -4966,6 +5036,9 @@
                 </button>
             </div>
         </aside>
+
+        <!-- 金融側邊欄寬度拖拽條 -->
+        <div class="sidebar-resizer finance-resizer" id="financeResizer" role="separator" aria-orientation="vertical" aria-label="調整側邊欄寬度" tabindex="0"></div>
 
         <!-- ===== 金融工作區：主面板 ===== -->
         <main class="finance-panel" id="financePanel">
@@ -5405,66 +5478,88 @@
                 connectionRetryBtn.focus();
             }
 
-            // ─── 側邊欄寬度：可拖拽並記住偏好 ───
+            // ─── 側邊欄寬度：可拖拽並記住偏好（筆記與金融共用同一套邏輯）───
             (function initSidebarResize() {
-                const resizer = document.getElementById('sidebarResizer');
-                const sidebar = document.querySelector('.sidebar');
-                if (!resizer || !sidebar) return;
-                const STORAGE_KEY = 'collabnote-sidebar-width';
                 const MIN_WIDTH = 220;
-                const MIN_EDITOR_WIDTH = 420;
+                const MIN_MAIN_WIDTH = 420;
 
-                const maxWidth = () => Math.max(MIN_WIDTH, Math.min(window.innerWidth * 0.6, sidebar.getBoundingClientRect().width + document.querySelector('.editor-panel').getBoundingClientRect().width - MIN_EDITOR_WIDTH));
+                const makeResizer = ({ resizerId, sidebarSelector, mainSelector, storageKey, cssVar, mobileBreakpoint }) => {
+                    const resizer = document.getElementById(resizerId);
+                    const sidebar = document.querySelector(sidebarSelector);
+                    const main = document.querySelector(mainSelector);
+                    if (!resizer || !sidebar) return;
 
-                const applyWidth = width => {
-                    const clamped = Math.round(Math.max(MIN_WIDTH, Math.min(maxWidth(), width)));
-                    document.documentElement.style.setProperty('--sidebar-width', clamped + 'px');
-                    return clamped;
+                    const maxWidth = () => {
+                        const available = sidebar.getBoundingClientRect().width +
+                            (main ? main.getBoundingClientRect().width : 0) - MIN_MAIN_WIDTH;
+                        return Math.max(MIN_WIDTH, Math.min(window.innerWidth * 0.6, available));
+                    };
+
+                    const applyWidth = width => {
+                        const clamped = Math.round(Math.max(MIN_WIDTH, Math.min(maxWidth(), width)));
+                        document.documentElement.style.setProperty(cssVar, clamped + 'px');
+                        return clamped;
+                    };
+
+                    const saved = parseInt(localStorage.getItem(storageKey) || '', 10);
+                    applyWidth(Number.isFinite(saved) ? saved : 320);
+
+                    let dragging = false;
+                    const onMove = event => {
+                        if (!dragging) return;
+                        applyWidth(event.clientX - sidebar.getBoundingClientRect().left);
+                    };
+                    const stop = () => {
+                        if (!dragging) return;
+                        dragging = false;
+                        resizer.classList.remove('dragging');
+                        document.body.classList.remove('sidebar-resizing');
+                        const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar), 10);
+                        if (Number.isFinite(current)) {
+                            try { localStorage.setItem(storageKey, String(current)); } catch (error) {}
+                        }
+                    };
+
+                    resizer.addEventListener('mousedown', event => {
+                        event.preventDefault();
+                        dragging = true;
+                        resizer.classList.add('dragging');
+                        document.body.classList.add('sidebar-resizing');
+                    });
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', stop);
+
+                    resizer.addEventListener('keydown', event => {
+                        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                        event.preventDefault();
+                        const step = event.shiftKey ? 40 : 12;
+                        const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar), 10) || 320;
+                        const next = applyWidth(current + (event.key === 'ArrowRight' ? step : -step));
+                        try { localStorage.setItem(storageKey, String(next)); } catch (error) {}
+                    });
+
+                    window.addEventListener('resize', () => {
+                        if (window.innerWidth <= mobileBreakpoint) return;
+                        const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue(cssVar), 10);
+                        if (Number.isFinite(current)) applyWidth(current);
+                    });
                 };
 
-                const saved = parseInt(localStorage.getItem(STORAGE_KEY) || '', 10);
-                applyWidth(Number.isFinite(saved) ? saved : 320);
-
-                let dragging = false;
-                const onMove = event => {
-                    if (!dragging) return;
-                    const left = sidebar.getBoundingClientRect().left;
-                    applyWidth(event.clientX - left);
-                };
-                const stop = () => {
-                    if (!dragging) return;
-                    dragging = false;
-                    resizer.classList.remove('dragging');
-                    document.body.classList.remove('sidebar-resizing');
-                    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
-                    if (Number.isFinite(current)) {
-                        try { localStorage.setItem(STORAGE_KEY, String(current)); } catch (error) {}
-                    }
-                };
-
-                resizer.addEventListener('mousedown', event => {
-                    event.preventDefault();
-                    dragging = true;
-                    resizer.classList.add('dragging');
-                    document.body.classList.add('sidebar-resizing');
+                makeResizer({
+                    resizerId: 'sidebarResizer',
+                    sidebarSelector: '.sidebar',
+                    mainSelector: '.editor-panel',
+                    storageKey: 'collabnote-sidebar-width',
+                    cssVar: '--sidebar-width',
+                    mobileBreakpoint: 900
                 });
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', stop);
-
-                // 鍵盤也能調：左右方向鍵微調
-                resizer.addEventListener('keydown', event => {
-                    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-                    event.preventDefault();
-                    const step = event.shiftKey ? 40 : 12;
-                    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10) || 320;
-                    const next = applyWidth(current + (event.key === 'ArrowRight' ? step : -step));
-                    try { localStorage.setItem(STORAGE_KEY, String(next)); } catch (error) {}
-                });
-
-                // 視窗變小時把超出範圍的寬度收回來
-                window.addEventListener('resize', () => {
-                    const current = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
-                    if (Number.isFinite(current)) applyWidth(current);
+                makeResizer({
+                    resizerId: 'financeResizer',
+                    sidebarSelector: '.finance-sidebar',
+                    mainSelector: '.finance-panel',
+                    storageKey: 'collabnote-sidebar-width',
+                    cssVar: '--sidebar-width',
+                    mobileBreakpoint: 900
                 });
             })();
 
@@ -5497,6 +5592,15 @@
                 if (appShell) appShell.classList.add('authenticated');
                 startConnectionMonitor();
                 startEventStream();
+                // 工作區剛顯示，版面量得到寬度了：無過渡地重新定位切換滑塊
+                requestAnimationFrame(() => {
+                    const name = document.body.classList.contains('workspace-finance') ? 'finance' : 'notes';
+                    document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.remove('ready'));
+                    positionWorkspaceSwitch(name, true);
+                    requestAnimationFrame(() => {
+                        document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.add('ready'));
+                    });
+                });
             }
 
             function setAuthMode(mode) {
@@ -7843,7 +7947,8 @@
 
             const els = {
                 ledgerList: document.getElementById('ledgerList'),
-                quickInput: document.getElementById('quickEntryInput'),
+                quickNote: document.getElementById('quickEntryNote'),
+                quickAmount: document.getElementById('quickEntryAmount'),
                 quickBtn: document.getElementById('quickEntryBtn'),
                 newLedgerBtn: document.getElementById('newLedgerBtn'),
                 ledgerName: document.getElementById('financeLedgerName'),
@@ -8323,27 +8428,83 @@
             }
 
             // ─── 工作區切換 ───
-            function setWorkspace(name) {
-                document.body.classList.toggle('workspace-finance', name === 'finance');
-                document.querySelectorAll('.workspace-switch-btn').forEach(button => {
-                    const active = button.dataset.workspace === name;
-                    button.classList.toggle('active', active);
-                    button.setAttribute('aria-pressed', String(active));
+            // 重新測量滑塊位置；instant=true 時不做過渡（用於初始化）
+            function positionWorkspaceSwitch(name, instant) {
+                document.querySelectorAll('.workspace-switch').forEach(group => {
+                    const active = group.querySelector(`.workspace-switch-btn[data-workspace="${name}"]`);
+                    const thumb = group.querySelector('.workspace-switch-thumb');
+                    if (!thumb || !active) return;
+                    const groupRect = group.getBoundingClientRect();
+                    const btnRect = active.getBoundingClientRect();
+                    // 控件隱藏時寬度為 0，量不到就不寫入，等可見後由觀察器重試
+                    if (btnRect.width < 1) return;
+                    if (instant) thumb.classList.remove('ready');
+                    // 容器有 1px 邊框，translateX 以 padding box 為基準，需扣除邊框寬
+                    const borderLeft = group.clientLeft || 0;
+                    thumb.style.width = btnRect.width + 'px';
+                    thumb.style.transform = `translateX(${(btnRect.left - groupRect.left - borderLeft).toFixed(1)}px)`;
+                    if (instant) {
+                        void thumb.offsetWidth;
+                    }
                 });
             }
 
+            // 控件何時變可見/寬度變化都沒關係：一有寬度就自動重定位
+            (function observeWorkspaceSwitch() {
+                if (typeof ResizeObserver !== 'function') return;
+                const observer = new ResizeObserver(() => {
+                    const name = document.body.classList.contains('workspace-finance') ? 'finance' : 'notes';
+                    positionWorkspaceSwitch(name, true);
+                });
+                document.querySelectorAll('.workspace-switch').forEach(group => observer.observe(group));
+            })();
+
+            function setWorkspace(name) {
+                document.body.classList.toggle('workspace-finance', name === 'finance');
+                document.querySelectorAll('.workspace-switch').forEach(group => {
+                    group.querySelectorAll('.workspace-switch-btn').forEach(button => {
+                        const isActive = button.dataset.workspace === name;
+                        button.classList.toggle('active', isActive);
+                        button.setAttribute('aria-pressed', String(isActive));
+                    });
+                });
+                // 已初始化過才開過渡，且用雙 rAF 等版面完成後再量
+                requestAnimationFrame(() => {
+                    document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.add('ready'));
+                    positionWorkspaceSwitch(name, false);
+                });
+                // 上方標題與圖標隨工作區切換
+                const titleIcon = document.querySelector('.app-floating-title i');
+                const titleText = document.querySelector('.app-floating-title > span');
+                if (titleText) titleText.textContent = name === 'finance' ? 'Collabledger' : 'CollabNote';
+                if (titleIcon) titleIcon.className = name === 'finance' ? 'fas fa-wallet' : 'fas fa-pencil-alt';
+            }
+
+            // 視窗大小變動時重新定位滑塊（不做過渡）
+            window.addEventListener('resize', () => {
+                const current = document.body.classList.contains('workspace-finance') ? 'finance' : 'notes';
+                document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.remove('ready'));
+                positionWorkspaceSwitch(current, true);
+                requestAnimationFrame(() => {
+                    document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.add('ready'));
+                });
+            });
+
             // ─── 快速記賬：解析「午餐 -35 餐饮」───
-            function parseQuickEntry(raw) {
-                const text = String(raw || '').trim();
-                if (!text) return null;
-                const match = text.match(/([+-]?\d+(?:\.\d{1,2})?)/);
+            function parseQuickEntry(noteRaw, amountRaw) {
+                const noteText = String(noteRaw || '').trim();
+                const amountText = String(amountRaw || '').replace(/[，,]/g, '.').trim();
+                if (!noteText && !amountText) return null;
+
+                const match = amountText.match(/([+-]?\d+(?:\.\d{1,2})?)/);
                 if (!match) return null;
                 const token = match[1];
                 const amount = Math.abs(parseFloat(token));
                 if (!amount) return null;
                 let type = token.charAt(0) === '+' ? 'income' : 'expense';
-                let rest = (text.slice(0, match.index) + ' ' + text.slice(match.index + token.length)).replace(/\s+/g, ' ').trim();
 
+                // 類別先看內容裡是否直接寫了類別名，其次看關鍵詞
+                let rest = noteText;
                 let category = null;
                 for (const name of Object.keys(CATEGORIES)) {
                     if (name === '其他') continue;
@@ -8370,14 +8531,16 @@
             }
 
             function submitQuickEntry() {
-                const raw = els.quickInput.value;
-                if (!raw.trim()) return;
-                const parsed = parseQuickEntry(raw);
+                const noteRaw = els.quickNote.value;
+                const amountRaw = els.quickAmount.value;
+                if (!noteRaw.trim() && !amountRaw.trim()) return;
+                const parsed = parseQuickEntry(noteRaw, amountRaw);
                 if (!parsed) {
-                    els.quickInput.classList.remove('shake');
-                    void els.quickInput.offsetWidth;
-                    els.quickInput.classList.add('shake');
-                    toast('没看懂，试试「午餐 -35 餐饮」');
+                    const box = amountRaw.trim() ? els.quickNote : els.quickAmount;
+                    box.classList.remove('shake');
+                    void box.offsetWidth;
+                    box.classList.add('shake');
+                    toast('请填写内容与金额，金额如 -35 或 +9800');
                     return;
                 }
                 const ledger = activeLedger();
@@ -8394,7 +8557,8 @@
                     _new: true
                 });
                 recomputeCurrentMonth(ledger);
-                els.quickInput.value = '';
+                els.quickNote.value = '';
+                els.quickAmount.value = '';
                 renderAll();
                 toast(`已记录：${parsed.category} · ${parsed.note} ${money(parsed.amount)}`);
             }
@@ -8413,13 +8577,20 @@
             });
 
             els.quickBtn.addEventListener('click', submitQuickEntry);
-            els.quickInput.addEventListener('keydown', event => {
+            els.quickNote.addEventListener('keydown', event => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     submitQuickEntry();
                 }
             });
-            els.quickInput.addEventListener('animationend', () => els.quickInput.classList.remove('shake'));
+            els.quickAmount.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitQuickEntry();
+                }
+            });
+            els.quickNote.addEventListener('animationend', () => els.quickNote.classList.remove('shake'));
+            els.quickAmount.addEventListener('animationend', () => els.quickAmount.classList.remove('shake'));
 
             els.settlement.addEventListener('click', event => {
                 const button = event.target.closest('.settle-clear-btn');
@@ -8445,13 +8616,22 @@
             els.shareBtn.addEventListener('click', () => toast('共用账本将在数据阶段（P2）接入'));
             els.addBtn.addEventListener('click', () => {
                 setWorkspace('finance');
-                els.quickInput.focus();
+                els.quickNote.focus();
             });
 
             // ─── 初始化 ───
             DATA.ledgers.forEach(recomputeCurrentMonth);
             renderAll();
             setWorkspace('notes');
+            // 字型與版面完全就緒後，再做一次無過渡定位，確保啟動時滑塊就看得到
+            document.fonts && document.fonts.ready ? document.fonts.ready.then(() => {
+                document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.remove('ready'));
+                positionWorkspaceSwitch('notes', true);
+            }) : null;
+            window.addEventListener('load', () => {
+                document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.remove('ready'));
+                positionWorkspaceSwitch('notes', true);
+            });
         })();
     </script>
 </body>

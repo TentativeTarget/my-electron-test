@@ -87,6 +87,58 @@
             -webkit-app-region: drag;
         }
 
+        /* 標題整體（圖標＋文字）左右切換：兩層整塊堆疊，切換時一進一出
+           容器寬度用隱形占位撐到最長標題，避免長標題被裁切 */
+        .app-title-switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            overflow: hidden;
+            height: 1.35em;
+        }
+
+        /* 隱形占位：宽度取兩層標題中較寬者，保證不被裁切 */
+        .app-title-switch .title-sizer {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            visibility: hidden;
+        }
+
+        .app-title-switch > span:not(.title-sizer) {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            transition: transform 0.34s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.28s ease;
+        }
+
+        .app-title-switch .title-notes {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .app-title-switch .title-finance {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        /* 金融工作區：筆記標題整塊往左出去、金融標題從右進来 */
+        body.workspace-finance .app-title-switch .title-notes {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+
+        body.workspace-finance .app-title-switch .title-finance {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
         .app-floating-title i {
             color: #3b82f6;
             font-size: 19px;
@@ -111,10 +163,46 @@
 
         /* 標題欄下方的內容區（側邊欄 + 編輯區） */
         .app-body {
+            position: relative;
             flex: 1;
             display: flex;
             min-height: 0;
             overflow: hidden;
+        }
+
+        /* 主面板切換容器：兩塊面板疊放，切頁時左右平移 */
+        .main-panel-switch {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            overflow: hidden;
+            /* 讓出左側兩個絕對定位側欄的空間（寬 + 拖拽條） */
+            margin-left: calc(var(--sidebar-width, 320px) + 6px);
+        }
+
+        /* 兩块面板一律絕對定位疊在同一位置，用 translateX 控制進出 */
+        .main-panel-switch > .editor-panel,
+        .main-panel-switch > .finance-panel {
+            position: absolute;
+            inset: 0;
+            transition: transform 0.36s cubic-bezier(0.34, 1.15, 0.64, 1), opacity 0.3s ease;
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 非當前面板：往左/右移出並淡出 */
+        .main-panel-switch > .main-panel-hidden-right {
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .main-panel-switch > .main-panel-hidden-left {
+            transform: translateX(-100%);
+            opacity: 0;
+            pointer-events: none;
         }
 
         .app-container {
@@ -269,23 +357,25 @@
             display: flex;
             flex-direction: column;
             padding: 24px 16px 20px 20px;
-            overflow-y: auto;
+            overflow: hidden;
             /* 預留滾動條槽，不論是否出現都不影響內容寬度 */
             scrollbar-gutter: stable;
-            position: relative;
             flex: 0 0 auto;
         }
 
         /* 拖拽調整側邊欄寬度 */
         .sidebar-resizer {
-            flex: 0 0 auto;
-            width: 6px;
-            margin-left: -3px;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            /* 熱區 10px：中心對齊側欄右邊界 */
+            left: var(--sidebar-width, 320px);
+            transform: translateX(-50%);
+            width: 10px;
             cursor: col-resize;
             background: transparent;
-            position: relative;
-            z-index: 20;
-            transition: background 0.15s ease;
+            z-index: 200;
+            transition: none;
         }
 
         .sidebar-resizer::after {
@@ -304,7 +394,7 @@
 
         .sidebar-resizer:hover,
         .sidebar-resizer.dragging {
-            background: rgba(59, 130, 246, 0.12);
+            background: transparent;
         }
 
         .sidebar-resizer:hover::after,
@@ -324,7 +414,7 @@
 
         [data-theme="dark"] .sidebar-resizer:hover,
         [data-theme="dark"] .sidebar-resizer.dragging {
-            background: rgba(96, 165, 250, 0.18);
+            background: transparent;
         }
 
         /* 好友欄（獨立停靠於右側） */
@@ -1275,6 +1365,89 @@
             padding: 7px 10px;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
+        }
+
+        /* 成员头像：与笔记共用弹窗一致 */
+        .share-avatar {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #ffffff;
+            background-color: #64748b;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            overflow: hidden;
+        }
+
+        /* 权限下拉：单独一栏，避免行内拥挤 */
+        .share-role-select {
+            margin-left: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 5px 8px;
+            font-family: inherit;
+            font-size: 12px;
+            color: #334155;
+            background: #ffffff;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .share-role-select:focus {
+            border-color: #3b82f6;
+        }
+
+        [data-theme="dark"] .share-role-select {
+            background: #1b2a45;
+            border-color: #2a3a57;
+            color: #cbd5e1;
+        }
+
+        /* 成员名字占位，让下拉靠右 */
+        .share-member .share-member-name {
+            flex: 0 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .share-member .share-role,
+        .share-member .share-remove-btn {
+            flex-shrink: 0;
+        }
+
+        .share-role-btn {
+            border: 0;
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 12px;
+            background: #f1f5f9;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .share-role-btn:hover {
+            background: #e2e8f0;
+            color: #0b1a2b;
+        }
+
+        [data-theme="dark"] .share-role-btn {
+            background: #1b2a45;
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .share-role-btn:hover {
+            background: #24324a;
+            color: #cbd5e1;
         }
 
         .share-member-name {
@@ -3381,7 +3554,7 @@
             pointer-events: none;
         }
 
-        /* 位置與寬度分開過渡：位置平滑滑，寬度即時對齊，避免切換時閃跳 */
+        /* 位置與寬度分開過渡：上方切換按鈕保持平滑滑動 */
         .workspace-switch-thumb.ready {
             transition: transform 0.3s cubic-bezier(0.34, 1.25, 0.64, 1);
         }
@@ -3430,78 +3603,104 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
         }
 
-        /* ─── 金融工作區顯隱 ─── */
-        .finance-sidebar,
-        .finance-panel {
-            /* 不用 display:none：改以絕對定位隱藏，保留尺寸 */
+        /* 側欄內容區：與標題一致的橫向切換（兩塊同時平移、一進一出） */
+        .sidebar-slide {
             position: absolute;
-            inset: 0;
-            visibility: hidden;
+            left: 20px;
+            right: 16px;
+            top: 76px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+            background: inherit;
+            transition: transform 0.34s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.28s ease;
+        }
+
+        /* 進入的那塊位於上層，滑動時不被其他面板遮住 */
+        .sidebar .sidebar-slide,
+        .finance-sidebar .sidebar-slide {
+            z-index: 3;
+        }
+
+        /* 筆記模式：筆記內容在原位，金融內容在右側待命 */
+        .finance-sidebar .sidebar-slide {
+            transform: translateX(100%);
             opacity: 0;
-            pointer-events: none;
         }
 
-        /* 切換工作區：非當前區以絕對定位隱藏，不用過渡避免閃爍 */
-        .sidebar,
-        .editor-panel,
-        .finance-sidebar,
-        .finance-panel {
-            /* 切換要即時，不做淡入淡出 */
-        }
-
-        /* 筆記工作區：金融區隱藏、筆記區正常（class 加在 body 上） */
-        body:not(.workspace-finance) .finance-sidebar,
-        body:not(.workspace-finance) .finance-panel,
-        body:not(.workspace-finance) .finance-resizer {
-            position: absolute;
-            inset: 0;
-            visibility: hidden;
+        /* 金融模式：筆記內容往左出去，金融內容從右進来 */
+        body.workspace-finance .sidebar .sidebar-slide {
+            transform: translateX(-100%);
             opacity: 0;
-            pointer-events: none;
         }
 
-        body.workspace-finance .sidebar,
-        body.workspace-finance .editor-panel,
-        body.workspace-finance .sidebar-resizer:not(.finance-resizer) {
-            position: absolute;
-            inset: 0;
-            visibility: hidden;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        body.workspace-finance .finance-sidebar,
-        body.workspace-finance .finance-panel {
-            position: static;
-            visibility: visible;
+        body.workspace-finance .finance-sidebar .sidebar-slide {
+            transform: translateX(0);
             opacity: 1;
-            pointer-events: auto;
+        }
+        .sidebar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            transform: none;
+            opacity: 1;
+            visibility: visible;
+            z-index: 2;
+            transition: none;
+            overflow: hidden;
+        }
+
+        .finance-sidebar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            transform: none;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            z-index: 2;
+            transition: none;
+        }
+
+        /* 金融模式：舊欄不移動，直接隱藏；新欄在同一位置顯示 */
+        body.workspace-finance .sidebar {
+            transform: none;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
 
         body.workspace-finance .finance-sidebar {
-            display: flex;
+            transform: none;
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
-
-        body.workspace-finance .finance-panel {
-            display: flex;
-        }
-
-        /* ─── 金融側邊欄 ─── */
         .finance-sidebar {
             width: var(--sidebar-width, 320px);
             min-width: var(--sidebar-width, 320px);
             max-width: 60vw;
-            flex: 0 0 auto;
+            display: flex;
             flex-direction: column;
             background: #fafcff;
             border-right: 1px solid #edf2f7;
             padding: 24px 16px 20px 20px;
-            overflow-y: auto;
+            overflow: hidden;
             /* 與筆記側欄一致：預留滾動條槽 */
             scrollbar-gutter: stable;
             scrollbar-width: thin;
             scrollbar-color: #d1d9e6 transparent;
-            position: relative;
+        }
+
+        /* 非當前工作區的側欄拖拽條隱藏 */
+        body:not(.workspace-finance) .finance-resizer,
+        body.workspace-finance #sidebarResizer {
+            visibility: hidden;
+            pointer-events: none;
         }
 
         .finance-sidebar::-webkit-scrollbar {
@@ -3641,19 +3840,57 @@
             gap: 6px;
         }
 
-        /* 內容欄與金額欄分開：內容較寬，金額固定較窄 */
-        .quick-entry #quickEntryNote {
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-
+        /* 內容欄與金額欄：兩欄平分，金額不再固定窄寬 */
+        .quick-entry #quickEntryNote,
         .quick-entry #quickEntryAmount {
-            flex: 0 0 96px;
-            width: 96px;
+            flex: 1 1 0;
             min-width: 0;
-            text-align: right;
         }
 
+        /* 第二行：綠色加錢 / 紅色扣錢 */
+        .quick-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .quick-actions button {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 0;
+            border: 0;
+            border-radius: 10px;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.15s, transform 0.1s;
+        }
+
+        .quick-actions button:active {
+            transform: scale(0.98);
+        }
+
+        .quick-actions .quick-add {
+            background: #10b981;
+        }
+
+        .quick-actions .quick-add:hover {
+            filter: brightness(1.06);
+        }
+
+        .quick-actions .quick-deduct {
+            background: #ef4444;
+        }
+
+        .quick-actions .quick-deduct:hover {
+            filter: brightness(1.06);
+        }
+
+        /* 輸入框均分：與下方按鈕一致 */
         .quick-entry input {
             flex: 1;
             min-width: 0;
@@ -3728,12 +3965,24 @@
             position: relative;
             flex: 1;
             min-width: 0;
+            display: flex;
             flex-direction: column;
             background: #ffffff;
             padding: 28px 36px 30px 36px;
             overflow: hidden;
             container-type: inline-size;
             container-name: financePanel;
+        }
+
+        /* 內容區：自己滾動，不影響外層布局 */
+        .finance-content {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #d1d9e6 transparent;
         }
 
         .finance-header {
@@ -3743,6 +3992,303 @@
             flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 20px;
+        }
+
+        /* 金融空狀態 */
+        .finance-empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #94a3b8;
+        }
+
+        .finance-empty-state i {
+            font-size: 40px;
+            opacity: 0.45;
+        }
+
+        .finance-empty-state p {
+            font-size: 16px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .finance-empty-state span {
+            font-size: 13px;
+        }
+
+        [data-theme="dark"] .finance-empty-state p {
+            color: #8fa3c0;
+        }
+
+        /* 新建賬本對話框 */
+        .ledger-dialog-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 26, 43, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 140;
+        }
+
+        .ledger-dialog-backdrop.visible {
+            display: flex;
+        }
+
+        .ledger-dialog {
+            width: min(360px, 90vw);
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 25px 60px -15px rgba(0, 20, 30, 0.35);
+        }
+
+        .ledger-dialog h3 {
+            font-size: 16px;
+            color: #0b1a2b;
+            margin-bottom: 14px;
+        }
+
+        .ledger-field-label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        [data-theme="dark"] .ledger-field-label {
+            color: #7d8fa8;
+        }
+
+        .ledger-dialog input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #0b1a2b;
+            outline: none;
+        }
+
+        .ledger-dialog input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .ledger-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .ledger-dialog-actions button {
+            padding: 8px 16px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #334155;
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .ledger-dialog-actions button.primary {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: #ffffff;
+        }
+
+        /* 記一筆：收支切換 */
+        .txn-type-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        /* AA 分摊选择 */
+        .aa-split-field {
+            margin-top: 12px;
+        }
+
+        .aa-split-field label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .aa-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .aa-member-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 30px;
+            font-size: 12px;
+            color: #64748b;
+            background: #ffffff;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .aa-member-chip.on {
+            background: #dbeafe;
+            border-color: #93c5fd;
+            color: #1d4ed8;
+        }
+
+        [data-theme="dark"] .aa-member-chip {
+            background: #1b2a45;
+            border-color: #2a3a57;
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .aa-member-chip.on {
+            background: rgba(59, 130, 246, 0.24);
+            border-color: #3b82f6;
+            color: #93c5fd;
+        }
+
+        /* AA 结算日期范围 */
+        .settle-range {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .settle-range input[type="date"] {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 12px;
+            color: #334155;
+            background: #ffffff;
+            outline: none;
+        }
+
+        .settle-range span {
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .settle-range button {
+            border: 0;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #3b82f6;
+            color: #ffffff;
+        }
+
+        .settle-range button#settleReset {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        [data-theme="dark"] .settle-range input[type="date"] {
+            background: #0c172a;
+            border-color: #2a3a57;
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .settle-range button#settleReset {
+            background: #1b2a45;
+            color: #8fa3c0;
+        }
+
+        .txn-edit-select {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            color: #0b1a2b;
+            background: #ffffff;
+            outline: none;
+        }
+
+        [data-theme="dark"] .txn-edit-select {
+            background: #0c172a;
+            border-color: #2a3a57;
+            color: #e6edf6;
+        }
+
+        .txn-type {
+            flex: 1;
+            padding: 9px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .txn-type.active[data-type="expense"] {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: #ffffff;
+        }
+
+        .txn-type.active[data-type="income"] {
+            background: #10b981;
+            border-color: #10b981;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .txn-type {
+            background: #1b2a45;
+            border-color: #2a3a57;
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .ledger-dialog {
+            background: #141f36;
+        }
+
+        [data-theme="dark"] .ledger-dialog h3 {
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .ledger-dialog input {
+            background: #0c172a;
+            border-color: #2a3a57;
+            color: #e6edf6;
+        }
+
+        [data-theme="dark"] .ledger-dialog-actions button {
+            background: #1b2a45;
+            border-color: #2a3a57;
+            color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .ledger-dialog-actions button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
         }
 
         .finance-header-left {
@@ -3855,13 +4401,13 @@
         .finance-add-btn {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            gap: 8px;
             border: 0;
-            border-radius: 12px;
+            border-radius: 30px;
             font-family: inherit;
             font-size: 13px;
-            font-weight: 600;
-            padding: 9px 16px;
+            font-weight: 500;
+            padding: 8px 18px;
             cursor: pointer;
             transition: background 0.15s, transform 0.1s;
         }
@@ -3869,6 +4415,11 @@
         .finance-share-btn {
             background: #f1f5f9;
             color: #0b1a2b;
+        }
+
+        .finance-add-btn {
+            border-radius: 30px;
+            font-weight: 600;
         }
 
         .finance-share-btn i {
@@ -4215,6 +4766,114 @@
             padding: 9px 8px;
             border-radius: 12px;
             transition: background 0.15s;
+        }
+
+        /* 交易刪除鈕：悬浮顯示，不擠佔內容 */
+        .budget-edit-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 7px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: transparent;
+            color: #64748b;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .budget-edit-btn:hover {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .budget-empty-btn {
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+
+        .budget-empty-btn:hover {
+            color: #3b82f6;
+        }
+
+        [data-theme="dark"] .budget-edit-btn {
+            border-color: #2a3a57;
+            color: #8fa3c0;
+        }
+
+        [data-theme="dark"] .budget-edit-btn:hover {
+            background: #1b2a45;
+            color: #cbd5e1;
+        }
+
+        /* AA 标记 */
+        .txn-aa {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 1px 8px;
+            border-radius: 30px;
+            background: #eff6ff;
+            color: #2563eb;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        [data-theme="dark"] .txn-aa {
+            background: rgba(59, 130, 246, 0.18);
+            color: #93c5fd;
+        }
+
+        /* 垫付人标记 */
+        .txn-payer {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 8px;
+            padding: 1px 8px;
+            border-radius: 30px;
+            background: #f0fdf4;
+            color: #16a34a;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        [data-theme="dark"] .txn-payer {
+            background: rgba(16, 185, 129, 0.16);
+            color: #6ee7b7;
+        }
+
+        .txn-del-btn {
+            flex-shrink: 0;
+            border: 0;
+            background: transparent;
+            color: #cbd5e1;
+            cursor: pointer;
+            padding: 4px 7px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: opacity 0.15s, color 0.15s, background 0.15s;
+        }
+
+        .txn-row:hover .txn-del-btn {
+            opacity: 1;
+        }
+
+        .txn-del-btn:hover {
+            color: #dc2626;
+            background: #fef2f2;
+        }
+
+        [data-theme="dark"] .txn-del-btn {
+            color: #4b5b73;
+        }
+
+        [data-theme="dark"] .txn-del-btn:hover {
+            color: #f87171;
+            background: #3b1f22;
         }
 
         .txn-row:hover {
@@ -4891,8 +5550,11 @@
     <div class="app-shell">
         <!-- 卡片上方：獨立的居中標題，不屬於卡片、無邊框 -->
         <div class="app-floating-title">
-            <i class="fas fa-pencil-alt"></i>
-            <span>CollabNote</span>
+            <span class="app-title-switch">
+                <span class="title-sizer"><i class="fas fa-wallet"></i>CollabIedger</span>
+                <span class="title-notes"><i class="fas fa-pencil-alt"></i>CollabNote</span>
+                <span class="title-finance"><i class="fas fa-wallet"></i>CollabIedger</span>
+            </span>
         </div>
 
         <div class="app-container">
@@ -4911,25 +5573,65 @@
                 </button>
             </div>
 
-            <!-- 搜尋 -->
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="搜尋筆記..." id="searchInput" />
-            </div>
+            <!-- 可滑動的內容區：切換工作區時向右滑出 / 新內容向右滑入 -->
+            <div class="sidebar-slide">
+                <!-- 搜尋 -->
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="搜尋筆記..." id="searchInput" />
+                </div>
 
-            <!-- 筆記列表 -->
-            <div class="note-list" id="noteList"></div>
+                <!-- 筆記列表 -->
+                <div class="note-list" id="noteList"></div>
 
-            <!-- 新增按鈕 -->
-            <div class="sidebar-footer">
-                <button class="btn-new-note" id="newNoteBtn">
-                    <i class="fas fa-plus-circle"></i> 新增筆記
-                </button>
+                <!-- 新增按鈕 -->
+                <div class="sidebar-footer">
+                    <button class="btn-new-note" id="newNoteBtn">
+                        <i class="fas fa-plus-circle"></i> 新增筆記
+                    </button>
+                </div>
             </div>
         </aside>
 
         <!-- 側邊欄寬度拖拽條 -->
         <div class="sidebar-resizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="調整側邊欄寬度" tabindex="0"></div>
+
+        <!-- ===== 金融工作區：側邊欄 ===== -->
+        <aside class="finance-sidebar">
+            <div class="workspace-switch" aria-label="工作区切换" data-active="finance">
+                <span class="workspace-switch-thumb" aria-hidden="true"></span>
+                <button class="workspace-switch-btn" type="button" data-workspace="notes" aria-pressed="false">
+                    <i class="fas fa-pencil-alt"></i><span>笔记</span>
+                </button>
+                <button class="workspace-switch-btn active" type="button" data-workspace="finance" aria-pressed="true">
+                    <i class="fas fa-coins"></i><span>金融</span>
+                </button>
+            </div>
+
+            <div class="sidebar-slide">
+                <div class="ledger-list" id="ledgerList"></div>
+
+                <div class="finance-sidebar-footer">
+                    <div class="quick-entry">
+                        <input id="quickEntryNote" type="text" placeholder="内容，如：午餐" autocomplete="off" />
+                        <input id="quickEntryAmount" type="text" inputmode="decimal" placeholder="金额" autocomplete="off" />
+                    </div>
+                    <div class="quick-actions">
+                        <button id="quickEntryBtn" class="quick-add" type="button" title="記一筆收入"><i class="fas fa-plus"></i> 加钱</button>
+                        <button id="quickDeductBtn" class="quick-deduct" type="button" title="記一筆支出"><i class="fas fa-minus"></i> 扣钱</button>
+                    </div>
+                    <button class="btn-new-ledger" id="newLedgerBtn" type="button">
+                        <i class="fas fa-folder-plus"></i> 新建账本
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 金融側邊欄寬度拖拽條 -->
+        <div class="sidebar-resizer finance-resizer" id="financeResizer" role="separator" aria-orientation="vertical" aria-label="調整側邊欄寬度" tabindex="0"></div>
+
+        <!-- 主面板切換容器（筆記編輯區 ↔ 金融面板）-->
+        <div class="main-panel-switch" id="mainPanelSwitch">
 
         <!-- ===== 右側編輯區 ===== -->
         <main class="editor-panel">
@@ -4949,7 +5651,6 @@
                     </button>
                 </div>
                 <div class="right">
-                    <span class="note-owner-chip" id="noteOwnerChip" hidden></span>
                     <span class="note-permission-chip" id="notePermissionChip" hidden></span>
                     <button class="share-btn" id="shareNoteBtn" type="button" title="管理這篇筆記的協作權限">
                         <i class="fas fa-user-plus" aria-hidden="true"></i>
@@ -5011,48 +5712,23 @@
 
         </main>
 
-        <!-- ===== 金融工作區：側邊欄 ===== -->
-        <aside class="finance-sidebar">
-            <div class="workspace-switch" aria-label="工作区切换" data-active="finance">
-                <span class="workspace-switch-thumb" aria-hidden="true"></span>
-                <button class="workspace-switch-btn" type="button" data-workspace="notes" aria-pressed="false">
-                    <i class="fas fa-pencil-alt"></i><span>笔记</span>
-                </button>
-                <button class="workspace-switch-btn active" type="button" data-workspace="finance" aria-pressed="true">
-                    <i class="fas fa-coins"></i><span>金融</span>
-                </button>
-            </div>
-
-            <div class="ledger-list" id="ledgerList"></div>
-
-            <div class="finance-sidebar-footer">
-                <div class="quick-entry">
-                    <input id="quickEntryNote" type="text" placeholder="内容，如：午餐" autocomplete="off" />
-                    <input id="quickEntryAmount" type="text" inputmode="decimal" placeholder="金额，-35 或 +9800" autocomplete="off" />
-                    <button id="quickEntryBtn" type="button" title="记一笔" aria-label="记一笔"><i class="fas fa-plus"></i></button>
-                </div>
-                <button class="btn-new-ledger" id="newLedgerBtn" type="button">
-                    <i class="fas fa-folder-plus"></i> 新建账本
-                </button>
-            </div>
-        </aside>
-
-        <!-- 金融側邊欄寬度拖拽條 -->
-        <div class="sidebar-resizer finance-resizer" id="financeResizer" role="separator" aria-orientation="vertical" aria-label="調整側邊欄寬度" tabindex="0"></div>
-
-        <!-- ===== 金融工作區：主面板 ===== -->
         <main class="finance-panel" id="financePanel">
+            <div class="finance-empty-state" id="financeEmptyState" hidden>
+                <i class="fas fa-book-open"></i>
+                <p>請選擇一個賬本來查看</p>
+                <span>或點左下角「新建賬本」開始記錄</span>
+            </div>
+            <div class="finance-content" id="financeContent">
             <div class="finance-header">
                 <div class="finance-header-left">
-                    <h1 id="financeLedgerName">家庭账本</h1>
-                    <span class="finance-chip shared" id="financeShareChip"><i class="fas fa-user-group"></i> 共享 · 3 人</span>
+                    <h1 id="financeLedgerName">—</h1>
+                    <span class="finance-chip shared" id="financeShareChip" hidden><i class="fas fa-user-group"></i> 共享</span>
                     <div class="finance-mini-avatars" id="financeMemberAvatars"></div>
-                    <span class="finance-chip preview"><i class="fas fa-flask"></i> 本地预览</span>
                 </div>
                 <div class="finance-header-right">
                     <div class="finance-period" id="financePeriod" aria-label="统计周期">
-                        <button type="button" class="active" data-period="month">本月</button>
-                        <button type="button" data-period="quarter">本季</button>
+                        <button type="button" class="active" data-period="today">今天</button>
+                        <button type="button" data-period="month">本月</button>
                         <button type="button" data-period="year">今年</button>
                     </div>
                     <button class="finance-share-btn" id="financeShareBtn" type="button"><i class="fas fa-arrows-rotate"></i> 共用</button>
@@ -5103,6 +5779,13 @@
                                 <h3>AA 结算</h3>
                                 <span class="finance-card-sub">谁欠谁</span>
                             </div>
+                            <div class="settle-range">
+                                <input type="date" id="settleStart" title="起始日" />
+                                <span>—</span>
+                                <input type="date" id="settleEnd" title="结束日" />
+                                <button type="button" id="settleApply">計算</button>
+                                <button type="button" id="settleReset" title="清除日期">全部</button>
+                            </div>
                             <div id="financeSettlement"></div>
                         </section>
 
@@ -5117,16 +5800,109 @@
                 </div>
 
                 <div class="finance-footnote">
-                    <i class="fas fa-flask"></i>
-                    <span>P1 本地预览：数据为演示用假数据，仅存在于当前窗口内存，刷新即还原，未接后端。</span>
+                    <i class="fas fa-database"></i>
+                    <span>共享賬本：邀請制，只有被邀請的成員才能查看與記錄。</span>
                 </div>
             </div>
+            </div><!-- /finance-content -->
 
             <div class="finance-toast" id="financeToast" role="status" aria-live="polite"></div>
         </main>
+
+        <!-- 交易右鍵選單 -->
+        <div class="note-context-menu" id="txnContextMenu" role="menu" aria-label="交易操作">
+            <button type="button" id="txnMenuEdit" role="menuitem"><i class="fas fa-pen"></i> 編輯這筆</button>
+            <button type="button" id="txnMenuDelete" class="danger" role="menuitem"><i class="fas fa-trash-alt"></i> 刪除這筆</button>
         </div>
-    </div>
-    </div>
+
+        <!-- 編輯交易對話框 -->
+        <div class="ledger-dialog-backdrop" id="txnEditDialog">
+            <div class="ledger-dialog">
+                <h3>編輯這筆</h3>
+                <div class="txn-type-row">
+                    <button type="button" class="txn-type" data-type="expense">支出</button>
+                    <button type="button" class="txn-type" data-type="income">收入</button>
+                </div>
+                <input type="text" id="txnEditNote" placeholder="内容" maxlength="255" />
+                <input type="text" id="txnEditAmount" inputmode="decimal" placeholder="金额" style="margin-top:10px;" />
+                <select id="txnEditCategory" class="txn-edit-select"></select>
+                <div class="aa-split-field">
+                    <label>AA 分攤（勾選一起分的人）</label>
+                    <div class="aa-members" id="txnEditSplitMembers"></div>
+                </div>
+                <div class="ledger-dialog-actions">
+                    <button type="button" id="txnEditCancel">取消</button>
+                    <button type="button" class="primary" id="txnEditConfirm">儲存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 設定預算對話框 -->
+        <div class="ledger-dialog-backdrop" id="budgetDialog">
+            <div class="ledger-dialog">
+                <h3>設定預算</h3>
+                <input type="text" id="budgetInput" inputmode="decimal" placeholder="預算金額，如 5000" />
+                <div class="ledger-dialog-actions">
+                    <button type="button" id="budgetCancel">取消</button>
+                    <button type="button" class="primary" id="budgetConfirm">儲存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 賬本右鍵選單 -->
+        <div class="note-context-menu" id="ledgerContextMenu" role="menu" aria-label="賬本操作">
+            <button type="button" id="ledgerMenuEdit" role="menuitem"><i class="fas fa-pen"></i> 編輯賬本</button>
+            <button type="button" id="ledgerMenuDelete" class="danger" role="menuitem"><i class="fas fa-trash-alt"></i> 刪除賬本</button>
+        </div>
+
+        <!-- 編輯賬本對話框 -->
+        <div class="ledger-dialog-backdrop" id="ledgerEditDialog">
+            <div class="ledger-dialog">
+                <h3>編輯賬本</h3>
+                <label class="ledger-field-label" for="ledgerEditName">賬本名稱（重新命名）</label>
+                <input type="text" id="ledgerEditName" placeholder="賬本名稱" maxlength="128" />
+                <div class="ledger-dialog-actions">
+                    <button type="button" id="ledgerEditCancel">取消</button>
+                    <button type="button" class="primary" id="ledgerEditConfirm">儲存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 記一筆對話框 -->
+        <div class="ledger-dialog-backdrop" id="txnDialog">
+            <div class="ledger-dialog">
+                <h3>記一筆</h3>
+                <div class="txn-type-row">
+                    <button type="button" class="txn-type active" data-type="expense">支出</button>
+                    <button type="button" class="txn-type" data-type="income">收入</button>
+                </div>
+                <input type="text" id="txnNoteInput" placeholder="内容，如：午餐" maxlength="255" />
+                <input type="text" id="txnAmountInput" inputmode="decimal" placeholder="金额，如 35" style="margin-top:10px;" />
+                <select id="txnCategorySelect" class="txn-edit-select"></select>
+                <div class="aa-split-field">
+                    <label>AA 分攤（勾選一起分的人，預設不分攤）</label>
+                    <div class="aa-members" id="txnSplitMembers"></div>
+                </div>
+                <div class="ledger-dialog-actions">
+                    <button type="button" id="txnDialogCancel">取消</button>
+                    <button type="button" class="primary" id="txnDialogConfirm">記一筆</button>
+                </div>
+            </div>
+        </div>
+        <div class="ledger-dialog-backdrop" id="ledgerDialog">
+            <div class="ledger-dialog">
+                <h3>新建賬本</h3>
+                <input type="text" id="ledgerNameInput" placeholder="賬本名稱，如：家庭賬本" maxlength="128" />
+                <div class="ledger-dialog-actions">
+                    <button type="button" id="ledgerDialogCancel">取消</button>
+                    <button type="button" class="primary" id="ledgerDialogConfirm">建立</button>
+                </div>
+            </div>
+        </div>
+        </div><!-- /main-panel-switch -->
+        </div><!-- /app-body -->
+        </div><!-- /app-container -->
+    </div><!-- /app-shell -->
 
     <!-- ===== 好友欄：獨立固定於右側 ===== -->
         <aside class="friends-rail" aria-label="好友状态">
@@ -5302,6 +6078,34 @@
     </div>
 
     <input type="file" id="imageFileInput" accept="image/jpeg,image/png" hidden />
+
+    <div class="delete-dialog-backdrop" id="ledgerShareDialog" role="dialog" aria-modal="true" aria-labelledby="ledgerShareTitle">
+        <div class="profile-settings-dialog share-dialog">
+            <h2 id="ledgerShareTitle">賬本共用</h2>
+            <p class="share-owner-line" id="ledgerShareOwnerLine">擁有者：—</p>
+            <div class="share-section">
+                <div class="share-section-title">成員名單</div>
+                <div class="share-list" id="ledgerMemberList"></div>
+            </div>
+            <form class="share-invite-form" id="ledgerInviteForm">
+                <input id="ledgerInviteInput" type="text" placeholder="輸入登錄名邀請" autocomplete="off" maxlength="32" />
+                <select id="ledgerRoleSelect" title="邀請權限" aria-label="邀請權限">
+                    <option value="editor">標準</option>
+                    <option value="viewer">只讀</option>
+                    <option value="admin">管理</option>
+                </select>
+                <button type="submit" id="ledgerInviteBtn" title="邀請"><i class="fas fa-user-plus" aria-hidden="true"></i></button>
+            </form>
+            <div class="share-section" id="ledgerFriendSection">
+                <div class="share-section-title">好友快速邀請</div>
+                <div class="share-list" id="ledgerFriendList"></div>
+            </div>
+            <p class="auth-error" id="ledgerShareError"></p>
+            <div class="profile-settings-actions">
+                <button class="profile-cancel-btn" id="ledgerShareCloseBtn" type="button">關閉</button>
+            </div>
+        </div>
+    </div>
     <div class="image-resize-label" id="imageResizeLabel" hidden></div>
     <div class="image-resize-grip" id="imageResizeGrip" hidden></div>
 
@@ -5593,14 +6397,20 @@
                 startConnectionMonitor();
                 startEventStream();
                 // 工作區剛顯示，版面量得到寬度了：無過渡地重新定位切換滑塊
+                // 注意：positionWorkspaceSwitch 定義在另一個 script 塊，可能還未就緒，
+                // 這裡做安全調用，避免初始化中斷。
                 requestAnimationFrame(() => {
                     const name = document.body.classList.contains('workspace-finance') ? 'finance' : 'notes';
                     document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.remove('ready'));
-                    positionWorkspaceSwitch(name, true);
+                    if (typeof positionWorkspaceSwitch === 'function') {
+                        positionWorkspaceSwitch(name, true);
+                    }
                     requestAnimationFrame(() => {
                         document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.add('ready'));
                     });
                 });
+                // 登入後拉一次賬本數據
+                if (typeof window.__financeRefresh === 'function') window.__financeRefresh();
             }
 
             function setAuthMode(mode) {
@@ -5818,6 +6628,12 @@
                 }
             }
 
+            // 供其他 script 塊（如金融模組）使用的共享介面
+            window.__apiRequest = apiRequest;
+            window.__getAuthToken = () => authToken;
+            window.__getApiBaseUrl = () => apiBaseUrl;
+            window.__financeBridge = { apiRequest, getToken: () => authToken, getBaseUrl: () => apiBaseUrl };
+
             function saveActiveNote() {
                 const data = notesData.find(d => d.id === activeId);
                 if (!data || data.canEdit === false) return;
@@ -5943,6 +6759,10 @@
                 else if (event.type === 'presence' && event.noteId === activeId) {
                     renderPresenceRoster(event.people || []);
                 }
+                else if (event.type === 'ledger-changed') {
+                    // 其他使用者改動了賬本：自動更新金融資料
+                    if (typeof window.__financeRefresh === 'function') window.__financeRefresh();
+                }
             }
 
             async function syncNotesFromServer() {
@@ -6013,6 +6833,14 @@
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
+            }
+
+            // 样式属性净化：只允许色值/简单 CSS 声明，挡掉 "> onerror 之类注入
+            function safeStyle(value) {
+                const text = String(value || '');
+                if (!/^[#0-9a-zA-Z(),.%\s:;\-]*$/.test(text)) return '';
+                if (/url\s*\(|expression|javascript:/i.test(text)) return '';
+                return text;
             }
 
             function plainTextToHtml(text) {
@@ -6262,7 +7090,7 @@
                     <div class="note-content">
                         <div class="note-title">
                             <span class="note-title-text">未命名筆記</span>
-                            <span class="tag" style="${newNote.tagStyle}">草稿</span>
+                            <span class="tag" style="${safeStyle(newNote.tagStyle)}">草稿</span>
                         </div>
                         <div class="note-meta">
                             <span><i class="far fa-clock"></i> 剛剛</span>
@@ -6379,7 +7207,6 @@
             const messageDialogTitle = document.getElementById('messageDialogTitle');
             const messageDialogText = document.getElementById('messageDialogText');
             const messageOkBtn = document.getElementById('messageOkBtn');
-            const noteOwnerChip = document.getElementById('noteOwnerChip');
             const notePermissionChip = document.getElementById('notePermissionChip');
             const shareAccessSelect = document.getElementById('shareAccessSelect');
             const shareNoteBtn = document.getElementById('shareNoteBtn');
@@ -6609,7 +7436,8 @@
                 data.title = snap.title;
                 data.content = snap.content;
                 noteTitleInput.value = snap.title;
-                noteContent.innerHTML = snap.content;
+                // 快照也可能被污染，走安全渲染路径
+                setEditorContent(snap.content);
                 noteTitleInput.dispatchEvent(new Event('input', { bubbles: true }));
                 noteContent.dispatchEvent(new Event('input', { bubbles: true }));
                 historyRestoring = false;
@@ -6903,7 +7731,7 @@
                     item.innerHTML = `
                         <div class="note-icon"><i class="fas fa-file-alt"></i></div>
                         <div class="note-content">
-                            <div class="note-title"><span class="note-title-text">${escapeHtmlText(note.title)}</span><span class="tag" style="${note.tagStyle}">${escapeHtmlText(note.tag)}</span></div>
+                            <div class="note-title"><span class="note-title-text">${escapeHtmlText(note.title)}</span><span class="tag" style="${safeStyle(note.tagStyle)}">${escapeHtmlText(note.tag)}</span></div>
                             <div class="note-meta"><span class="note-owner" title="建立者"><i class="fas fa-user-pen"></i> ${ownerLabel}${accessMark}</span><span class="note-time"><i class="far fa-clock"></i> ${escapeHtmlText(note.time)}</span></div>
                         </div>`;
                     noteList.appendChild(item);
@@ -6962,25 +7790,15 @@
 
             function updateNoteSharingUi(note) {
                 if (!note) {
-                    noteOwnerChip.hidden = true;
                     shareNoteBtn.hidden = true;
                     notePermissionChip.hidden = true;
                     setNoteReadOnly(false);
                     return;
                 }
-                const ownerLabel = note.ownerName || note.owner || '未知';
                 const isOwner = note.canManage !== false;
                 // 只讀權限的筆記：看得到但不能改；徽章依 access 顯示編輯/只讀
                 setNoteReadOnly(note.access === 'view');
                 updateNotePermissionChip(note.access);
-                noteOwnerChip.replaceChildren();
-                const icon = document.createElement('i');
-                icon.className = isOwner ? 'fas fa-user-pen' : 'fas fa-user-friends';
-                const label = document.createElement('span');
-                label.textContent = isOwner ? `建立者：我（${ownerLabel}）` : `建立者：${ownerLabel}`;
-                noteOwnerChip.append(icon, label);
-                noteOwnerChip.title = isOwner ? '你是這篇筆記的建立者' : `這篇筆記由 ${ownerLabel} 建立，你被邀請協作`;
-                noteOwnerChip.hidden = false;
                 shareNoteBtn.hidden = false;
                 shareNoteBtn.title = isOwner ? '邀請好友協作這篇筆記' : '查看這篇筆記的協作權限';
                 shareNoteBtn.querySelector('.share-btn-label').textContent = isOwner ? '共用' : '協作';
@@ -7950,6 +8768,7 @@
                 quickNote: document.getElementById('quickEntryNote'),
                 quickAmount: document.getElementById('quickEntryAmount'),
                 quickBtn: document.getElementById('quickEntryBtn'),
+                quickDeductBtn: document.getElementById('quickDeductBtn'),
                 newLedgerBtn: document.getElementById('newLedgerBtn'),
                 ledgerName: document.getElementById('financeLedgerName'),
                 shareChip: document.getElementById('financeShareChip'),
@@ -7966,8 +8785,24 @@
                 settlement: document.getElementById('financeSettlement'),
                 budget: document.getElementById('financeBudget'),
                 budgetSub: document.getElementById('financeBudgetSub'),
-                toast: document.getElementById('financeToast')
+                toast: document.getElementById('financeToast'),
+                emptyState: document.getElementById('financeEmptyState'),
+                content: document.getElementById('financeContent'),
+                dialog: document.getElementById('ledgerDialog'),
+                dialogInput: document.getElementById('ledgerNameInput'),
+                dialogCancel: document.getElementById('ledgerDialogCancel'),
+                dialogConfirm: document.getElementById('ledgerDialogConfirm'),
+                txnDialog: document.getElementById('txnDialog'),
+                txnNote: document.getElementById('txnNoteInput'),
+                txnAmount: document.getElementById('txnAmountInput'),
+                txnCancel: document.getElementById('txnDialogCancel'),
+                txnConfirm: document.getElementById('txnDialogConfirm'),
+                txnTypes: () => document.querySelectorAll('#txnDialog .txn-type'),
+                txnCategory: document.getElementById('txnCategorySelect')
             };
+
+            const budgetDialog = document.getElementById('budgetDialog');
+            const budgetInput = document.getElementById('budgetInput');
             if (!els.ledgerList) return;
 
             // ─── 分類定義（圖示 / 顏色 / 關鍵詞）───
@@ -7984,103 +8819,82 @@
             };
             const INCOME_CATEGORIES = ['工资', '存入'];
             const AVATAR_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#14b8a6'];
-            const MONTH_LABELS = ['4月', '5月', '6月', '7月', '8月', '9月'];
+            // MONTH_LABELS 已不需要，標籤現在由交易日期動態計算
 
-            // ─── 演示數據（僅存在內存，未接後端）───
-            const DATA = {
-                ledgers: [
-                    {
-                        id: 'home',
-                        name: '家庭账本',
-                        icon: 'fa-house',
-                        iconColor: '#3b82f6',
-                        iconBg: 'rgba(59, 130, 246, 0.12)',
-                        members: ['你', '阿明', '小夏'],
-                        budget: 8000,
-                        months: [
-                            { income: 9800, expense: 6120 },
-                            { income: 9800, expense: 6890 },
-                            { income: 10200, expense: 7230 },
-                            { income: 9800, expense: 6480 },
-                            { income: 10800, expense: 7010 },
-                            { income: 0, expense: 0 }
-                        ],
-                        transactions: [
-                            { type: 'expense', amount: 35, category: '餐饮', note: '午餐', day: '今天', time: '12:30', by: '你' },
-                            { type: 'expense', amount: 6, category: '交通', note: '地铁', day: '今天', time: '08:45', by: '你' },
-                            { type: 'expense', amount: 28, category: '餐饮', note: '咖啡', day: '今天', time: '10:10', by: '阿明' },
-                            { type: 'expense', amount: 268, category: '购物', note: '超市采购', day: '昨天', time: '19:20', by: '小夏' },
-                            { type: 'expense', amount: 88, category: '娱乐', note: '电影票', day: '昨天', time: '14:00', by: '你' },
-                            { type: 'expense', amount: 2800, category: '居住', note: '房租', day: '9月26日', time: '11:00', by: '你' },
-                            { type: 'expense', amount: 156, category: '居住', note: '电费', day: '9月26日', time: '20:15', by: '阿明' },
-                            { type: 'income', amount: 9800, category: '工资', note: '工资入账', day: '9月25日', time: '09:00', by: '你' },
-                            { type: 'expense', amount: 42, category: '交通', note: '打车', day: '9月24日', time: '22:40', by: '小夏' }
-                        ],
-                        settlement: [
-                            { from: '阿明', to: '你', amount: 120 },
-                            { from: '你', to: '小夏', amount: 64 },
-                            { from: '小夏', to: '阿明', amount: 18 }
-                        ]
-                    },
-                    {
-                        id: 'travel',
-                        name: '旅行基金',
-                        icon: 'fa-plane',
-                        iconColor: '#8b5cf6',
-                        iconBg: 'rgba(139, 92, 246, 0.12)',
-                        members: ['你', '阿明'],
-                        budget: 0,
-                        months: [
-                            { income: 2000, expense: 0 },
-                            { income: 2000, expense: 0 },
-                            { income: 2000, expense: 1580 },
-                            { income: 2000, expense: 0 },
-                            { income: 2000, expense: 4260 },
-                            { income: 0, expense: 0 }
-                        ],
-                        transactions: [
-                            { type: 'income', amount: 2000, category: '存入', note: '存入旅行金', day: '9月20日', time: '21:00', by: '你' },
-                            { type: 'income', amount: 2000, category: '存入', note: '存入旅行金', day: '9月18日', time: '20:30', by: '阿明' }
-                        ],
-                        settlement: []
-                    },
-                    {
-                        id: 'personal',
-                        name: '个人日常',
-                        icon: 'fa-user',
-                        iconColor: '#14b8a6',
-                        iconBg: 'rgba(20, 184, 166, 0.12)',
-                        members: ['你'],
-                        budget: 3200,
-                        months: [
-                            { income: 5200, expense: 2380 },
-                            { income: 5200, expense: 2640 },
-                            { income: 5400, expense: 2210 },
-                            { income: 5200, expense: 2890 },
-                            { income: 5200, expense: 2470 },
-                            { income: 0, expense: 0 }
-                        ],
-                        transactions: [
-                            { type: 'expense', amount: 42, category: '餐饮', note: '外卖', day: '今天', time: '12:05', by: '你' },
-                            { type: 'expense', amount: 38, category: '交通', note: '打车', day: '昨天', time: '21:30', by: '你' },
-                            { type: 'expense', amount: 59, category: '购物', note: '手机壳', day: '9月27日', time: '15:40', by: '你' },
-                            { type: 'expense', amount: 299, category: '娱乐', note: '健身房月卡', day: '9月25日', time: '19:00', by: '你' },
-                            { type: 'expense', amount: 128, category: '娱乐', note: '游戏充值', day: '9月22日', time: '22:15', by: '你' },
-                            { type: 'income', amount: 8200, category: '工资', note: '工资入账', day: '9月21日', time: '09:10', by: '你' },
-                            { type: 'expense', amount: 46, category: '医疗', note: '感冒药', day: '9月19日', time: '10:25', by: '你' },
-                            { type: 'expense', amount: 213, category: '购物', note: '超市', day: '9月17日', time: '18:50', by: '你' },
-                            { type: 'expense', amount: 1800, category: '居住', note: '房租', day: '9月15日', time: '11:30', by: '你' }
-                        ],
-                        settlement: []
+            const state = { activeLedgerId: null, ledgers: [], transactions: [], members: [], myRole: null, period: 'today' };
+
+            const PERIOD_LABEL = { today: '本日', month: '本月', year: '今年' };
+
+            // 依目前選中周期，把交易篩出來並算匯總
+            function periodStats() {
+                const now = new Date();
+                const inRange = t => {
+                    if (!t.occurredAt) return false;
+                    const d = new Date(t.occurredAt);
+                    if (state.period === 'today') {
+                        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
                     }
-                ]
-            };
+                    if (state.period === 'year') {
+                        return d.getFullYear() === now.getFullYear();
+                    }
+                    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+                };
+                const list = state.transactions.filter(inRange);
+                const income = list.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+                const expense = list.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                return { list, income: Math.round(income * 100) / 100, expense: Math.round(expense * 100) / 100 };
+            }
 
-            const state = { activeLedgerId: 'home' };
+            // 账本图标配色（后端只存 icon 名，颜色这里配）
+            const LEDGER_ICON_COLORS = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f59e0b', '#ec4899'];
 
-            // ─── 小工具 ───
+            function ledgerIconStyle(index) {
+                const c = LEDGER_ICON_COLORS[index % LEDGER_ICON_COLORS.length];
+                return { color: c, bg: hexToRgba(c, 0.12) };
+            }
+
+            // 把扁平的交易列表算成 6 个月汇总（供趋势图）
+            function buildMonths(transactions) {
+                const now = new Date();
+                const months = [];
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    months.push({ year: d.getFullYear(), month: d.getMonth(), income: 0, expense: 0 });
+                }
+                transactions.forEach(t => {
+                    if (!t.occurredAt) return;
+                    const d = new Date(t.occurredAt);
+                    const slot = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
+                    if (!slot) return;
+                    if (t.type === 'income') slot.income += t.amount;
+                    else slot.expense += t.amount;
+                });
+                return months.map((m, i) => ({
+                    income: Math.round(m.income * 100) / 100,
+                    expense: Math.round(m.expense * 100) / 100,
+                    label: `${m.month + 1}月`
+                }));
+            }
+
             function activeLedger() {
-                return DATA.ledgers.find(ledger => ledger.id === state.activeLedgerId) || DATA.ledgers[0];
+                return state.ledgers.find(l => l.id === state.activeLedgerId) || state.ledgers[0] || null;
+            }
+
+            // 當前账本的視圖模型：把接口數據整理成渲染需要的形狀
+            function viewLedger() {
+                const ledger = activeLedger();
+                if (!ledger) return null;
+                return {
+                    id: ledger.id,
+                    name: ledger.name,
+                    icon: safeIcon(ledger.icon),
+                    budget: ledger.budget || 0,
+                    role: ledger.role,
+                    members: state.members.map(m => m.displayName || m.username),
+                    memberList: state.members,
+                    months: buildMonths(state.transactions),
+                    transactions: state.transactions
+                };
             }
 
             function money(value) {
@@ -8142,17 +8956,12 @@
                 return `<span class="kpi-delta ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
             }
 
-            // 當前月（9 月）由交易流水推導，保證 KPI / 圓環 / 趨勢一致
-            function recomputeCurrentMonth(ledger) {
-                const transactions = ledger.transactions;
-                const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-                const expense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-                ledger.months[ledger.months.length - 1] = { income, expense };
-            }
+            // 當前月匯總由交易流水推導（viewLedger 裡已用 buildMonths 處理）
 
             // ─── 渲染：頭部 / 賬本列表 ───
             function renderHeader() {
-                const ledger = activeLedger();
+                const ledger = viewLedger();
+                if (!ledger) return;
                 els.ledgerName.textContent = ledger.name;
                 if (ledger.members.length > 1) {
                     els.shareChip.className = 'finance-chip shared';
@@ -8161,21 +8970,28 @@
                     els.shareChip.className = 'finance-chip personal';
                     els.shareChip.innerHTML = '<i class="fas fa-lock"></i> 仅自己';
                 }
-                els.memberAvatars.innerHTML = ledger.members.map((name, index) =>
-                    `<span style="background:${AVATAR_COLORS[index % AVATAR_COLORS.length]}" title="${escapeHtml(name)}">${escapeHtml(name.slice(0, 1))}</span>`
-                ).join('');
+                els.memberAvatars.innerHTML = ledger.memberList.map((m, index) => {
+                    const name = m.displayName || m.username;
+                    const fallback = AVATAR_COLORS[index % AVATAR_COLORS.length];
+                    if (m.avatarUrl) {
+                        const base = window.__getApiBaseUrl ? window.__getApiBaseUrl() : '';
+                        return `<span style="background-image:url('${base}${m.avatarUrl}');background-size:cover;background-position:center" title="${escapeHtml(name)}"></span>`;
+                    }
+                    return `<span style="background:${fallback}" title="${escapeHtml(name)}">${escapeHtml(name.slice(0, 1))}</span>`;
+                }).join('');
             }
 
             function renderLedgerList() {
-                els.ledgerList.innerHTML = DATA.ledgers.map(ledger => {
-                    const current = ledger.months[ledger.months.length - 1];
-                    const balance = current.income - current.expense;
-                    const meta = ledger.members.length > 1
-                        ? `${ledger.members.length} 人共享 · 结余 ${money(balance)}`
-                        : `个人账本 · 结余 ${money(balance)}`;
+                if (!state.ledgers.length) {
+                    els.ledgerList.innerHTML = '<div class="finance-empty"><i class="fas fa-book"></i>還沒有賬本，點下方新建</div>';
+                    return;
+                }
+                els.ledgerList.innerHTML = state.ledgers.map((ledger, index) => {
+                    const style = ledgerIconStyle(index);
+                    const meta = ledger.role === 'owner' ? '你是擁有者' : `你的權限：${roleLabel(ledger.role)}`;
                     const active = ledger.id === state.activeLedgerId ? ' active' : '';
                     return `<button class="ledger-item${active}" type="button" data-ledger="${ledger.id}">
-                        <span class="ledger-icon" style="background:${ledger.iconBg};color:${ledger.iconColor}"><i class="fas ${ledger.icon}"></i></span>
+                        <span class="ledger-icon" style="background:${style.bg};color:${style.color}"><i class="fas ${safeIcon(ledger.icon)}"></i></span>
                         <span class="ledger-info">
                             <span class="ledger-name">${escapeHtml(ledger.name)}</span>
                             <span class="ledger-meta">${meta}</span>
@@ -8183,6 +8999,18 @@
                     </button>`;
                 }).join('');
             }
+
+            const ROLE_LABELS = { owner: '擁有者', admin: '管理', editor: '標準', viewer: '只讀' };
+            function roleLabel(role) { return ROLE_LABELS[role] || role; }
+
+            // 图标类名净化：只允许字母数字下划线连字符，挡掉 ""><img onerror> 之类注入
+            function safeIcon(icon) {
+                const value = String(icon || '').replace(/[^A-Za-z0-9_-]/g, '');
+                return value || 'fa-book';
+            }
+            function canWrite() { return ['owner', 'admin', 'editor'].includes(state.myRole); }
+            function canManage() { return ['owner', 'admin'].includes(state.myRole); }
+            function isOwner() { return state.myRole === 'owner'; }
 
             // ─── 渲染：KPI 卡片 ───
             function kpiCard(label, value, type, icon, foot) {
@@ -8197,28 +9025,29 @@
             }
 
             function renderKpis() {
-                const ledger = activeLedger();
-                const months = ledger.months;
-                const current = months[months.length - 1];
-                const previous = months[months.length - 2] || { income: 0, expense: 0 };
-                const income = current.income;
-                const expense = current.expense;
+                const stats = periodStats();
+                const income = stats.income;
+                const expense = stats.expense;
                 const balance = income - expense;
                 const rate = income > 0 ? Math.round((balance / income) * 100) : 0;
-                const dayOfMonth = Math.max(1, new Date().getDate());
-                const average = Math.round(expense / dayOfMonth);
-                const incomeDelta = deltaPct(income, previous.income);
-                const expenseDelta = deltaPct(expense, previous.expense);
+                // 週期內的天數：今天=1，本月=已過天數，今年=已過天數
+                const now = new Date();
+                let days = 1;
+                if (state.period === 'month') days = now.getDate();
+                else if (state.period === 'year') days = Math.max(1, Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000) + 1);
+                const average = Math.round(expense / Math.max(1, days));
+                const label = PERIOD_LABEL[state.period] || '';
+                const count = stats.list.length;
 
                 els.kpiRow.innerHTML = [
-                    kpiCard('本月收入', money(income), 'income', 'fa-arrow-trend-up',
-                        `${deltaBadge(incomeDelta, false)}<span>较上月</span>`),
-                    kpiCard('本月支出', money(expense), 'expense', 'fa-arrow-trend-down',
-                        `${deltaBadge(expenseDelta, true)}<span>较上月</span>`),
-                    kpiCard('本月结余', money(balance), 'balance', 'fa-scale-balanced',
-                        `<span class="kpi-delta neutral">结余率 ${rate}%</span><span>收入 − 支出</span>`),
+                    kpiCard(`${label}收入`, money(income), 'income', 'fa-arrow-trend-up',
+                        `<span class="kpi-delta neutral">${count} 筆記錄</span>`),
+                    kpiCard(`${label}支出`, money(expense), 'expense', 'fa-arrow-trend-down',
+                        `<span class="kpi-delta neutral">${count} 筆記錄</span>`),
+                    kpiCard(`${label}結餘`, money(balance), 'balance', 'fa-scale-balanced',
+                        `<span class="kpi-delta neutral">結餘率 ${rate}%</span><span>收入 − 支出</span>`),
                     kpiCard('日均支出', money(average), 'average', 'fa-calculator',
-                        `${deltaBadge(expenseDelta, true)}<span>按 ${dayOfMonth} 天计</span>`)
+                        `<span class="kpi-delta neutral">按 ${days} 天計</span>`)
                 ].join('');
             }
 
@@ -8230,7 +9059,7 @@
             }
 
             function renderTrend() {
-                const months = activeLedger().months;
+                const months = viewLedger().months;
                 const W = 640;
                 const H = 240;
                 const PL = 48;
@@ -8258,10 +9087,11 @@
                 const barW = Math.min(22, groupW * 0.26);
                 let bars = '';
                 months.forEach((month, index) => {
+                    const label = month.label || '';
                     const cx = PL + groupW * (index + 0.5);
-                    bars += barRect(cx - barW - 3, y(month.income), barW, PT + plotH - y(month.income), 'finInc', `${MONTH_LABELS[index]} 收入 ${money(month.income)}`);
-                    bars += barRect(cx + 3, y(month.expense), barW, PT + plotH - y(month.expense), 'finExp', `${MONTH_LABELS[index]} 支出 ${money(month.expense)}`);
-                    bars += `<text x="${cx.toFixed(1)}" y="${H - PB + 18}" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.5">${MONTH_LABELS[index]}</text>`;
+                    bars += barRect(cx - barW - 3, y(month.income), barW, PT + plotH - y(month.income), 'finInc', `${label} 收入 ${money(month.income)}`);
+                    bars += barRect(cx + 3, y(month.expense), barW, PT + plotH - y(month.expense), 'finExp', `${label} 支出 ${money(month.expense)}`);
+                    bars += `<text x="${cx.toFixed(1)}" y="${H - PB + 18}" text-anchor="middle" font-size="10" fill="currentColor" fill-opacity="0.5">${label}</text>`;
                 });
 
                 const points = months.map((month, index) => ({
@@ -8292,13 +9122,12 @@
 
             // ─── 渲染：分類圓環（內聯 SVG）───
             function renderDonut() {
-                const ledger = activeLedger();
-                const expenses = ledger.transactions.filter(t => t.type === 'expense');
+                const expenses = periodStats().list.filter(t => t.type === 'expense');
                 const total = expenses.reduce((sum, t) => sum + t.amount, 0);
                 if (!expenses.length) {
                     els.donut.innerHTML = `<svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="52" fill="none" stroke="currentColor" stroke-opacity="0.1" stroke-width="14"/></svg>
                         <div class="finance-donut-center"><b>—</b><span>暂无支出</span></div>`;
-                    els.donutLegend.innerHTML = '<div class="finance-empty"><i class="fas fa-chart-pie"></i>本月还没有支出</div>';
+                    els.donutLegend.innerHTML = `<div class="finance-empty"><i class="fas fa-chart-pie"></i>${PERIOD_LABEL[state.period] || ''}还没有支出</div>`;
                     return;
                 }
                 const byCategory = {};
@@ -8332,18 +9161,19 @@
 
             // ─── 渲染：交易列表 ───
             function renderTransactions() {
-                const ledger = activeLedger();
-                if (!ledger.transactions.length) {
+                const list = periodStats().list;
+                if (!list.length) {
                     els.txnCount.textContent = '';
-                    els.txnList.innerHTML = '<div class="finance-empty"><i class="fas fa-receipt"></i>还没有交易，左侧快速记一笔试试</div>';
+                    els.txnList.innerHTML = `<div class="finance-empty"><i class="fas fa-receipt"></i>${PERIOD_LABEL[state.period] || ''}還沒有交易，左側記一筆試試</div>`;
                     return;
                 }
-                els.txnCount.textContent = `共 ${ledger.transactions.length} 笔`;
+                els.txnCount.textContent = `共 ${list.length} 笔`;
                 const groups = [];
-                ledger.transactions.forEach(txn => {
-                    let group = groups.find(item => item.day === txn.day);
+                list.forEach(txn => {
+                    const key = txn.day;
+                    let group = groups.find(item => item.day === key);
                     if (!group) {
-                        group = { day: txn.day, items: [] };
+                        group = { day: key, items: [] };
                         groups.push(group);
                     }
                     group.items.push(txn);
@@ -8357,59 +9187,153 @@
                     const rows = group.items.map(txn => {
                         const category = categoryOf(txn.category);
                         const newClass = txn._new ? ' new' : '';
-                        return `<div class="txn-row${newClass}">
+                        const split = (txn.splitMembers && txn.splitMembers.length)
+                            ? `<span class="txn-aa"><i class="fas fa-users"></i>AA ${txn.splitMembers.map(escapeHtml).join('、')}</span>`
+                            : '';
+                        const payer = (txn.paidBy && txn.paidBy !== txn.by)
+                            ? `<span class="txn-payer">${escapeHtml(txn.paidBy)} 墊付</span>`
+                            : '';
+                        return `<div class="txn-row${newClass}" data-txn-id="${txn.id}">
                             <span class="txn-icon" style="background:${hexToRgba(category.color, 0.12)};color:${category.color}"><i class="fas ${category.icon}"></i></span>
                             <span class="txn-main">
-                                <span class="txn-note">${escapeHtml(txn.note)}</span>
-                                <span class="txn-meta"><span>${txn.category}</span><span>·</span><span>${escapeHtml(txn.by)}</span><span>·</span><span>${txn.time}</span></span>
+                                <span class="txn-note">${escapeHtml(txn.note || txn.category)}${split}${payer}</span>
+                                <span class="txn-meta"><span>${escapeHtml(txn.category)}</span><span>·</span><span>${escapeHtml(txn.by)}</span><span>·</span><span>${escapeHtml(txn.time)}</span></span>
                             </span>
                             <span class="txn-amount ${txn.type}">${txn.type === 'expense' ? '-' : '+'}${money(txn.amount)}</span>
                         </div>`;
                     }).join('');
-                    return `<div class="txn-day"><span>${group.day}</span><span>${parts.join(' · ')}</span></div>${rows}`;
+                    return `<div class="txn-day"><span>${escapeHtml(group.day)}</span><span>${parts.join(' · ')}</span></div>${rows}`;
                 }).join('');
-                ledger.transactions.forEach(txn => { delete txn._new; });
+                list.forEach(txn => { delete txn._new; });
             }
 
-            // ─── 渲染：結算 / 預算 ───
-            function renderSettlement() {
+            // ─── 渲染：AA 結算（按日期範圍，調後端算）───
+            async function renderSettlement() {
                 const ledger = activeLedger();
-                if (!ledger.settlement.length) {
-                    els.settlement.innerHTML = '<div class="finance-empty"><i class="fas fa-handshake"></i>当前没有待结算的款项</div>';
+                if (!ledger) { els.settlement.innerHTML = ''; return; }
+                const start = document.getElementById('settleStart').value;
+                const end = document.getElementById('settleEnd').value;
+                const query = [];
+                if (start) query.push('start=' + encodeURIComponent(start));
+                if (end) query.push('end=' + encodeURIComponent(end));
+                const suffix = query.length ? '?' + query.join('&') : '';
+                let data;
+                try {
+                    data = await window.__apiRequest(`/api/ledgers/${ledger.id}/settlement${suffix}`);
+                } catch (error) {
+                    els.settlement.innerHTML = '<div class="finance-empty"><i class="fas fa-handshake"></i>結算載入失敗</div>';
                     return;
                 }
-                els.settlement.innerHTML = ledger.settlement.map((item, index) => `<div class="settle-row">
+                const transfers = (data && data.transfers) || [];
+                if (!transfers.length) {
+                    els.settlement.innerHTML = '<div class="finance-empty"><i class="fas fa-handshake"></i>當前沒有待結算的款項</div>';
+                    return;
+                }
+                els.settlement.innerHTML = transfers.map(item => `<div class="settle-row">
                     <span class="settle-people"><b>${escapeHtml(item.from)}</b> → <b>${escapeHtml(item.to)}</b></span>
                     <span class="settle-amount">${money(item.amount)}</span>
-                    <button class="settle-clear-btn" type="button" data-index="${index}">结清</button>
                 </div>`).join('');
             }
 
             function renderBudget() {
-                const ledger = activeLedger();
-                if (!ledger.budget) {
+                const ledger = viewLedger();
+                const budget = ledger.budget || 0;
+                const used = periodStats().expense;
+                if (!budget) {
                     els.budgetSub.textContent = '';
-                    els.budget.innerHTML = '<div class="finance-empty"><i class="fas fa-bullseye"></i>还未设置预算</div>';
+                    els.budget.innerHTML = `<div class="finance-empty budget-empty-btn" id="budgetSetBtn" role="button" tabindex="0"><i class="fas fa-bullseye"></i>點此設定預算</div>`;
                     return;
                 }
-                const used = ledger.months[ledger.months.length - 1].expense;
-                const percent = Math.min(100, Math.round((used / ledger.budget) * 100));
-                const remain = ledger.budget - used;
+                const percent = Math.min(100, Math.round((used / budget) * 100));
+                const remain = budget - used;
                 const level = percent >= 90 ? 'danger' : percent >= 70 ? 'warn' : '';
-                const hint = level === 'danger' ? '注意控制支出' : level === 'warn' ? '接近预算上限' : '';
+                const hint = level === 'danger' ? '注意控制支出' : level === 'warn' ? '接近預算上限' : '';
                 els.budgetSub.textContent = `已用 ${percent}%`;
                 els.budget.innerHTML = `
                     <div class="budget-line">
-                        <span><b>${money(used)}</b> / ${money(ledger.budget)}</span>
+                        <span><b>${money(used)}</b> / ${money(budget)}</span>
                         <span class="budget-pct ${level}">${percent}%</span>
                     </div>
                     <div class="budget-track"><div class="budget-fill ${level}" style="width:${percent}%"></div></div>
-                    <div class="budget-hint"><span>${remain >= 0 ? `剩余 ${money(remain)}` : `已超出 ${money(-remain)}`}</span><span>${hint}</span></div>`;
+                    <div class="budget-hint"><span>${remain >= 0 ? `剩余 ${money(remain)}` : `已超出 ${money(-remain)}`}</span><span>${hint}</span></div>
+                    <button class="budget-edit-btn" id="budgetEditBtn" type="button"><i class="fas fa-gear"></i> 修改預算</button>`;
+            }
+
+            // ─── 數據加載：全部走真實後端 ───
+            function relativeDay(iso) {
+                if (!iso) return '';
+                const d = new Date(iso);
+                const today = new Date();
+                const zero = t => new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime();
+                const diff = Math.round((zero(today) - zero(d)) / 86400000);
+                if (diff === 0) return '今天';
+                if (diff === 1) return '昨天';
+                return `${d.getMonth() + 1}月${d.getDate()}日`;
+            }
+
+            function normalizeTransaction(t) {
+                const d = t.occurredAt ? new Date(t.occurredAt) : new Date();
+                const pad = n => String(n).padStart(2, '0');
+                return {
+                    id: t.id,
+                    type: t.type,
+                    amount: t.amount,
+                    category: t.category,
+                    note: t.note,
+                    occurredAt: t.occurredAt,
+                    day: relativeDay(t.occurredAt),
+                    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                    by: t.createdBy || '',
+                    paidBy: t.paidBy || '',
+                    splitMembers: Array.isArray(t.splitMembers) ? t.splitMembers : []
+                };
+            }
+
+            async function loadLedgers() {
+                const list = await window.__apiRequest('/api/ledgers');
+                state.ledgers = Array.isArray(list) ? list : [];
+                if (!state.ledgers.some(l => l.id === state.activeLedgerId)) {
+                    state.activeLedgerId = state.ledgers[0] ? state.ledgers[0].id : null;
+                }
+            }
+
+            async function loadTransactions() {
+                const ledger = activeLedger();
+                if (!ledger) { state.transactions = []; state.members = []; state.myRole = null; return; }
+                state.myRole = ledger.role;
+                const txns = await window.__apiRequest(`/api/ledgers/${ledger.id}/transactions`);
+                state.transactions = (Array.isArray(txns) ? txns : []).map(normalizeTransaction);
+            }
+
+            async function loadMembers() {
+                const ledger = activeLedger();
+                if (!ledger) { state.members = []; return; }
+                const data = await window.__apiRequest(`/api/ledgers/${ledger.id}/members`);
+                state.members = (data && data.members) || [];
+                if (data && data.myRole) state.myRole = data.myRole;
+            }
+
+            async function refreshFinance() {
+                try {
+                    await loadLedgers();
+                    await loadTransactions();
+                    await loadMembers();
+                    renderAll();
+                } catch (error) {
+                    if (error.status !== 401) toast('賬本數據載入失敗');
+                }
             }
 
             function renderAll() {
-                renderHeader();
+                const ledger = activeLedger();
+                // 账本列表始终重绘（即使当前没有账本，也要清掉旧条目）
                 renderLedgerList();
+                if (els.emptyState && els.content) {
+                    els.emptyState.hidden = !!ledger;
+                    els.content.style.display = ledger ? '' : 'none';
+                    if (!ledger) return;
+                }
+                renderHeader();
                 renderKpis();
                 renderTrend();
                 renderDonut();
@@ -8473,11 +9397,38 @@
                     document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.add('ready'));
                     positionWorkspaceSwitch(name, false);
                 });
-                // 上方標題與圖標隨工作區切換
-                const titleIcon = document.querySelector('.app-floating-title i');
-                const titleText = document.querySelector('.app-floating-title > span');
-                if (titleText) titleText.textContent = name === 'finance' ? 'Collabledger' : 'CollabNote';
-                if (titleIcon) titleIcon.className = name === 'finance' ? 'fas fa-wallet' : 'fas fa-pencil-alt';
+                // 標題與圖標：CSS 負責左右平移動效，JS 只需切 class
+                setMainPanel(name);
+                // 切到金融頁時，若還沒賬本就拉一次
+                if (name === 'finance' && window.__financeRefresh) window.__financeRefresh();
+            }
+
+            // 主面板左右平移：把非當前的那塊放到左/右側待命，當前那塊回到原位
+            function setMainPanel(name, instant) {
+                const wrap = document.getElementById('mainPanelSwitch');
+                if (!wrap) return;
+                const editor = wrap.querySelector('.editor-panel');
+                const finance = wrap.querySelector('.finance-panel');
+                if (!editor || !finance) return;
+                const showFinance = name === 'finance';
+                const current = showFinance ? finance : editor;
+                const other = showFinance ? editor : finance;
+
+                const apply = () => {
+                    other.classList.remove('main-panel-hidden-right', 'main-panel-hidden-left');
+                    other.classList.add(showFinance ? 'main-panel-hidden-left' : 'main-panel-hidden-right');
+                    current.classList.remove('main-panel-hidden-right', 'main-panel-hidden-left');
+                };
+                if (instant) {
+                    other.style.transition = 'none';
+                    current.style.transition = 'none';
+                    apply();
+                    void other.offsetWidth;
+                    other.style.transition = '';
+                    current.style.transition = '';
+                } else {
+                    apply();
+                }
             }
 
             // 視窗大小變動時重新定位滑塊（不做過渡）
@@ -8530,7 +9481,8 @@
                 return { type, amount, category, note };
             }
 
-            function submitQuickEntry() {
+            // forceType: 'income' | 'expense'（點哪個按鈕就記哪種）
+            function submitQuickEntry(forceType) {
                 const noteRaw = els.quickNote.value;
                 const amountRaw = els.quickAmount.value;
                 if (!noteRaw.trim() && !amountRaw.trim()) return;
@@ -8540,27 +9492,38 @@
                     box.classList.remove('shake');
                     void box.offsetWidth;
                     box.classList.add('shake');
-                    toast('请填写内容与金额，金额如 -35 或 +9800');
+                    toast('请填写内容与金额');
                     return;
                 }
+                if (forceType) parsed.type = forceType;
                 const ledger = activeLedger();
-                const now = new Date();
-                const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-                ledger.transactions.unshift({
-                    type: parsed.type,
-                    amount: parsed.amount,
-                    category: parsed.category,
-                    note: parsed.note,
-                    day: '今天',
-                    time,
-                    by: '你',
-                    _new: true
-                });
-                recomputeCurrentMonth(ledger);
-                els.quickNote.value = '';
-                els.quickAmount.value = '';
-                renderAll();
-                toast(`已记录：${parsed.category} · ${parsed.note} ${money(parsed.amount)}`);
+                if (!ledger) { toast('請先建立一個賬本'); return; }
+                if (!canWrite()) { toast('你的權限只能檢視'); return; }
+                addTransaction(parsed);
+            }
+
+            // 記一筆：走真實後端
+            async function addTransaction(parsed) {
+                const ledger = activeLedger();
+                try {
+                    await window.__apiRequest(`/api/ledgers/${ledger.id}/transactions`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            type: parsed.type,
+                            amount: parsed.amount,
+                            category: parsed.category,
+                            note: parsed.note,
+                            splitMembers: parsed.splitMembers || []
+                        })
+                    });
+                    els.quickNote.value = '';
+                    els.quickAmount.value = '';
+                    await loadTransactions();
+                    renderAll();
+                    toast(`已記錄：${parsed.category} · ${parsed.note} ${money(parsed.amount)}`);
+                } catch (error) {
+                    toast(error && error.status === 403 ? '你的權限不能記賬' : '記賬失敗，請確認後端');
+                }
             }
 
             // ─── 事件綁定 ───
@@ -8571,58 +9534,607 @@
             els.ledgerList.addEventListener('click', event => {
                 const item = event.target.closest('.ledger-item');
                 if (!item || !item.dataset.ledger) return;
-                if (item.dataset.ledger === state.activeLedgerId) return;
-                state.activeLedgerId = item.dataset.ledger;
-                renderAll();
+                const id = Number(item.dataset.ledger);
+                if (id === state.activeLedgerId) return;
+                state.activeLedgerId = id;
+                refreshFinance();
             });
 
-            els.quickBtn.addEventListener('click', submitQuickEntry);
+            els.quickBtn.addEventListener('click', () => submitQuickEntry('income'));
+            els.quickDeductBtn.addEventListener('click', () => submitQuickEntry('expense'));
             els.quickNote.addEventListener('keydown', event => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    submitQuickEntry();
+                    submitQuickEntry('expense');
                 }
             });
             els.quickAmount.addEventListener('keydown', event => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    submitQuickEntry();
+                    submitQuickEntry('expense');
                 }
             });
             els.quickNote.addEventListener('animationend', () => els.quickNote.classList.remove('shake'));
             els.quickAmount.addEventListener('animationend', () => els.quickAmount.classList.remove('shake'));
 
-            els.settlement.addEventListener('click', event => {
-                const button = event.target.closest('.settle-clear-btn');
-                if (!button) return;
-                const index = Number(button.dataset.index);
-                const row = button.closest('.settle-row');
-                if (!Number.isInteger(index) || !row) return;
-                row.classList.add('clearing');
-                setTimeout(() => {
-                    activeLedger().settlement.splice(index, 1);
-                    renderSettlement();
-                    toast('已标记结清');
-                }, 200);
+            // 刪除交易已改為右鍵選單（見下方）
+
+            document.getElementById('settleApply').addEventListener('click', () => renderSettlement());
+            document.getElementById('settleReset').addEventListener('click', () => {
+                document.getElementById('settleStart').value = '';
+                document.getElementById('settleEnd').value = '';
+                renderSettlement();
             });
 
             els.period.querySelectorAll('button').forEach(button => {
                 button.addEventListener('click', () => {
+                    state.period = button.dataset.period || 'month';
                     els.period.querySelectorAll('button').forEach(item => item.classList.toggle('active', item === button));
+                    renderKpis();
+                    renderDonut();
+                    renderTransactions();
                 });
             });
 
-            els.newLedgerBtn.addEventListener('click', () => toast('新建账本将在数据阶段（P2）接入'));
-            els.shareBtn.addEventListener('click', () => toast('共用账本将在数据阶段（P2）接入'));
-            els.addBtn.addEventListener('click', () => {
-                setWorkspace('finance');
-                els.quickNote.focus();
+            // ─── 記一筆對話框 ───
+            let txnDialogType = 'expense';
+
+            function openTxnDialog() {
+                const ledger = activeLedger();
+                if (!ledger) { toast('請先建立或選擇一個賬本'); return; }
+                if (!canWrite()) { toast('你的權限只能檢視'); return; }
+                txnDialogType = 'expense';
+                els.txnNote.value = '';
+                els.txnAmount.value = '';
+                fillCategoryOptions('其他');
+                renderSplitChips(document.getElementById('txnSplitMembers'), []);
+                els.txnTypes().forEach(b => b.classList.toggle('active', b.dataset.type === 'expense'));
+                els.txnDialog.classList.add('visible');
+                setTimeout(() => els.txnNote.focus(), 30);
+            }
+
+            function closeTxnDialog() {
+                els.txnDialog.classList.remove('visible');
+            }
+
+            async function confirmTxn() {
+                const noteRaw = els.txnNote.value.trim();
+                const amountRaw = els.txnAmount.value.trim();
+                const parsed = parseQuickEntry(noteRaw, amountRaw);
+                if (!parsed) { toast('請填寫內容與金額'); return; }
+                parsed.type = txnDialogType;
+                // 使用者在下拉選的類別優先（預設「其他」）
+                if (els.txnCategory && els.txnCategory.value) {
+                    parsed.category = els.txnCategory.value;
+                }
+                parsed.splitMembers = collectSplitMembers(document.getElementById('txnSplitMembers'));
+                closeTxnDialog();
+                await addTransaction(parsed);
+            }
+
+            els.addBtn.addEventListener('click', openTxnDialog);
+            if (els.txnCancel) els.txnCancel.addEventListener('click', closeTxnDialog);
+            if (els.txnConfirm) els.txnConfirm.addEventListener('click', confirmTxn);
+            if (els.txnDialog) {
+                els.txnDialog.addEventListener('click', e => { if (e.target === els.txnDialog) closeTxnDialog(); });
+                els.txnTypes().forEach(btn => btn.addEventListener('click', () => {
+                    txnDialogType = btn.dataset.type;
+                    els.txnTypes().forEach(b => b.classList.toggle('active', b === btn));
+                }));
+                [els.txnNote, els.txnAmount].forEach(inp => inp && inp.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') { e.preventDefault(); confirmTxn(); }
+                    if (e.key === 'Escape') closeTxnDialog();
+                }));
+            }
+
+            // ─── 交易右鍵選單 + 編輯 ───
+            const txnMenu = document.getElementById('txnContextMenu');
+            const txnMenuEdit = document.getElementById('txnMenuEdit');
+            const txnMenuDelete = document.getElementById('txnMenuDelete');
+            const txnEditDialog = document.getElementById('txnEditDialog');
+            const txnEditNote = document.getElementById('txnEditNote');
+            const txnEditAmount = document.getElementById('txnEditAmount');
+            const txnEditCategory = document.getElementById('txnEditCategory');
+            let txnMenuId = null;
+
+            function closeTxnMenu() {
+                txnMenu.classList.remove('visible');
+                txnMenuId = null;
+            }
+
+            function fillCategoryOptions(selected) {
+                txnEditCategory.innerHTML = Object.keys(CATEGORIES)
+                    .map(name => `<option value="${name}"${name === selected ? ' selected' : ''}>${name}</option>`)
+                    .join('');
+            }
+
+            els.txnList.addEventListener('contextmenu', event => {
+                const row = event.target.closest('.txn-row');
+                if (!row || !row.dataset.txnId) return;
+                if (!canManage() && !canWrite()) return;
+                event.preventDefault();
+                txnMenuId = Number(row.dataset.txnId);
+                txnMenu.classList.add('visible');
+                const rect = txnMenu.getBoundingClientRect();
+                const left = Math.min(event.clientX, window.innerWidth - rect.width - 8);
+                const top = Math.min(event.clientY, window.innerHeight - rect.height - 8);
+                txnMenu.style.left = Math.max(8, left) + 'px';
+                txnMenu.style.top = Math.max(8, top) + 'px';
             });
 
+            document.addEventListener('click', event => {
+                if (txnMenu.classList.contains('visible') && !txnMenu.contains(event.target)) closeTxnMenu();
+            });
+            document.addEventListener('keydown', event => { if (event.key === 'Escape') closeTxnMenu(); });
+            window.addEventListener('resize', closeTxnMenu);
+
+            txnMenuEdit.addEventListener('click', () => {
+                const txn = state.transactions.find(t => t.id === txnMenuId);
+                closeTxnMenu();
+                if (!txn) return;
+                fillCategoryOptions(txn.category);
+                txnEditNote.value = txn.note || '';
+                txnEditAmount.value = txn.amount;
+                renderSplitChips(document.getElementById('txnEditSplitMembers'), txn.splitMembers || []);
+                els.txnEditTypes = document.querySelectorAll('#txnEditDialog .txn-type');
+                els.txnEditTypes.forEach(b => b.classList.toggle('active', b.dataset.type === txn.type));
+                txnEditDialog.dataset.txnId = txn.id;
+                txnEditDialog.dataset.type = txn.type;
+                txnEditDialog.classList.add('visible');
+                setTimeout(() => txnEditNote.focus(), 30);
+            });
+
+            txnMenuDelete.addEventListener('click', async () => {
+                const id = txnMenuId;
+                closeTxnMenu();
+                if (id == null) return;
+                const ledger = activeLedger();
+                if (!ledger || !canManage()) return;
+                try {
+                    await window.__apiRequest(`/api/ledgers/${ledger.id}/transactions/${id}`, { method: 'DELETE' });
+                    await loadTransactions();
+                    renderAll();
+                    toast('已刪除（擁有者可到歷史復原）');
+                } catch (error) {
+                    toast('刪除失敗');
+                }
+            });
+
+            function closeTxnEditDialog() { txnEditDialog.classList.remove('visible'); }
+
+            txnEditDialog.querySelectorAll('.txn-type').forEach(btn => btn.addEventListener('click', () => {
+                txnEditDialog.dataset.type = btn.dataset.type;
+                txnEditDialog.querySelectorAll('.txn-type').forEach(b => b.classList.toggle('active', b === btn));
+            }));
+
+            async function confirmTxnEdit() {
+                const id = Number(txnEditDialog.dataset.txnId);
+                const ledger = activeLedger();
+                const amount = parseFloat(String(txnEditAmount.value).replace(/[^0-9.]/g, ''));
+                if (!ledger || !id) return;
+                if (!Number.isFinite(amount) || amount <= 0) { toast('金額不正確'); return; }
+                closeTxnEditDialog();
+                try {
+                    await window.__apiRequest(`/api/ledgers/${ledger.id}/transactions/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            note: txnEditNote.value.trim(),
+                            amount,
+                            category: txnEditCategory.value,
+                            type: txnEditDialog.dataset.type,
+                            splitMembers: collectSplitMembers(document.getElementById('txnEditSplitMembers'))
+                        })
+                    });
+                    await loadTransactions();
+                    renderAll();
+                    toast('已更新');
+                } catch (error) {
+                    toast('更新失敗');
+                }
+            }
+
+            document.getElementById('txnEditCancel').addEventListener('click', closeTxnEditDialog);
+            document.getElementById('txnEditConfirm').addEventListener('click', confirmTxnEdit);
+            txnEditDialog.addEventListener('click', e => { if (e.target === txnEditDialog) closeTxnEditDialog(); });
+            [txnEditNote, txnEditAmount].forEach(inp => inp.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); confirmTxnEdit(); }
+                if (e.key === 'Escape') closeTxnEditDialog();
+            }));
+
+            // ─── 交易右鍵選單 + 編輯（結束）───
+
+            // ─── AA 分摊选择器 ───
+            function renderSplitChips(container, selected) {
+                if (!container) return;
+                container.replaceChildren();
+                const chosen = new Set(selected || []);
+                state.members.forEach(m => {
+                    const chip = document.createElement('span');
+                    chip.className = 'aa-member-chip' + (chosen.has(m.username) ? ' on' : '');
+                    chip.textContent = m.displayName || m.username;
+                    chip.dataset.username = m.username;
+                    chip.addEventListener('click', () => chip.classList.toggle('on'));
+                    container.appendChild(chip);
+                });
+            }
+
+            function collectSplitMembers(container) {
+                if (!container) return [];
+                return [...container.querySelectorAll('.aa-member-chip.on')].map(c => c.dataset.username);
+            }
+
+            // ─── 預算設定 ───
+            function openBudgetDialog() {
+                const ledger = activeLedger();
+                if (!ledger) { toast('請先選擇一個賬本'); return; }
+                if (!canManage()) { toast('你的權限不能修改預算'); return; }
+                budgetInput.value = ledger.budget ? ledger.budget : '';
+                budgetDialog.classList.add('visible');
+                setTimeout(() => budgetInput.focus(), 30);
+            }
+
+            function closeBudgetDialog() { budgetDialog.classList.remove('visible'); }
+
+            async function confirmBudget() {
+                const ledger = activeLedger();
+                const value = parseFloat(String(budgetInput.value).replace(/[^0-9.]/g, ''));
+                if (!ledger) return;
+                if (!Number.isFinite(value) || value < 0) { toast('金額不正確'); return; }
+                closeBudgetDialog();
+                try {
+                    await window.__apiRequest(`/api/ledgers/${ledger.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ budget: value })
+                    });
+                    await refreshFinance();
+                    toast(`預算已設為 ${money(value)}`);
+                } catch (error) {
+                    toast('設定預算失敗');
+                }
+            }
+
+            // 預算卡片內容是動態生成的，用事件委派接按鈕
+            els.budget.addEventListener('click', event => {
+                if (event.target.closest('#budgetSetBtn') || event.target.closest('#budgetEditBtn')) openBudgetDialog();
+            });
+            els.budget.addEventListener('keydown', event => {
+                if ((event.key === 'Enter' || event.key === ' ') && event.target.closest('#budgetSetBtn')) {
+                    event.preventDefault(); openBudgetDialog();
+                }
+            });
+            document.getElementById('budgetCancel').addEventListener('click', closeBudgetDialog);
+            document.getElementById('budgetConfirm').addEventListener('click', confirmBudget);
+            budgetDialog.addEventListener('click', e => { if (e.target === budgetDialog) closeBudgetDialog(); });
+            budgetInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); confirmBudget(); }
+                if (e.key === 'Escape') closeBudgetDialog();
+            });
+
+            // ─── 賬本共用（邀請制）───
+            const ledgerShareDialog = document.getElementById('ledgerShareDialog');
+            const ledgerShareOwnerLine = document.getElementById('ledgerShareOwnerLine');
+            const ledgerMemberList = document.getElementById('ledgerMemberList');
+            const ledgerFriendList = document.getElementById('ledgerFriendList');
+            const ledgerInviteForm = document.getElementById('ledgerInviteForm');
+            const ledgerInviteInput = document.getElementById('ledgerInviteInput');
+            const ledgerRoleSelect = document.getElementById('ledgerRoleSelect');
+            const ledgerShareError = document.getElementById('ledgerShareError');
+
+            function avatarEl(person) {
+                const el = document.createElement('span');
+                el.className = 'share-avatar';
+                const name = person.displayName || person.username || '?';
+                if (person.avatarUrl) {
+                    const base = (typeof apiBaseUrl !== 'undefined' && apiBaseUrl) ? apiBaseUrl : window.__getApiBaseUrl();
+                    el.style.backgroundImage = `url("${base}${person.avatarUrl}")`;
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                } else {
+                    el.textContent = name.charAt(0).toUpperCase();
+                }
+                return el;
+            }
+
+            function buildMemberRow(person, actions) {
+                const row = document.createElement('div');
+                row.className = 'share-member';
+                row.appendChild(avatarEl(person));
+                const name = document.createElement('span');
+                name.className = 'share-member-name';
+                name.textContent = person.displayName || person.username;
+                name.title = `${person.displayName || person.username} (${person.username})`;
+                row.appendChild(name);
+                (actions || []).forEach(action => row.appendChild(action));
+                return row;
+            }
+
+            function textButton(text, className, onClick) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = className;
+                btn.textContent = text;
+                btn.addEventListener('click', onClick);
+                return btn;
+            }
+
+            async function openLedgerShare() {
+                const ledger = activeLedger();
+                if (!ledger) { toast('請先選擇一個賬本'); return; }
+                ledgerShareError.textContent = '';
+                ledgerShareDialog.classList.add('visible');
+                await refreshLedgerShare();
+            }
+
+            function closeLedgerShare() { ledgerShareDialog.classList.remove('visible'); }
+
+            async function refreshLedgerShare() {
+                const ledger = activeLedger();
+                if (!ledger) return;
+                let data;
+                try {
+                    data = await window.__apiRequest(`/api/ledgers/${ledger.id}/members`);
+                } catch (error) {
+                    ledgerShareError.textContent = '讀取成員失敗';
+                    return;
+                }
+                const members = (data && data.members) || [];
+                const myRole = (data && data.myRole) || 'viewer';
+                const mayInvite = ['owner', 'admin'].includes(myRole);
+                const owner = members.find(m => m.role === 'owner');
+                ledgerShareOwnerLine.textContent = `擁有者：${owner ? (owner.displayName || owner.username) : '—'}`;
+                ledgerMemberList.replaceChildren();
+                members.forEach(m => {
+                    const actions = [];
+                    if (m.role === 'owner') {
+                        // 拥有者：仅显示标签，无操作
+                        const role = document.createElement('span');
+                        role.className = 'share-role';
+                        role.textContent = roleLabel(m.role);
+                        actions.push(role);
+                    } else if (mayInvite) {
+                        // 权限：单独下拉
+                        const select = document.createElement('select');
+                        select.className = 'share-role-select';
+                        const options = myRole === 'owner'
+                            ? [['admin', '管理'], ['editor', '標準'], ['viewer', '只讀']]
+                            : [['editor', '標準'], ['viewer', '只讀']];
+                        options.forEach(([value, label]) => {
+                            const opt = document.createElement('option');
+                            opt.value = value;
+                            opt.textContent = label;
+                            if (value === m.role) opt.selected = true;
+                            select.appendChild(opt);
+                        });
+                        select.addEventListener('change', () => inviteLedgerMember(m.username, select.value));
+                        actions.push(select);
+                        actions.push(textButton('移除', 'share-remove-btn', () => removeLedgerMember(m.username)));
+                    } else {
+                        const role = document.createElement('span');
+                        role.className = 'share-role' + (m.role === 'viewer' ? ' view-only' : '');
+                        role.textContent = roleLabel(m.role);
+                        actions.push(role);
+                    }
+                    ledgerMemberList.appendChild(buildMemberRow(m, actions));
+                });
+                ledgerInviteForm.hidden = !mayInvite;
+                const friendSection = document.getElementById('ledgerFriendSection');
+                friendSection.hidden = !mayInvite;
+                if (mayInvite) {
+                    await loadLedgerFriends();
+                    renderLedgerFriends(members);
+                }
+            }
+
+            let ledgerFriends = [];
+
+            async function loadLedgerFriends() {
+                try {
+                    const data = await window.__apiRequest('/api/friends');
+                    ledgerFriends = (data && data.friends) || [];
+                } catch (error) {
+                    ledgerFriends = [];
+                }
+                return ledgerFriends;
+            }
+
+            function renderLedgerFriends(members) {
+                ledgerFriendList.replaceChildren();
+                const inList = new Set(members.map(m => m.username));
+                const friends = ledgerFriends.filter(f => !inList.has(f.username));
+                if (!friends.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'share-empty';
+                    empty.textContent = ledgerFriends.length ? '好友都已在名單中。' : '還沒有好友，可直接輸入登錄名邀請。';
+                    ledgerFriendList.appendChild(empty);
+                    return;
+                }
+                friends.forEach(person => {
+                    const row = document.createElement('div');
+                    row.className = 'share-member';
+                    row.appendChild(avatarEl(person));
+                    const name = document.createElement('span');
+                    name.className = 'share-member-name';
+                    name.textContent = person.displayName || person.username;
+                    row.appendChild(name);
+                    const hint = document.createElement('span');
+                    hint.className = 'share-role';
+                    hint.textContent = roleLabel(ledgerRoleSelect.value);
+                    row.appendChild(hint);
+                    row.appendChild(textButton('邀請', 'share-invite-btn', () => inviteLedgerMember(person.username, ledgerRoleSelect.value)));
+                    ledgerFriendList.appendChild(row);
+                });
+            }
+
+            async function inviteLedgerMember(username, role) {
+                const ledger = activeLedger();
+                if (!ledger || !username) return;
+                ledgerShareError.textContent = '';
+                try {
+                    await window.__apiRequest(`/api/ledgers/${ledger.id}/members`, {
+                        method: 'POST',
+                        body: JSON.stringify({ username, role })
+                    });
+                } catch (error) {
+                    ledgerShareError.textContent = error && error.status === 403 ? '只有擁有者能授予管理權限' : (error && error.status === 404 ? '找不到該使用者' : '邀請失敗');
+                    return;
+                }
+                // 請求成功後，刷新失敗不該影響「已邀請」的結論
+                toast(`已邀請 ${username}（${roleLabel(role)}）`);
+                try {
+                    await refreshLedgerShare();
+                    await loadMembers();
+                    renderAll();
+                } catch (error) {
+                    console.error('邀請後刷新失敗', error);
+                }
+            }
+
+            async function removeLedgerMember(username) {
+                const ledger = activeLedger();
+                if (!ledger || !username) return;
+                ledgerShareError.textContent = '';
+                try {
+                    await window.__apiRequest(`/api/ledgers/${ledger.id}/members/${encodeURIComponent(username)}`, { method: 'DELETE' });
+                } catch (error) {
+                    ledgerShareError.textContent = '移除失敗';
+                    return;
+                }
+                toast(`已移除 ${username}`);
+                try {
+                    await refreshLedgerShare();
+                    await loadMembers();
+                    renderAll();
+                } catch (error) {
+                    console.error('移除後刷新失敗', error);
+                }
+            }
+
+            els.shareBtn.addEventListener('click', openLedgerShare);
+            document.getElementById('ledgerShareCloseBtn').addEventListener('click', closeLedgerShare);
+            ledgerShareDialog.addEventListener('click', e => { if (e.target === ledgerShareDialog) closeLedgerShare(); });
+            ledgerInviteForm.addEventListener('submit', e => {
+                e.preventDefault();
+                inviteLedgerMember(ledgerInviteInput.value.trim(), ledgerRoleSelect.value);
+                ledgerInviteInput.value = '';
+            });
+
+            // ─── 賬本右鍵：編輯 / 刪除 ───
+            const ledgerContextMenu = document.getElementById('ledgerContextMenu');
+            const ledgerEditDialog = document.getElementById('ledgerEditDialog');
+            let ledgerMenuId = null;
+
+            function closeLedgerMenu() { ledgerContextMenu.classList.remove('visible'); ledgerMenuId = null; }
+
+            els.ledgerList.addEventListener('contextmenu', event => {
+                const item = event.target.closest('.ledger-item');
+                if (!item || !item.dataset.ledger) return;
+                if (!canManage()) return;
+                event.preventDefault();
+                ledgerMenuId = Number(item.dataset.ledger);
+                ledgerContextMenu.classList.add('visible');
+                const rect = ledgerContextMenu.getBoundingClientRect();
+                ledgerContextMenu.style.left = Math.max(8, Math.min(event.clientX, window.innerWidth - rect.width - 8)) + 'px';
+                ledgerContextMenu.style.top = Math.max(8, Math.min(event.clientY, window.innerHeight - rect.height - 8)) + 'px';
+            });
+
+            document.addEventListener('click', event => {
+                if (ledgerContextMenu.classList.contains('visible') && !ledgerContextMenu.contains(event.target)) closeLedgerMenu();
+            });
+            window.addEventListener('resize', closeLedgerMenu);
+
+            document.getElementById('ledgerMenuEdit').addEventListener('click', () => {
+                const ledger = state.ledgers.find(l => l.id === ledgerMenuId);
+                closeLedgerMenu();
+                if (!ledger) return;
+                document.getElementById('ledgerEditName').value = ledger.name || '';
+                ledgerEditDialog.dataset.ledgerId = ledger.id;
+                ledgerEditDialog.classList.add('visible');
+                setTimeout(() => document.getElementById('ledgerEditName').focus(), 30);
+            });
+
+            document.getElementById('ledgerEditCancel').addEventListener('click', () => ledgerEditDialog.classList.remove('visible'));
+            document.getElementById('ledgerEditConfirm').addEventListener('click', async () => {
+                const target = state.ledgers.find(l => l.id === Number(ledgerEditDialog.dataset.ledgerId));
+                if (!target) return;
+                const name = document.getElementById('ledgerEditName').value.trim();
+                if (!name) { document.getElementById('ledgerEditName').focus(); return; }
+                ledgerEditDialog.classList.remove('visible');
+                try {
+                    await window.__apiRequest(`/api/ledgers/${target.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name })
+                    });
+                    await refreshFinance();
+                    toast('已重新命名');
+                } catch (error) {
+                    toast('重新命名失敗');
+                }
+            });
+
+            document.getElementById('ledgerMenuDelete').addEventListener('click', async () => {
+                const id = ledgerMenuId;
+                closeLedgerMenu();
+                if (id == null) return;
+                try {
+                    await window.__apiRequest(`/api/ledgers/${id}`, { method: 'DELETE' });
+                    if (state.activeLedgerId === id) state.activeLedgerId = null;
+                    await refreshFinance();
+                    toast('已刪除賬本（資料已備份）');
+                } catch (error) {
+                    toast('刪除賬本失敗');
+                }
+            });
+
+            els.newLedgerBtn.addEventListener('click', () => {
+                if (!els.dialog) return;
+                els.dialogInput.value = '';
+                els.dialog.classList.add('visible');
+                setTimeout(() => els.dialogInput.focus(), 30);
+            });
+
+            function closeLedgerDialog() {
+                els.dialog.classList.remove('visible');
+            }
+
+            async function confirmCreateLedger() {
+                const name = els.dialogInput.value.trim();
+                if (!name) { els.dialogInput.focus(); return; }
+                closeLedgerDialog();
+                try {
+                    const created = await window.__apiRequest('/api/ledgers', {
+                        method: 'POST',
+                        body: JSON.stringify({ name })
+                    });
+                    state.activeLedgerId = created.id;
+                    await refreshFinance();
+                    toast(`已建立賬本：${name}`);
+                } catch (error) {
+                    toast('建立賬本失敗');
+                }
+            }
+
+            if (els.dialogCancel) els.dialogCancel.addEventListener('click', closeLedgerDialog);
+            if (els.dialogConfirm) els.dialogConfirm.addEventListener('click', confirmCreateLedger);
+            if (els.dialog) {
+                els.dialog.addEventListener('click', e => { if (e.target === els.dialog) closeLedgerDialog(); });
+                els.dialogInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') { e.preventDefault(); confirmCreateLedger(); }
+                    if (e.key === 'Escape') closeLedgerDialog();
+                });
+            }
+            // 共用按鈕已由 openLedgerShare 接管（見上方）
+
             // ─── 初始化 ───
-            DATA.ledgers.forEach(recomputeCurrentMonth);
             renderAll();
             setWorkspace('notes');
+            setMainPanel('notes', true);
+            // 登入後（或已在工作區）就拉一次賬本數據
+            if (typeof authToken !== 'undefined' && authToken) {
+                refreshFinance();
+            }
+            window.addEventListener('hana:workspace-ready', refreshFinance);
+            // 對外暴露，讓工作區切換時可以觸發載入
+            window.__financeRefresh = refreshFinance;
             // 字型與版面完全就緒後，再做一次無過渡定位，確保啟動時滑塊就看得到
             document.fonts && document.fonts.ready ? document.fonts.ready.then(() => {
                 document.querySelectorAll('.workspace-switch-thumb').forEach(t => t.classList.remove('ready'));

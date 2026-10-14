@@ -24,7 +24,7 @@ from threading import Lock
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from PIL import Image, UnidentifiedImageError
-from database import StorageConfigError, create_storage
+from database import StorageConfigError, create_storage, LedgerStore, JsonStorage, JsonLedgerStore
 
 try:
     import bleach
@@ -61,6 +61,7 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 DATA_LOCK = Lock()
 STORAGE = None
 SESSIONS = {}
+SESSION_TTL_SECONDS = 30 * 24 * 3600  # 30 天无活动则失效
 PRESENCE = {}
 PRESENCE_LOCK = Lock()
 PRESENCE_TIMEOUT = 12.0
@@ -96,6 +97,38 @@ def storage():
     return STORAGE
 
 
+LEDGER_STORE = None
+
+
+def ledger_store():
+    global LEDGER_STORE
+    if LEDGER_STORE is None:
+        store = storage()
+        # JSON 模式用 JsonLedgerStore，MySQL 用 LedgerStore；两者接口一致
+        LEDGER_STORE = JsonLedgerStore(store.base_dir) if isinstance(store, JsonStorage) else LedgerStore(store)
+    return LEDGER_STORE
+
+
+# ─── 账本四档权限：owner / admin / editor / viewer ───
+LEDGER_ROLE_RANK = {"owner": 3, "admin": 2, "editor": 1, "viewer": 0}
+
+
+def ledger_can(role, action):
+    """判断某角色能否做某操作。action: view / write / edit / invite / delete / manage"""
+    if role not in LEDGER_ROLE_RANK:
+        return False
+    rank = LEDGER_ROLE_RANK[role]
+    if action == "view":
+        return True
+    if action in ("write", "edit"):
+        return rank >= 1        # editor 以上
+    if action == "invite":
+        return rank >= 2        # admin 以上
+    if action in ("delete", "manage"):
+        return rank >= 2        # admin 以上
+    return False
+
+
 def load_notes():
     return storage().load_notes()
 
@@ -129,10 +162,31 @@ def authenticate_user(username, password):
     return None
 
 
+def _purge_expired_sessions():
+    now = time.monotonic()
+    for token, session in list(SESSIONS.items()):
+        if now - session.get("ts", now) > SESSION_TTL_SECONDS:
+            SESSIONS.pop(token, None)
+
+
+def get_session(token):
+    """带过期检查的 session 读取，同时刷新活跃时间。"""
+    session = SESSIONS.get(token)
+    if not session:
+        return None
+    now = time.monotonic()
+    if now - session.get("ts", now) > SESSION_TTL_SECONDS:
+        SESSIONS.pop(token, None)
+        return None
+    session["ts"] = now
+    return session
+
+
 def create_session(user):
     token = secrets.token_urlsafe(32)
     # sid 用來辨識「同一個登入」的來源，前端可忽略自己造成的事件
-    SESSIONS[token] = {"username": user["username"], "sid": secrets.token_hex(8)}
+    _purge_expired_sessions()
+    SESSIONS[token] = {"username": user["username"], "sid": secrets.token_hex(8), "ts": time.monotonic()}
     return token
 
 
@@ -348,6 +402,20 @@ def publish_to_users(event, usernames):
             put_event(subscriber, event)
 
 
+def publish_ledger_event(ledger_id, sid, event_type="ledger-changed", member_usernames=()):
+    """賬本變更：只推給擁有存取權的成員（含剛被邀請/移除的人）。"""
+    targets = set(member_usernames)
+    if not targets:
+        try:
+            targets = {m["username"] for m in ledger_store().list_members(ledger_id)}
+        except Exception:
+            targets = set()
+    event = {"type": event_type, "ledgerId": ledger_id, "sid": sid}
+    for subscriber in subscribers_snapshot():
+        if subscriber["username"] in targets:
+            put_event(subscriber, event)
+
+
 def publish_presence(note_id):
     """在線名單依觀看者而不同，因此對每位訂閱者分別計算。"""
     if note_id is None:
@@ -454,6 +522,39 @@ def public_user(user):
     }
 
 
+LOGIN_ATTEMPTS = {}
+LOGIN_MAX_ATTEMPTS = 10
+LOGIN_WINDOW_SECONDS = 300  # 5 分钟内超过 10 次失败则暂锁
+
+
+def login_attempts_guard(key):
+    """返回 (allowed, retry_seconds)。"""
+    now = time.monotonic()
+    record = LOGIN_ATTEMPTS.get(key)
+    if not record:
+        return True, 0
+    count, first = record
+    if now - first > LOGIN_WINDOW_SECONDS:
+        LOGIN_ATTEMPTS.pop(key, None)
+        return True, 0
+    if count >= LOGIN_MAX_ATTEMPTS:
+        return False, int(LOGIN_WINDOW_SECONDS - (now - first))
+    return True, 0
+
+
+def record_login_failure(key):
+    now = time.monotonic()
+    record = LOGIN_ATTEMPTS.get(key)
+    if not record or now - record[1] > LOGIN_WINDOW_SECONDS:
+        LOGIN_ATTEMPTS[key] = [1, now]
+    else:
+        record[0] += 1
+
+
+def clear_login_failures(key):
+    LOGIN_ATTEMPTS.pop(key, None)
+
+
 class BadPayload(Exception):
     """請求內容不是合法的 JSON 物件；錯誤回應已於 read_payload 內送出。"""
 
@@ -501,9 +602,10 @@ class NotesHandler(BaseHTTPRequestHandler):
         if self.path == "/api/health":
             self.send_json(200, {"ok": True})
         elif self.path == "/api/auth/me":
-            user = self.current_user()
-            if user:
-                self.send_json(200, {**session_public(user), **public_user(user)})
+            session = self.current_user()
+            record = find_user(session["username"]) if session else None
+            if record:
+                self.send_json(200, {**session_public(session), **public_user(record)})
             else:
                 self.send_json(401, {"error": "Authentication required"})
         elif urlsplit(self.path).path == "/api/events":
@@ -522,6 +624,17 @@ class NotesHandler(BaseHTTPRequestHandler):
             self.list_note_members()
         elif self.path == "/api/notes":
             self.list_notes()
+        # ─── 金融账本 ───
+        elif self.path == "/api/ledgers":
+            self.list_ledgers()
+        elif urlsplit(self.path).path.endswith("/transactions") and urlsplit(self.path).path.startswith("/api/ledgers/"):
+            self.list_ledger_transactions()
+        elif urlsplit(self.path).path.endswith("/members") and urlsplit(self.path).path.startswith("/api/ledgers/"):
+            self.list_ledger_members()
+        elif urlsplit(self.path).path.endswith("/history") and urlsplit(self.path).path.startswith("/api/ledgers/"):
+            self.list_ledger_history()
+        elif urlsplit(self.path).path.endswith("/settlement") and urlsplit(self.path).path.startswith("/api/ledgers/"):
+            self.ledger_settlement()
         else:
             self.send_json(404, {"error": "Not found"})
 
@@ -532,7 +645,7 @@ class NotesHandler(BaseHTTPRequestHandler):
         if not token:
             # EventSource 無法自訂標頭，因此允許以 query string 傳遞 token
             token = (parse_qs(parsed.query).get("token") or [""])[0].strip()
-        session = SESSIONS.get(token)
+        session = get_session(token)
         if not session:
             self.send_json(401, {"error": "Authentication required"})
             return
@@ -656,12 +769,33 @@ class NotesHandler(BaseHTTPRequestHandler):
         if resource.startswith("/api/notes/") and resource.endswith("/members"):
             self.add_note_member()
             return
+        # ─── 金融账本 ───
+        if resource == "/api/ledgers":
+            self.create_ledger()
+            return
+        if resource.startswith("/api/ledgers/") and resource.endswith("/transactions"):
+            self.add_ledger_transaction()
+            return
+        if resource.startswith("/api/ledgers/") and resource.endswith("/members"):
+            self.add_ledger_member()
+            return
+        if resource.startswith("/api/ledgers/") and resource.endswith("/restore"):
+            self.restore_ledger_history()
+            return
         if self.path != "/api/notes":
             self.send_json(404, {"error": "Not found"})
             return
         self.create_note()
 
     def do_PUT(self):
+        resource = urlsplit(self.path).path
+        # ─── 金融账本：編輯交易 / 編輯賬本（預算等）───
+        if resource.startswith("/api/ledgers/") and "/transactions/" in resource:
+            self.update_ledger_transaction()
+            return
+        if resource.startswith("/api/ledgers/") and resource[len("/api/ledgers/"):].isdigit():
+            self.update_ledger_info()
+            return
         if not self.path.startswith("/api/notes/"):
             self.send_json(404, {"error": "Not found"})
             return
@@ -697,6 +831,16 @@ class NotesHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         resource = urlsplit(self.path).path
+        # ─── 金融账本：软删除交易 ───
+        if resource.startswith("/api/ledgers/") and "/transactions/" in resource:
+            self.delete_ledger_transaction()
+            return
+        if resource.startswith("/api/ledgers/") and "/members/" in resource:
+            self.remove_ledger_member()
+            return
+        if resource.startswith("/api/ledgers/") and resource[len("/api/ledgers/"):].isdigit():
+            self.delete_ledger()
+            return
         if resource.startswith("/api/notes/") and "/members/" in resource:
             self.remove_note_member()
             return
@@ -762,6 +906,305 @@ class NotesHandler(BaseHTTPRequestHandler):
         publish_note_event("note-created", note, self.current_session_sid())
         log_event(f"{session['username']} 新增筆記 #{note['id']}「{note['title']}」")
         self.send_json(201, result)
+
+    # ═══════════ 金融账本 API ═══════════
+    def ledger_guard(self, ledger_id, action):
+        """校验当前用户对账本的权限，返回 (session, role)；不通过时已响应。"""
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return None, None
+        role = ledger_store().role_of(ledger_id, session["username"])
+        if not ledger_can(role, action):
+            self.send_json(403, {"error": "沒有這項權限"})
+            return None, None
+        return session, role
+
+    def list_ledgers(self):
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        self.send_json(200, ledger_store().list_ledgers(session["username"]))
+
+    def create_ledger(self):
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        payload = self.read_payload()
+        name = str(payload.get("name", "")).strip() or "未命名账本"
+        icon = str(payload.get("icon", "fa-book")).strip() or "fa-book"
+        # 只允许类名安全字符，避免写入 HTML 时 XSS
+        icon = re.sub(r"[^A-Za-z0-9_-]", "", icon)[:64] or "fa-book"
+        try:
+            budget = float(payload.get("budget", 0) or 0)
+        except (TypeError, ValueError):
+            budget = 0
+        ledger_id = ledger_store().create_ledger(session["username"], name[:128], icon[:64], max(0, budget))
+        log_event(f"{session['username']} 建立賬本 #{ledger_id}「{name}」")
+        self.send_json(201, {"id": ledger_id, "name": name})
+
+    def list_ledger_transactions(self):
+        ledger_id = self._ledger_id_from_path("/transactions")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "view")
+        if session is None:
+            return
+        include_deleted = role == "owner" and (parse_qs(urlsplit(self.path).query).get("deleted") or [""])[0] == "1"
+        self.send_json(200, ledger_store().list_transactions(ledger_id, include_deleted=include_deleted))
+
+    def list_ledger_members(self):
+        ledger_id = self._ledger_id_from_path("/members")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "view")
+        if session is None:
+            return
+        self.send_json(200, {
+            "members": ledger_store().list_members(ledger_id),
+            "myRole": role,
+        })
+
+    def list_ledger_history(self):
+        ledger_id = self._ledger_id_from_path("/history")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "view")
+        if session is None:
+            return
+        self.send_json(200, ledger_store().list_history(ledger_id))
+
+    def add_ledger_transaction(self):
+        ledger_id = self._ledger_id_from_path("/transactions")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "write")
+        if session is None:
+            return
+        payload = self.read_payload()
+        txn_type = "income" if payload.get("type") == "income" else "expense"
+        try:
+            amount = abs(float(payload.get("amount", 0) or 0))
+        except (TypeError, ValueError):
+            self.send_json(400, {"error": "金額格式不正確"})
+            return
+        if amount <= 0:
+            self.send_json(400, {"error": "金額必須大於 0"})
+            return
+        category = str(payload.get("category", "其他")).strip()[:32] or "其他"
+        note = str(payload.get("note", "")).strip()[:255]
+        paid_by = str(payload.get("paidBy", "")).strip()[:32] or session["username"]
+        split_members = payload.get("splitMembers")
+        if not isinstance(split_members, list):
+            split_members = None
+        else:
+            valid = {m["username"] for m in ledger_store().list_members(ledger_id)}
+            split_members = [str(x) for x in split_members if str(x) in valid]
+            if not split_members:
+                split_members = None
+        txn_id = ledger_store().add_transaction(
+            ledger_id, session["username"], txn_type, amount, category, note,
+            paid_by=paid_by, split_members=split_members,
+        )
+        log_event(f"{session['username']} 在賬本 #{ledger_id} 記一筆（{category} {amount}）")
+        publish_ledger_event(ledger_id, self.current_session_sid())
+        self.send_json(201, {"id": txn_id})
+
+    def update_ledger_info(self):
+        resource = urlsplit(self.path).path
+        try:
+            ledger_id = int(resource[len("/api/ledgers/"):])
+        except ValueError:
+            self.send_json(400, {"error": "Invalid ledger id"})
+            return
+        # 編輯賬本資訊：擁有者/管理皆可
+        session, role = self.ledger_guard(ledger_id, "manage")
+        if session is None:
+            return
+        payload = self.read_payload()
+        ok = ledger_store().update_ledger(
+            ledger_id,
+            name=payload.get("name"),
+            icon=payload.get("icon"),
+            budget=payload.get("budget"),
+        )
+        if not ok:
+            self.send_json(400, {"error": "沒有要修改的內容"})
+            return
+        log_event(f"{session['username']} 更新賬本 #{ledger_id}")
+        publish_ledger_event(ledger_id, self.current_session_sid())
+        self.send_json(200, {"updated": ledger_id})
+
+    def delete_ledger(self):
+        resource = urlsplit(self.path).path
+        try:
+            ledger_id = int(resource[len("/api/ledgers/"):])
+        except ValueError:
+            self.send_json(400, {"error": "Invalid ledger id"})
+            return
+        session, role = self.ledger_guard(ledger_id, "manage")
+        if session is None:
+            return
+        if not ledger_store().soft_delete_ledger(ledger_id, session["username"]):
+            self.send_json(404, {"error": "账本不存在"})
+            return
+        log_event(f"{session['username']} 刪除賬本 #{ledger_id}（可復原）", "WARN")
+        publish_ledger_event(ledger_id, self.current_session_sid())
+        self.send_json(200, {"deleted": ledger_id})
+
+    def update_ledger_transaction(self):
+        ledger_id = self._ledger_id_from_path("/transactions/")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "edit")
+        if session is None:
+            return
+        parts = urlsplit(self.path).path.split("/transactions/")
+        try:
+            txn_id = int(parts[1])
+        except (IndexError, ValueError):
+            self.send_json(400, {"error": "Invalid transaction id"})
+            return
+        payload = self.read_payload()
+        changes = {}
+        for key in ("note", "category", "amount", "type", "split_members"):
+            if key in payload:
+                changes[key] = payload[key]
+        if "splitMembers" in payload:
+            valid = {m["username"] for m in ledger_store().list_members(ledger_id)}
+            raw = payload.get("splitMembers")
+            changes["split_members"] = [str(x) for x in raw if str(x) in valid] if isinstance(raw, list) else None
+        if not changes:
+            self.send_json(400, {"error": "沒有要修改的內容"})
+            return
+        ok = ledger_store().update_transaction(ledger_id, txn_id, session["username"], changes)
+        if not ok:
+            self.send_json(400, {"error": "資料不合法或交易不存在"})
+            return
+        log_event(f"{session['username']} 修改賬本 #{ledger_id} 的交易 #{txn_id}")
+        publish_ledger_event(ledger_id, self.current_session_sid())
+        self.send_json(200, {"updated": txn_id})
+
+    def delete_ledger_transaction(self):
+        ledger_id = self._ledger_id_from_path("/transactions/")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "delete")
+        if session is None:
+            return
+        parts = urlsplit(self.path).path.split("/transactions/")
+        try:
+            txn_id = int(parts[1])
+        except (IndexError, ValueError):
+            self.send_json(400, {"error": "Invalid transaction id"})
+            return
+        snapshot = ledger_store().soft_delete_transaction(ledger_id, txn_id, session["username"])
+        if snapshot is None:
+            self.send_json(404, {"error": "交易不存在"})
+            return
+        log_event(f"{session['username']} 刪除賬本 #{ledger_id} 的交易 #{txn_id}（已備份可復原）", "WARN")
+        publish_ledger_event(ledger_id, self.current_session_sid())
+        self.send_json(200, {"deleted": txn_id})
+
+    def add_ledger_member(self):
+        ledger_id = self._ledger_id_from_path("/members")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "invite")
+        if session is None:
+            return
+        payload = self.read_payload()
+        username = str(payload.get("username", "")).strip()
+        new_role = str(payload.get("role", "viewer"))
+        if new_role not in LEDGER_ROLE_RANK or new_role == "owner":
+            self.send_json(400, {"error": "權限不合法"})
+            return
+        if username == session["username"]:
+            self.send_json(400, {"error": "自己已經在名單中"})
+            return
+        if not find_user(username):
+            self.send_json(404, {"error": "找不到該使用者"})
+            return
+        # admin 不能授權 admin
+        if new_role == "admin" and role != "owner":
+            self.send_json(403, {"error": "只有擁有者能授予管理權限"})
+            return
+        ledger_store().set_member_role(ledger_id, username, new_role)
+        log_event(f"{session['username']} 邀請 {username} 加入賬本 #{ledger_id}（{new_role}）")
+        publish_ledger_event(ledger_id, self.current_session_sid(), member_usernames=[username])
+        self.send_json(200, {"members": ledger_store().list_members(ledger_id)})
+
+    def remove_ledger_member(self):
+        ledger_id = self._ledger_id_from_path("/members/")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "invite")
+        if session is None:
+            return
+        username = unquote(urlsplit(self.path).path.split("/members/", 1)[1])
+        if not ledger_store().remove_member(ledger_id, username):
+            self.send_json(404, {"error": "對方不在名單中或為擁有者"})
+            return
+        log_event(f"{session['username']} 移除賬本 #{ledger_id} 成員 {username}", "WARN")
+        publish_ledger_event(ledger_id, self.current_session_sid(), member_usernames=[username])
+        self.send_json(200, {"members": ledger_store().list_members(ledger_id)})
+
+    def restore_ledger_history(self):
+        ledger_id = self._ledger_id_from_path("/restore")
+        if ledger_id is None:
+            return
+        session = self.current_user()
+        if not session:
+            self.send_json(401, {"error": "Authentication required"})
+            return
+        # 只有擁有者能復原
+        if ledger_store().role_of(ledger_id, session["username"]) != "owner":
+            self.send_json(403, {"error": "只有擁有者可以復原"})
+            return
+        payload = self.read_payload()
+        try:
+            history_id = int(payload.get("historyId"))
+        except (TypeError, ValueError):
+            self.send_json(400, {"error": "Invalid history id"})
+            return
+        ok = ledger_store().restore_transaction(ledger_id, history_id, session["username"])
+        if not ok:
+            self.send_json(404, {"error": "記錄不存在或無法復原"})
+            return
+        log_event(f"{session['username']} 復原賬本 #{ledger_id} 的記錄 #{history_id}", "WARN")
+        publish_ledger_event(ledger_id, self.current_session_sid())
+        self.send_json(200, {"restored": history_id})
+
+    def ledger_settlement(self):
+        ledger_id = self._ledger_id_from_path("/settlement")
+        if ledger_id is None:
+            return
+        session, role = self.ledger_guard(ledger_id, "view")
+        if session is None:
+            return
+        query = parse_qs(urlsplit(self.path).query)
+        start = (query.get("start") or [""])[0].strip() or None
+        end = (query.get("end") or [""])[0].strip() or None
+        transfers = ledger_store().settlement(ledger_id, start=start, end=end)
+        self.send_json(200, {"transfers": transfers, "start": start, "end": end})
+
+    def _ledger_id_from_path(self, suffix):
+        resource = urlsplit(self.path).path
+        if not resource.startswith("/api/ledgers/"):
+            self.send_json(404, {"error": "Not found"})
+            return None
+        tail = resource[len("/api/ledgers/"):]
+        cut = tail.find("/")
+        if cut <= 0:
+            self.send_json(400, {"error": "Invalid ledger id"})
+            return None
+        try:
+            return int(tail[:cut])
+        except ValueError:
+            self.send_json(400, {"error": "Invalid ledger id"})
+            return None
 
     def note_members_payload(self, note, username):
         owner_record = find_user(note.get("owner") or "")
@@ -888,11 +1331,17 @@ class NotesHandler(BaseHTTPRequestHandler):
         publish_to_users({"type": "note-unshared", "noteId": updated["id"], "sid": self.current_session_sid()}, [username])
         self.send_json(200, payload)
 
+    MAX_PAYLOAD_BYTES = 8 * 1024 * 1024
+
     def read_payload(self):
         try:
             length = int(self.headers.get("Content-Length", 0) or 0)
         except (TypeError, ValueError):
             length = 0
+        if length > self.MAX_PAYLOAD_BYTES:
+            self.send_json(413, {"error": "請求內容過大"})
+            self.close_connection = True
+            raise BadPayload()
         raw = self.rfile.read(length) if length > 0 else b""
         if not raw:
             return {}
@@ -952,13 +1401,13 @@ class NotesHandler(BaseHTTPRequestHandler):
     def current_session_sid(self):
         authorization = self.headers.get("Authorization", "")
         token = authorization.removeprefix("Bearer ").strip()
-        session = SESSIONS.get(token)
+        session = get_session(token)
         return session.get("sid", "") if session else ""
 
     def current_user(self):
         authorization = self.headers.get("Authorization", "")
         token = authorization.removeprefix("Bearer ").strip()
-        return SESSIONS.get(token)
+        return get_session(token)
 
     def current_user_record(self):
         session = self.current_user()
@@ -1071,11 +1520,21 @@ class NotesHandler(BaseHTTPRequestHandler):
 
     def login_user(self):
         payload = self.read_payload()
-        user = authenticate_user(str(payload.get("username", "")).strip(), str(payload.get("password", "")))
+        username = str(payload.get("username", "")).strip()
+        client_ip = self.client_address[0] if self.client_address else "?"
+        guard_key = f"{client_ip}|{username}"
+        allowed, retry = login_attempts_guard(guard_key)
+        if not allowed:
+            log_event(f"登入受限（嘗試過多）：{username} @ {client_ip}", "WARN")
+            self.send_json(429, {"error": f"嘗試次數過多，請 {retry} 秒後再試"})
+            return
+        user = authenticate_user(username, str(payload.get("password", "")))
         if not user:
-            log_event(f"登入失敗：{str(payload.get('username', '')).strip() or '(空)'}", "WARN")
+            record_login_failure(guard_key)
+            log_event(f"登入失敗：{username or '(空)'}", "WARN")
             self.send_json(401, {"error": "用户名或密码错误"})
             return
+        clear_login_failures(guard_key)
         token = create_session(user)
         log_event(f"{user['username']} 登入成功")
         self.send_json(200, {"token": token, **session_public(SESSIONS[token]), **public_user(user)})
@@ -1099,6 +1558,8 @@ class NotesHandler(BaseHTTPRequestHandler):
             return
         payload = self.read_payload()
         display_name = str(payload.get("displayName", user.get("displayName", user["username"]))).strip()
+        # 昵称写回前端会被插入 HTML，去掉尖括号与引号
+        display_name = re.sub(r"[<>\"'`]", "", display_name)
         title = str(payload.get("title", user.get("title", "团队成员"))).strip()
         avatar_data = payload.get("avatarData")
         if not 1 <= len(display_name) <= 32:

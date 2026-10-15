@@ -56,7 +56,7 @@ function guiEnv(overrides) {
 
 function main() {
   const binary = ensureElectron()
-  const child = spawn(binary, [projectDir, ...process.argv.slice(2)], {
+  const child = spawn(binary, [projectDir, '--no-sandbox', ...process.argv.slice(2)], {
     cwd: projectDir,
     env: guiEnv(),
     stdio: 'inherit'

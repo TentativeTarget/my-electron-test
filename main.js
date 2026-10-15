@@ -53,8 +53,7 @@ const createWindow = () => {
     minHeight: 660,
     show: false,
     // macOS：隱藏標題欄但保留紅綠燈（hiddenInset）。
-    // 不要開整窗透明：macOS 视窗本身就带系统圆角，
-    // 而且 transparent 会让 trafficLightPosition 失效。
+    // 不要開整窗透明，否則 trafficLightPosition 會失效。
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 24 } }
       : { frame: false }),

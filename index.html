@@ -36,7 +36,9 @@
             justify-content: center;
             /* 上下留白對稱：頂部與標題到卡片之間保持一致 */
             padding: 18px 30px 30px 30px;
-            -webkit-app-region: drag;
+            /* 不設整頁拖拽：大面積 drag 區域會讓光標在移動時反復判定，
+               表現為指針抽搐。只讓頂部標題欄可拖即可。 */
+            -webkit-app-region: no-drag;
         }
 
         /* 可互動元素不參與拖拽，恢復正常點擊 */
@@ -73,7 +75,7 @@
             transition: all 0.2s ease;
         }
 
-        /* 卡片外的獨立標題：居中、無邊框、可拖拽 */
+        /* 卡片外的獨立標題：居中、無邊框 */
         .app-floating-title {
             display: flex;
             align-items: center;
@@ -84,7 +86,7 @@
             font-weight: 700;
             color: #3f4f66;
             letter-spacing: -0.3px;
-            -webkit-app-region: drag;
+            -webkit-app-region: no-drag;
         }
 
         /* 標題整體（圖標＋文字）左右切換：兩層整塊堆疊，切換時一進一出
@@ -220,6 +222,21 @@
             border: 1px solid #e2e8f0;
             border-radius: 24px;
             box-shadow: 0 25px 60px -15px rgba(0, 20, 30, 0.25);
+            /* 不再整块设 drag：大拖拽区域包住按钮/输入框，
+               鼠标掠过边界会反复判定，导致指针抽搐。
+               改由页面顶部一条窄拖拽区提供拖窗。 */
+            -webkit-app-region: no-drag;
+        }
+
+        /* 頁面頂部一條可拖區：高度放宽到舒适范围 */
+        .window-drag-strip {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            z-index: 5;
+            -webkit-app-region: drag;
         }
 
         .auth-screen h1 {
@@ -3515,8 +3532,12 @@
             }
 
             function startObserver(){
-                if(!document.body) return;
-                new MutationObserver(create).observe(document.body, {childList:true, subtree:true});
+                const card = document.querySelector('.user-profile-card');
+                if(!card) return;
+                // 只觀察這張卡片，而不是整個 body：
+                // 觀察 body 的 subtree 會被頁面任何 DOM 變化觸發，
+                // 高频回調與重算會導致光標在高頻變動的元素下不斷切換。
+                new MutationObserver(create).observe(card, {childList:true});
             }
 
             if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', () => { create(); startObserver(); });
@@ -3526,6 +3547,68 @@
         })();
     </script>
 
+    <style>
+        /* ═══ 可點元素統一用箭頭光標 ═══
+           在 macOS + Electron 上，光標在「箭頭↔手型」之間頻繁切換時會出現抖動
+           （指針抽搯）。把可點元素的光標統一成箭頭，只在輸入框保留文本光標，
+           大幅減少切換點，既消除抖動，靠 hover 高亮提示仍能看出可點。
+           注意：頁面內大量用類選擇器設了 cursor:pointer（優先級高於元素選擇器），
+           所以這裡必須用 !important 才能蓋住。 */
+        button,
+        a,
+        select,
+        label,
+        summary,
+        [role='button'],
+        [role='tab'],
+        .note-item,
+        .friend-item,
+        .txn-row,
+        .history-item,
+        .profile-menu-item,
+        .profile-logout-item,
+        .friends-toggle-btn,
+        .theme-toggle,
+        .user-profile-trigger,
+        .profile-settings-btn,
+        .tint-swatch,
+        .ledger-item,
+        .workspace-switch-btn,
+        .aa-member-chip,
+        .txn-type,
+        .budget-edit-btn,
+        .budget-empty-btn,
+        .txn-del-btn,
+        .settle-clear-btn,
+        .history-restore-btn,
+        .share-role-btn,
+        .share-remove-btn,
+        .share-invite-btn,
+        .remote-update-badge,
+        .btn-new-note,
+        .btn-new-ledger,
+        .auth-server-reset,
+        .auth-submit,
+        .auth-switch,
+        .auth-remember-label,
+        .friends-requests-toggle,
+        .settle-range button,
+        .finance-period button {
+            cursor: default !important;
+        }
+
+        /* 輸入類仍保留文本光標 */
+        input,
+        textarea,
+        [contenteditable='true'] {
+            cursor: text !important;
+        }
+
+        input[type='checkbox'],
+        input[type='radio'] {
+            cursor: default !important;
+        }
+    </style>
     <style>
         /* ═══════════ 金融工作區（P1 本地預覽） ═══════════ */
 
@@ -5516,6 +5599,8 @@
     </style>
   </head>
 <body>
+
+    <div class="window-drag-strip"></div>
 
     <section class="auth-screen" id="authScreen">
         <button class="theme-toggle" type="button" aria-label="切換到深色模式" title="切換到深色模式">

@@ -14,6 +14,12 @@ function profileFromEnv() {
   return String(process.env.COLLABNOTE_PROFILE || '').trim()
 }
 
+// 與 main.js 的 resolveProfileName 使用同一套清洗規則，
+// 否則 `frontend:ali ce` 與 `frontend:alice` 會被當成兩個實例，卻共用同一個 profiles/alice 目錄。
+function sanitizeProfileName(name) {
+  return String(name || '').trim().replace(/[^A-Za-z0-9_\-\u4e00-\u9fff]+/g, '').slice(0, 32)
+}
+
 function parseTarget(raw) {
   const value = String(raw || '').trim()
   if (!value) return null
@@ -24,7 +30,7 @@ function parseTarget(raw) {
   if (!APPS.includes(app)) return null
   if (profile && app !== 'frontend') return null
   if (app === 'backend') return 'backend'
-  const name = profile || profileFromEnv()
+  const name = sanitizeProfileName(profile || profileFromEnv())
   // frontend:default 代表沿用原本的預設 userData（不建立 profiles/<名稱>）
   if (name === 'default') return 'frontend:default'
   return name ? `frontend:${name}` : 'frontend'

@@ -40,12 +40,12 @@ DARK_BG = ((4, 7, 13), (10, 18, 32))
 WHITE_RAIN = (150, 168, 190)
 DARK_RAIN = (61, 140, 255)
 DARK_RAIN_HEAD = (214, 232, 255)
-WHITE_TITLE = (11, 47, 107)
-DARK_TITLE = (242, 248, 255)
-WHITE_SUB = (43, 98, 184)
-DARK_SUB = (143, 192, 255)
-WHITE_TAG = (120, 150, 190)
-DARK_TAG = (95, 143, 214)
+WHITE_TITLE = (7, 38, 90)
+DARK_TITLE = (255, 255, 255)
+WHITE_SUB = (26, 78, 160)
+DARK_SUB = (168, 205, 255)
+WHITE_TAG = (105, 138, 178)
+DARK_TAG = (108, 156, 222)
 SPLIT_LINE = (34, 122, 252)
 
 
@@ -86,12 +86,14 @@ def vertical_gradient(stops):
 
 
 def split_mask():
-    """分界线左侧为 255，右侧为 0。"""
-    mask = Image.new("L", (WIDTH, HEIGHT), 0)
-    ImageDraw.Draw(mask).polygon(
-        [(0, 0), (SPLIT_TOP, 0), (SPLIT_BOTTOM, HEIGHT), (0, HEIGHT)], fill=255
+    """分界线左侧为 255，右侧为 0。先按 4 倍画再缩，斜边才不锯齿。"""
+    scale = 4
+    big = Image.new("L", (WIDTH * scale, HEIGHT * scale), 0)
+    ImageDraw.Draw(big).polygon(
+        [(0, 0), (SPLIT_TOP * scale, 0), (SPLIT_BOTTOM * scale, HEIGHT * scale), (0, HEIGHT * scale)],
+        fill=255,
     )
-    return mask
+    return big.resize((WIDTH, HEIGHT), Image.LANCZOS)
 
 
 def rain_layer(rng, color, head_color, alpha_scale):
@@ -158,19 +160,30 @@ def build():
     dark_rain = clip_to(rain_layer(rng, DARK_RAIN, DARK_RAIN_HEAD, 1.0), ImageChops.invert(region))
     img.paste(dark_rain, (0, 0), dark_rain)
     rng2 = random.Random(SEED + 7)
-    white_rain = clip_to(rain_layer(rng2, WHITE_RAIN, WHITE_RAIN, 0.42), region)
+    white_rain = clip_to(rain_layer(rng2, WHITE_RAIN, WHITE_RAIN, 0.38), region)
     img.paste(white_rain, (0, 0), white_rain)
 
-    # 分界线：一条细亮线，附一点光晕
+    # 分界线：标题带内让路，几乎只留一道浅痕；带外细而利落
+    BAND_TOP, BAND_BOTTOM = 96, 240
+
+    def split_x(y):
+        return SPLIT_TOP + (SPLIT_BOTTOM - SPLIT_TOP) * (y / HEIGHT)
+
+    glow = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    gdraw = ImageDraw.Draw(glow)
+    gdraw.line([(split_x(0), 0), (split_x(BAND_TOP), BAND_TOP)], fill=SPLIT_LINE + (70,), width=5)
+    gdraw.line([(split_x(BAND_BOTTOM), BAND_BOTTOM), (split_x(HEIGHT), HEIGHT)], fill=SPLIT_LINE + (70,), width=5)
+    img.paste(Image.new("RGB", (WIDTH, HEIGHT), SPLIT_LINE), (0, 0), glow.filter(ImageFilter.GaussianBlur(4)))
+
     line = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
     ldraw = ImageDraw.Draw(line)
-    ldraw.line([(SPLIT_TOP, 0), (SPLIT_BOTTOM, HEIGHT)], fill=SPLIT_LINE + (220,), width=3)
-    glow = line.filter(ImageFilter.GaussianBlur(6))
-    img.paste(Image.new("RGB", (WIDTH, HEIGHT), SPLIT_LINE), (0, 0), glow)
+    ldraw.line([(split_x(0), 0), (split_x(BAND_TOP), BAND_TOP)], fill=SPLIT_LINE + (235,), width=2)
+    ldraw.line([(split_x(BAND_BOTTOM), BAND_BOTTOM), (split_x(HEIGHT), HEIGHT)], fill=SPLIT_LINE + (235,), width=2)
+    ldraw.line([(split_x(BAND_TOP), BAND_TOP), (split_x(BAND_BOTTOM), BAND_BOTTOM)], fill=SPLIT_LINE + (55,), width=1)
     img.paste(line, (0, 0), line)
 
     # 标题：白字压黑底、深蓝字压白底
-    title_mask = draw_text_mask(TITLE, 88, 146, 8)
+    title_mask = draw_text_mask(TITLE, 88, 148, 7)
     paint_two_tone(img, title_mask, DARK_TITLE, WHITE_TITLE, region)
 
     # 副标题与标语

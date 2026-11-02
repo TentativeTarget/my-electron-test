@@ -225,7 +225,7 @@
   // ────────── 工具 ──────────
 
   function findLedger(id) {
-    return db.ledgers.find(l => String(l.id) === String(id)) || null;
+    return db.ledgers.find(l => String(l.id) === String(id) && !l.deleted) || null;
   }
 
   function visibleNotes() {
@@ -431,7 +431,7 @@
   function handleLedgers(parts, method, body, query) {
     if (parts.length === 2) {
       if (method === 'GET') {
-        return delay(db.ledgers.map(l => ({
+        return delay(db.ledgers.filter(l => !l.deleted).map(l => ({
           id: l.id, name: l.name, icon: l.icon, budget: l.budget, owner: l.owner, role: l.role
         })));
       }
@@ -464,7 +464,8 @@
         return delay({ ok: true });
       }
       if (method === 'DELETE') {
-        db.ledgers = db.ledgers.filter(l => l !== ledger);
+        ledger.deleted = true;
+        ledger.deletedAt = new Date().toISOString();
         persist();
         return delay({ ok: true });
       }

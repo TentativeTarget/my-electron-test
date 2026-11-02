@@ -34,7 +34,7 @@ python3 -m pip install -r requirements.txt
 - 富文本：粗体、斜体、下划线、删除线、项目/编号列表、引用块、表格。
 - 字号 12–40px，选中即预览，随光标回显。
 - 超链接自动补 `https://`，点击用系统浏览器打开（仅 http/https）。
-- 图片本地插入，后端存 `data/images/`；点选后可等比缩放，Delete 删除、Esc 取消。
+- 图片本地插入，后端存 `data/images/`；点选后拖圆点等比缩放，Delete 或 Backspace 删除、Esc 取消。
 - 笔记列表右键菜单可删除自己建立的笔记（没有权限的笔记不弹菜单）。
 - 每篇笔记本会话内保留 20 个版本快照，可复原（重启清空）。
 - 顶部实时显示同步状态：已同步 / 保存中… / 已断开。
@@ -44,7 +44,7 @@ python3 -m pip install -r requirements.txt
 - 每篇笔记有建立者与协作者，非协作者看不到这篇笔记的任何痕迹。
 - 权限分「可编辑」「只读」，只读者正文与工具栏都锁住；删除只有建立者能做。
 - 右上角「共用」可按登录名或好友快选邀请、切换权限、移除。
-- 同一篇笔记的在线者显示在标题旁头像堆叠和底部信息栏，区分编辑中/檢視中。
+- 同一篇笔记的在线者显示在标题旁头像堆叠和底部信息栏，文字标「正在編輯 / 檢視中」。
 - SSE 实时推送：别人增删改会立刻出现；你正在编辑时不会被覆盖，只提示「其他人已更新」。
 
 ### 好友
@@ -57,9 +57,9 @@ python3 -m pip install -r requirements.txt
 
 - 「笔记 / 金融」双工作区切换。
 - 账本可新建、改名、设预算；删除为软删除。
-- 成员按 `owner` / `admin` / `editor` / `viewer` 四档管理，拥有者与管理员可改角色或移除。
+- 成员按 `owner` / `admin` / `editor` / `viewer` 四档管理，拥有者与管理员可改角色或移除；只有拥有者能授予「管理」权限，管理员最多授到「标准」。
 - 记账：左侧填内容、右侧填金额，点「加钱」记收入、「扣钱」记支出，可带类别。
-- 报表：KPI、收支趋势、分类占比、最近交易、AA 结算、本月预算；周期可切今天/本月/今年。
+- 报表：KPI、收支趋势、分类占比、最近交易、AA 结算、预算占比；周期可切今天/本月/今年，预算进度也按当前周期算。
 - 删除交易会留快照，可从历史里还原。
 - 账本变更通过 `ledger-changed` 事件推给同一账本的在线成员。
 - 存储：MySQL 用 `ledgers` / `ledger_members` / `transactions` / `ledger_history` 四张表；JSON 模式用 `ledgers.json`。
@@ -67,6 +67,7 @@ python3 -m pip install -r requirements.txt
 ### 界面
 
 - 深色/浅色主题，登录页与工作区都能切，偏好存本地。
+- 浅色模式下可选界面底色（`collabnote-tint`，在个人菜单里点色块）；深色模式不显示这组色块。
 - 昵称、头衔、JPG/PNG 头像（后端裁成 256×256 JPEG）。
 - 无系统标题栏（macOS 保留红绿灯），窗口可拖动，最小 1024×660。
 - 左侧栏宽度可拖 220px 至窗口 60%，松手记住，方向键可微调。
@@ -97,7 +98,7 @@ python3 -m pip install -r requirements.txt
 npm run backend                    # 只起 Python 后端
 npm run frontend                   # 只起 Electron 客户端
 npm run launcher -- start all      # 后端 + 一个客户端
-npm run launcher -- status all     # 看状态
+npm run launcher -- status         # 看状态（status 不接参数）
 npm run launcher -- stop all       # 全停
 ```
 
@@ -212,7 +213,7 @@ python3 monitor.py --exit-when-offline 4         # 失联 4 秒自退
 
 按键：`q` 退出、`p` 暂停跟随、`c` 清屏、`a` 显示/隐藏静态请求、方向键与 PgUp/PgDn 翻历史。
 
-日志等级 `INFO` / `HTTP` / `EVENT` / `LIVE` / `WARN` / `STATIC`，缓冲最近 500 行，后端重启清空。两个监控接口默认只接受本机回环；远端查看要先设 `COLLABNOTE_MONITOR_TOKEN`，监控器带上 `--token`。
+日志等级 `INFO` / `HTTP` / `EVENT` / `LIVE` / `WARN` / `ERROR` / `STATIC`，缓冲最近 500 行，后端重启清空。两个监控接口默认只接受本机回环；远端查看要先设 `COLLABNOTE_MONITOR_TOKEN`，监控器带上 `--token`。
 
 日志默认同时打印到终端，`COLLABNOTE_LOG_STDOUT=0` 可关。
 
@@ -230,7 +231,7 @@ npm run dist:win     # dist/CollabNote-0.2.0_Beta-win-x64.exe（NSIS）
 npm run pack         # 只出未打包目录，方便试跑
 ```
 
-打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js`、`frontend/vendor/**`，本机数据一律不进包。
+打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js`、`package.json` 与 `frontend/vendor/**`，本机数据一律不进包。
 
 ### 镜像别删
 
@@ -263,7 +264,7 @@ python3 build-backend.py --out /tmp/backend   # 指定输出目录
 ### 已知限制
 
 - 两个平台都没做代码签名：macOS 要右键「打开」，Windows 可能弹 SmartScreen 选「仍要运行」。
-- macOS 版只能在 macOS 上构建，架构跟随构建机的 Python。
+- macOS 版只能在 macOS 上构建：PyInstaller 按构建机的 Python 架构冻结，目录名也取 `platform.machine()`；但捆绑的 MySQL 固定是 `mysql-8.4.11-macos15-x86_64`。在 Apple Silicon 上会拼出名为 `macOS-arm64` 的目录，里面装的仍是 x86_64 的 MySQL，靠 Rosetta 2 跑。
 - 客户端单独发给别人只会得到登录界面，还得有后端。
 
 [↑ 回到顶部](#collabnote)
@@ -288,7 +289,7 @@ my-electron-app/
 ├── start-collabnote.sh        一键启动
 ├── .env.example               环境变量模板（密码不写入仓库）
 ├── package.json               npm 脚本与依赖
-├── build/                     应用图标（含 icon-source.png 源文件）
+├── build/                     图标（icon.icns / icon.ico）、icon-source.png 源图、make-banner.py
 ├── data/                      头像与笔记图片（运行时生成）
 ├── frontend/vendor/           Font Awesome 等静态依赖
 ├── notes.json / users.json / ledgers.json    JSON 模式数据（不提交）
@@ -368,7 +369,7 @@ GET  /api/events?token=<token>
 note-created    { note, sid }
 note-updated    { note, sid }
 note-deleted    { noteId, sid }
-note-members    { note, sid }
+note-members    { noteId, sid }
 note-unshared   { noteId, sid }
 presence        { noteId, people }
 ledger-changed  { ledgerId, sid }
@@ -387,7 +388,7 @@ POST /api/images/upload     需登录，JPG/PNG，单张 ≤ 10MB
 GET  /api/images/:file
 ```
 
-除 health、注册、登录、登出、头像和图片读取外，其余都要带 `Authorization: Bearer <token>`。
+除 health、注册、登录、登出、头像和图片读取外，其余都要带 `Authorization: Bearer <token>`。`/api/events` 是特例：`EventSource` 加不了请求头，改在 query 上传 `?token=`。
 
 [↑ 回到顶部](#collabnote)
 
@@ -398,7 +399,7 @@ GET  /api/images/:file
 - 密码只存 PBKDF2-SHA256 + 随机盐，不存明文。
 - 会话在内存里，后端重启即失效；30 天无活动也失效。
 - 同一账号 5 分钟内登录失败 10 次会被暂时限流。
-- 单次请求体上限 8MB。
+- 一般接口的请求体上限 8MB；图片上传另算，单张上限 10MB。
 - 账号、笔记、权限、账本都只在后端：MySQL 模式在 `users` / `notes` / `note_members` / `ledgers` 等表，JSON 模式在三个 `.json` 文件。前端不留副本，`localStorage` 只存主题、服务器地址、最近账号和 token。
 - `.gitignore` 挡住 `/users.json`、`/notes.json`、`/ledgers.json`、`/data/`、`/frontend/assets/`、`/.collabnote-pids.json` 和 `/tmp*`，`git add -A` 也推不上去。
 - 监控接口只收 `127.0.0.1` / `::1`，远端要 token。
@@ -414,9 +415,3 @@ GET  /api/images/:file
 这是一个 UI 测试程序。
 
 事已至此先吃饭吧，炒饭好吃。
-
-测试提交 owo
-进行了部分修改
-
-修复好友头像小 bug
-增添界面色调预设

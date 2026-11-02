@@ -29,5 +29,5 @@ export COLLABNOTE_STORAGE="${COLLABNOTE_STORAGE:-mysql}"
 node launcher.js start all
 
 echo
-echo "后端与前端已启动。查看状态：npm run launcher -- status all"
+echo "后端与前端已启动。查看状态：npm run launcher -- status"
 echo "停止：npm run launcher -- stop all"

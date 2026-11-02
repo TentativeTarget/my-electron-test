@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""生成 README 顶部的「字符雨」横幅，深浅两版。
+"""生成 README 顶部的横幅：左边白、右边黑，斜切一刀。
 
 用法：
     python3 build/make-banner.py
 
-输出：
-    assets/banner-light.png   浅色主题用（白底、深蓝字）
-    assets/banner-dark.png    深色主题用（深蓝黑底、亮蓝字）
+输出 assets/banner.png（1200×300）。
 
-README 里用 <picture> + prefers-color-scheme 切换，GitHub 会按用户主题挑一张。
-配色取自 build/icon-source.png：主蓝 #227afc、白、银灰。
-字符雨斜向下落，标题带两端斜切，两版用同一个随机种子，形状完全对齐。
+设计：
+- 分界线从底部 x=460 斜到顶部 x=720，左侧纯白、右侧深黑
+- 两边各下各的字符雨：白区淡灰、黑区亮蓝
+- 标题横跨分界，白区用深蓝、黑区用近白，一个字砍成两半也是两种颜色
+- 配色取自 build/icon-source.png：主蓝 #227afc
 """
 import random
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 WIDTH, HEIGHT = 1200, 300
 COLUMNS = 46
@@ -25,42 +25,28 @@ SUBTITLE = "MULTI-USER NOTES  ·  ELECTRON + PYTHON"
 TAGLINE = "share notes  ·  track money  ·  stay in sync"
 SEED = 20261015
 
-# 雨的斜率：每往下 100px 向右偏 18px，约 10°
+SPLIT_TOP = 720   # 分界线在顶部的 x
+SPLIT_BOTTOM = 460  # 分界线在底部的 x
 RAIN_SLOPE = 0.18
-# 标题带两端斜切的高度
-BAND_SKEW = 30
 
 GLYPHS = list("ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789<>[]{}=+*#$%&@")
 
 FONT_DIR = Path("/System/Library/Fonts")
 MENLO = FONT_DIR / "Menlo.ttc"
 
-THEMES = {
-    "dark": {
-        "bg": ((5, 8, 15), (6, 12, 22), (2, 3, 6)),
-        "rain": (61, 140, 255),
-        "rain_head": (214, 232, 255),
-        "title": ((247, 249, 255), (43, 124, 252)),
-        "subtitle": (143, 188, 255),
-        "tagline": (95, 143, 214),
-        "band": (3, 7, 14, 182),
-        "band_line": (77, 155, 255, 95),
-        "glow": (77, 155, 255),
-        "glow_strength": 0.38,
-    },
-    "light": {
-        "bg": ((255, 255, 255), (238, 244, 251), (247, 249, 252)),
-        "rain": (150, 180, 220),
-        "rain_head": (43, 124, 252),
-        "title": ((22, 58, 120), (11, 42, 99)),
-        "subtitle": (60, 116, 200),
-        "tagline": (110, 145, 190),
-        "band": (247, 250, 255, 196),
-        "band_line": (120, 170, 240, 130),
-        "glow": (120, 170, 240),
-        "glow_strength": 0.18,
-    },
-}
+# 白区 / 黑区各自的配色
+WHITE_BG = ((255, 255, 255), (238, 243, 250))
+DARK_BG = ((4, 7, 13), (10, 18, 32))
+WHITE_RAIN = (150, 168, 190)
+DARK_RAIN = (61, 140, 255)
+DARK_RAIN_HEAD = (214, 232, 255)
+WHITE_TITLE = (11, 47, 107)
+DARK_TITLE = (242, 248, 255)
+WHITE_SUB = (43, 98, 184)
+DARK_SUB = (143, 192, 255)
+WHITE_TAG = (120, 150, 190)
+DARK_TAG = (95, 143, 214)
+SPLIT_LINE = (34, 122, 252)
 
 
 def load_rain_font(size):
@@ -90,18 +76,25 @@ def lerp(a, b, t):
     return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
-def make_background(theme):
-    top, mid, bottom = theme["bg"]
+def vertical_gradient(stops):
     img = Image.new("RGB", (WIDTH, HEIGHT))
     draw = ImageDraw.Draw(img)
     for y in range(HEIGHT):
         t = y / (HEIGHT - 1)
-        color = lerp(top, mid, t / 0.55) if t < 0.55 else lerp(mid, bottom, (t - 0.55) / 0.45)
-        draw.line([(0, y), (WIDTH, y)], fill=color)
+        draw.line([(0, y), (WIDTH, y)], fill=lerp(stops[0], stops[1], t))
     return img
 
 
-def draw_rain(img, theme, rng):
+def split_mask():
+    """分界线左侧为 255，右侧为 0。"""
+    mask = Image.new("L", (WIDTH, HEIGHT), 0)
+    ImageDraw.Draw(mask).polygon(
+        [(0, 0), (SPLIT_TOP, 0), (SPLIT_BOTTOM, HEIGHT), (0, HEIGHT)], fill=255
+    )
+    return mask
+
+
+def rain_layer(rng, color, head_color, alpha_scale):
     layer = Image.new("RGBA", (WIDTH, HEIGHT + 120), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
     font = load_rain_font(13)
@@ -117,99 +110,80 @@ def draw_rain(img, theme, rng):
             if x < -20 or x > WIDTH + 20:
                 continue
             fade = 1 - i / (length + 1)
-            alpha = int(255 * (0.08 + 0.58 * fade ** 1.7))
-            color = theme["rain_head"] if i == 0 else theme["rain"]
-            draw.text((x, y), rng.choice(GLYPHS), font=font, fill=color + (alpha,))
-    img.paste(layer.crop((0, 0, WIDTH, HEIGHT)), (0, 0), layer.crop((0, 0, WIDTH, HEIGHT)))
+            alpha = int(255 * (0.08 + 0.58 * fade ** 1.7) * alpha_scale)
+            color_now = head_color if i == 0 else color
+            draw.text((x, y), rng.choice(GLYPHS), font=font, fill=color_now + (alpha,))
+    return layer.crop((0, 0, WIDTH, HEIGHT))
 
 
-def draw_vignette(img, theme):
-    overlay = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    edge_rgb = theme["band"][:3]
-    band = 90
-    for i in range(band):
-        alpha = int(120 * (1 - i / band))
-        draw.line([(0, HEIGHT - 1 - i), (WIDTH, HEIGHT - 1 - i)], fill=edge_rgb + (alpha,))
-        draw.line([(i, 0), (i, HEIGHT)], fill=edge_rgb + (int(alpha * 0.4),))
-        draw.line([(WIDTH - 1 - i, 0), (WIDTH - 1 - i, HEIGHT)], fill=edge_rgb + (int(alpha * 0.4),))
-    img.paste(overlay, (0, 0), overlay)
+def clip_to(layer, mask):
+    """按 mask 裁掉 alpha。"""
+    out = layer.copy()
+    out.putalpha(ImageChops.multiply(layer.getchannel("A"), mask))
+    return out
 
 
-def draw_skewed_band(img, theme):
-    """标题背后的斜切色带，左右两端各切一刀。"""
-    top, bottom = 92, 242
-    polygon = [
-        (0, top + BAND_SKEW),
-        (WIDTH, top),
-        (WIDTH, bottom),
-        (0, bottom - BAND_SKEW),
-    ]
-    layer = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
-    draw.polygon(polygon, fill=theme["band"])
-    line = theme["band_line"]
-    draw.line([(0, top + BAND_SKEW), (WIDTH, top)], fill=line, width=2)
-    draw.line([(0, bottom - BAND_SKEW), (WIDTH, bottom)], fill=line, width=2)
-    img.paste(layer, (0, 0), layer)
-
-
-def draw_spaced(draw, center_x, top_y, text, font, spacing, fill):
+def draw_text_mask(text, size, y, spacing, bold=True):
+    font = load_font(size, bold=bold)
+    mask = Image.new("L", (WIDTH, HEIGHT), 0)
+    draw = ImageDraw.Draw(mask)
     widths = [draw.textlength(ch, font=font) for ch in text]
     total = sum(widths) + spacing * (len(text) - 1)
-    x = center_x - total / 2
+    x = WIDTH / 2 - total / 2
     for ch, w in zip(text, widths):
-        draw.text((x, top_y), ch, font=font, fill=fill, anchor="lm")
+        draw.text((x, y), ch, font=font, fill=255, anchor="lm")
         x += w + spacing
-    return total
+    return mask
 
 
-def add_title(img, theme, text, size, y, spacing):
-    font = load_font(size, bold=True)
-    mask = Image.new("L", (WIDTH, HEIGHT), 0)
-    mdraw = ImageDraw.Draw(mask)
-    draw_spaced(mdraw, WIDTH / 2, y, text, font, spacing, 255)
-
-    top_color, bottom_color = theme["title"]
-    gradient = Image.new("RGB", (WIDTH, HEIGHT))
-    gdraw = ImageDraw.Draw(gradient)
-    for row in range(HEIGHT):
-        t = (row - y + size * 0.9) / (size * 1.1)
-        gdraw.line([(0, row), (WIDTH, row)], fill=lerp(top_color, bottom_color, t))
-
-    strength = theme["glow_strength"]
-    if strength:
-        halo = mask.filter(ImageFilter.GaussianBlur(9))
-        halo_img = Image.new("RGB", (WIDTH, HEIGHT), theme["glow"])
-        img.paste(halo_img, (0, 0), halo.point(lambda v: int(v * strength)))
-
-    img.paste(gradient, (0, 0), mask)
+def paint_two_tone(img, text_mask, light_fill, dark_fill, region):
+    """文字按分界线换色：region 内（左侧）用 dark_fill，外侧用 light_fill。"""
+    outside = ImageChops.invert(region)
+    for mask, color in ((ImageChops.multiply(text_mask, region), dark_fill),
+                        (ImageChops.multiply(text_mask, outside), light_fill)):
+        layer = Image.new("RGB", (WIDTH, HEIGHT), color)
+        img.paste(layer, (0, 0), mask)
 
 
-def build(theme_name):
-    theme = THEMES[theme_name]
+def build():
     rng = random.Random(SEED)
-    img = make_background(theme)
-    draw_rain(img, theme, rng)
-    draw_vignette(img, theme)
-    draw_skewed_band(img, theme)
+    region = split_mask()
 
-    add_title(img, theme, TITLE, 88, 146, 8)
+    # 白区黑区分开铺底
+    img = vertical_gradient(DARK_BG)
+    white = vertical_gradient(WHITE_BG)
+    img.paste(white, (0, 0), region)
 
-    draw = ImageDraw.Draw(img)
-    draw_spaced(draw, WIDTH / 2, 200, SUBTITLE, load_font(15), 2, theme["subtitle"])
-    draw_spaced(draw, WIDTH / 2, 232, TAGLINE, load_font(12), 1.5, theme["tagline"])
+    # 两边的雨各画一次，再用区域裁掉
+    dark_rain = clip_to(rain_layer(rng, DARK_RAIN, DARK_RAIN_HEAD, 1.0), ImageChops.invert(region))
+    img.paste(dark_rain, (0, 0), dark_rain)
+    rng2 = random.Random(SEED + 7)
+    white_rain = clip_to(rain_layer(rng2, WHITE_RAIN, WHITE_RAIN, 0.42), region)
+    img.paste(white_rain, (0, 0), white_rain)
 
-    out = Path(__file__).resolve().parent.parent / "assets" / f"banner-{theme_name}.png"
+    # 分界线：一条细亮线，附一点光晕
+    line = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    ldraw = ImageDraw.Draw(line)
+    ldraw.line([(SPLIT_TOP, 0), (SPLIT_BOTTOM, HEIGHT)], fill=SPLIT_LINE + (220,), width=3)
+    glow = line.filter(ImageFilter.GaussianBlur(6))
+    img.paste(Image.new("RGB", (WIDTH, HEIGHT), SPLIT_LINE), (0, 0), glow)
+    img.paste(line, (0, 0), line)
+
+    # 标题：白字压黑底、深蓝字压白底
+    title_mask = draw_text_mask(TITLE, 88, 146, 8)
+    paint_two_tone(img, title_mask, DARK_TITLE, WHITE_TITLE, region)
+
+    # 副标题与标语
+    sub_mask = draw_text_mask(SUBTITLE, 15, 200, 2, bold=False)
+    paint_two_tone(img, sub_mask, DARK_SUB, WHITE_SUB, region)
+    tag_mask = draw_text_mask(TAGLINE, 12, 232, 1.5, bold=False)
+    paint_two_tone(img, tag_mask, DARK_TAG, WHITE_TAG, region)
+
+    out = Path(__file__).resolve().parent.parent / "assets" / "banner.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     img.save(out, "PNG", optimize=True)
     print(f"wrote {out} ({out.stat().st_size} bytes)")
 
 
-def main():
-    for name in THEMES:
-        build(name)
-
-
 if __name__ == "__main__":
-    main()
+    build()

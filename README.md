@@ -1,7 +1,11 @@
 # CollabNote
 
 <p align="center">
-  <img src="assets/banner.png" alt="CollabNote — 字符雨横幅" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.png">
+    <img src="assets/banner-light.png" alt="CollabNote — 字符雨横幅" width="100%">
+  </picture>
 </p>
 
 基于 Electron + Python 的多人共享笔记，带好友协作和记账本。

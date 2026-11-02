@@ -25,8 +25,8 @@ SUBTITLE = "MULTI-USER NOTES  ·  ELECTRON + PYTHON"
 TAGLINE = "share notes  ·  track money  ·  stay in sync"
 SEED = 20261015
 
-SPLIT_TOP = 720   # 分界线在顶部的 x
-SPLIT_BOTTOM = 460  # 分界线在底部的 x
+SPLIT_TOP = 686   # 分界线在顶部的 x
+SPLIT_BOTTOM = 513  # 分界线在底部的 x（与竖直角 30°，Δx=173/300）
 RAIN_SLOPE = 0.18
 
 GLYPHS = list("ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789<>[]{}=+*#$%&@")
@@ -37,7 +37,7 @@ MENLO = FONT_DIR / "Menlo.ttc"
 # 白区 / 黑区各自的配色
 WHITE_BG = ((255, 255, 255), (238, 243, 250))
 DARK_BG = ((4, 7, 13), (10, 18, 32))
-WHITE_RAIN = (150, 168, 190)
+WHITE_RAIN = (116, 136, 164)
 DARK_RAIN = (61, 140, 255)
 DARK_RAIN_HEAD = (214, 232, 255)
 WHITE_TITLE = (7, 38, 90)
@@ -138,6 +138,15 @@ def draw_text_mask(text, size, y, spacing, bold=True):
     return mask
 
 
+def add_title_shadow(img, mask, offset=(3, 4), blur=7, alpha=78):
+    """给标题压一层软影，让字从雨里浮出来。"""
+    shifted = Image.new("L", (WIDTH, HEIGHT), 0)
+    shifted.paste(mask, offset)
+    shadow = shifted.filter(ImageFilter.GaussianBlur(blur))
+    img.paste(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)),
+              (0, 0), shadow.point(lambda v: int(v * alpha / 255)))
+
+
 def paint_two_tone(img, text_mask, light_fill, dark_fill, region):
     """文字按分界线换色：region 内（左侧）用 dark_fill，外侧用 light_fill。"""
     outside = ImageChops.invert(region)
@@ -160,30 +169,14 @@ def build():
     dark_rain = clip_to(rain_layer(rng, DARK_RAIN, DARK_RAIN_HEAD, 1.0), ImageChops.invert(region))
     img.paste(dark_rain, (0, 0), dark_rain)
     rng2 = random.Random(SEED + 7)
-    white_rain = clip_to(rain_layer(rng2, WHITE_RAIN, WHITE_RAIN, 0.38), region)
+    white_rain = clip_to(rain_layer(rng2, WHITE_RAIN, WHITE_RAIN, 0.60), region)
     img.paste(white_rain, (0, 0), white_rain)
 
-    # 分界线：标题带内让路，几乎只留一道浅痕；带外细而利落
-    BAND_TOP, BAND_BOTTOM = 96, 240
-
-    def split_x(y):
-        return SPLIT_TOP + (SPLIT_BOTTOM - SPLIT_TOP) * (y / HEIGHT)
-
-    glow = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    gdraw = ImageDraw.Draw(glow)
-    gdraw.line([(split_x(0), 0), (split_x(BAND_TOP), BAND_TOP)], fill=SPLIT_LINE + (70,), width=5)
-    gdraw.line([(split_x(BAND_BOTTOM), BAND_BOTTOM), (split_x(HEIGHT), HEIGHT)], fill=SPLIT_LINE + (70,), width=5)
-    img.paste(Image.new("RGB", (WIDTH, HEIGHT), SPLIT_LINE), (0, 0), glow.filter(ImageFilter.GaussianBlur(4)))
-
-    line = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-    ldraw = ImageDraw.Draw(line)
-    ldraw.line([(split_x(0), 0), (split_x(BAND_TOP), BAND_TOP)], fill=SPLIT_LINE + (235,), width=2)
-    ldraw.line([(split_x(BAND_BOTTOM), BAND_BOTTOM), (split_x(HEIGHT), HEIGHT)], fill=SPLIT_LINE + (235,), width=2)
-    ldraw.line([(split_x(BAND_TOP), BAND_TOP), (split_x(BAND_BOTTOM), BAND_BOTTOM)], fill=SPLIT_LINE + (55,), width=1)
-    img.paste(line, (0, 0), line)
+    # 分界线不画线，让白黑两块直接相接
 
     # 标题：白字压黑底、深蓝字压白底
     title_mask = draw_text_mask(TITLE, 88, 148, 7)
+    add_title_shadow(img, title_mask)
     paint_two_tone(img, title_mask, DARK_TITLE, WHITE_TITLE, region)
 
     # 副标题与标语

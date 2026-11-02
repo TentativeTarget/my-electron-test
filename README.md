@@ -1,5 +1,9 @@
 # CollabNote
 
+<p align="center">
+  <img src="assets/banner.png" alt="CollabNote — 字符雨横幅" width="100%">
+</p>
+
 基于 Electron + Python 的多人共享笔记，带好友协作和记账本。
 
 前端只负责显示，所有数据通过 HTTP API 存在后端：默认 MySQL，也可回落到 JSON 文件。

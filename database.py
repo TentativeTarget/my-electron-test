@@ -220,6 +220,25 @@ class JsonLedgerStore:
         self._write(ledgers)
         return True
 
+    def soft_delete_ledger(self, ledger_id, username):
+        ledgers = self._all()
+        ledger = self._find(ledgers, ledger_id)
+        if not ledger or ledger.get("deleted_at"):
+            return False
+        ledger["deleted_at"] = datetime.now().isoformat()
+        ledger["deleted_by"] = username
+        ledger.setdefault("history", []).insert(0, {
+            "id": len(ledger.get("history", [])) + 1,
+            "action": "delete",
+            "entityType": "ledger",
+            "entityId": ledger_id,
+            "snapshot": {"id": ledger_id, "name": ledger.get("name"), "owner": ledger.get("owner")},
+            "actor": username,
+            "createdAt": datetime.now().isoformat(),
+        })
+        self._write(ledgers)
+        return True
+
     def soft_delete_transaction(self, ledger_id, txn_id, username):
         ledgers = self._all()
         ledger = self._find(ledgers, ledger_id)
@@ -653,7 +672,6 @@ class LedgerStore:
         return True
 
     def soft_delete_ledger(self, ledger_id, username):
-        """软删除账本（保留数据，可由拥有者/管理恢复）。"""
         with self.storage.connection() as connection:
             try:
                 with connection.cursor() as cursor:

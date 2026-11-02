@@ -158,9 +158,40 @@ function waitForBackend(timeout = 5000) {
   })
 }
 
+function hasRunningBackendServer() {
+  // 只允許一個後端：如果 PID 檔裡有正在運行的 backend，直接重用；
+  // 若使用手動啟動或舊 PID 檔失效，也阻止再啟動第二個實例。
+  const pids = readPids()
+  if (pids.backend && isRunning(pids.backend)) return true
+
+  try {
+    if (process.platform === 'win32') {
+      const { execFileSync } = require('node:child_process')
+      const text = execFileSync('powershell', [
+        '-NoProfile',
+        '-Command',
+        "Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'python' } | Select-Object -ExpandProperty CommandLine"
+      ], { encoding: 'utf8' })
+      return text.split(/\r?\n/).some(line => /server\.py/i.test(line))
+    }
+
+    const { execSync } = require('node:child_process')
+    const text = execSync('ps -eo pid,args', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
+    return text.split(/\r?\n/).some(line => /server\.py/i.test(line))
+  } catch {
+    return false
+  }
+}
+
 async function start(name) {
   const pids = readPids()
   if (prunePids(pids)) writePids(pids)
+
+  if (name === 'backend' && hasRunningBackendServer()) {
+    console.log('backend already running; skipping duplicate launch')
+    return
+  }
+
   if (pids[name]) {
     console.log(`${name} already running (PID ${pids[name]})`)
     return

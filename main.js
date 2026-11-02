@@ -47,16 +47,19 @@ const createWindow = () => {
   const darkMode = nativeTheme.shouldUseDarkColors
   const win = new BrowserWindow({
     width: 1280,
-    height: 720,
+    // Windows 的系統標題欄會吃掉約 57px 高度，初始高度補回來，
+    // 內容區才和以前一樣大
+    height: process.platform === 'darwin' ? 720 : 776,
     // 最小尺寸：不讓視窗縮到界面擁擠、佈局崩掉
     minWidth: 1024,
     minHeight: 660,
     show: false,
     // macOS：隱藏標題欄但保留紅綠燈（hiddenInset）。
     // 不要開整窗透明，否則 trafficLightPosition 會失效。
+    // Windows／Linux：保留系統邊框，最小化／最大化／關閉交還給系統。
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 24 } }
-      : { frame: false }),
+      : { frame: true }),
     // 底色跟隨系統主題，避免和頁面深/浅色對不上而露出色塊
     backgroundColor: darkMode ? '#0a101d' : '#f5f7fb',
     webPreferences: {

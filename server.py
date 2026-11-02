@@ -91,9 +91,25 @@ USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_\u4e00-\u9fff]{3,32}$")
 def storage():
     global STORAGE
     if STORAGE is None:
-        STORAGE = create_storage(BASE_DIR)
-        if hasattr(STORAGE, "initialize"):
-            STORAGE.initialize()
+        requested_backend = (os.environ.get("COLLABNOTE_STORAGE") or "mysql").strip().lower()
+        try:
+            STORAGE = create_storage(BASE_DIR)
+            if hasattr(STORAGE, "initialize"):
+                STORAGE.initialize()
+        except Exception as exc:
+            if requested_backend == "json":
+                raise
+            if os.environ.get("COLLABNOTE_STORAGE") is not None:
+                raise
+            print(
+                f"Warning: MySQL backend unavailable ({exc}); falling back to JSON storage. "
+                "Set COLLABNOTE_STORAGE=mysql to require MySQL explicitly.",
+                file=sys.stderr,
+                flush=True,
+            )
+            STORAGE = JsonStorage(BASE_DIR)
+            if hasattr(STORAGE, "initialize"):
+                STORAGE.initialize()
     return STORAGE
 
 
@@ -1665,6 +1681,8 @@ class NotesHandler(BaseHTTPRequestHandler):
         session = self.current_user()
         log_event(f"{session['username'] if session else '-'} 上傳圖片 {filename}（{length // 1024} KB）")
         self.send_json(201, {"url": f"/api/images/{filename}"})
+
+
 
     def send_note_image(self):
         image_path = unquote(urlsplit(self.path).path)

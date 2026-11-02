@@ -224,7 +224,7 @@ def copy_mysql_bundle(target, mysql_dir, empty_data=False):
     (target / "logs").mkdir()
 
 
-def build_frozen(out_dir, mysql_dir=None, empty_data=False):
+def build_frozen(out_dir, mysql_dir=None, empty_data=False, include_data=True):
     """用 PyInstaller 把 server.py 凍結成可攜資料夾（macOS / Linux）。"""
     arch = platform.machine()
     system = "macOS" if sys.platform == "darwin" else platform.system()
@@ -260,7 +260,7 @@ def build_frozen(out_dir, mysql_dir=None, empty_data=False):
     for name in ("database.py", "schema.sql"):
         shutil.copy2(REPO / name, target / name)
     if mysql_dir:
-        copy_runtime_data(target)
+        copy_runtime_data(target, include_data=include_data)
         copy_mysql_bundle(target, mysql_dir, empty_data=empty_data)
         write_docs(target, "mac" if sys.platform == "darwin" else "posix", bundled=True)
     else:
@@ -314,6 +314,7 @@ def main(argv=None):
                         help="目標平台；auto 依目前系統決定")
     parser.add_argument("--mysql-dir", default=None, help="MySQL runtime 所在目录；macOS 默认使用工作区内的版本")
     parser.add_argument("--empty-data", action="store_true", help="生成空白 MySQL 数据目录")
+    parser.add_argument("--no-data", action="store_true", help="不复制工作区的 data/（头像、笔记图片），发布用")
     args = parser.parse_args(argv)
 
     out_dir = pathlib.Path(args.out).resolve()
@@ -324,11 +325,11 @@ def main(argv=None):
     if args.platform == "win":
         targets = [build_embed(out_dir)]
     elif args.platform == "mac":
-        targets = [build_frozen(out_dir, mysql_dir=mysql_dir, empty_data=args.empty_data)]
+        targets = [build_frozen(out_dir, mysql_dir=mysql_dir, empty_data=args.empty_data, include_data=not args.no_data)]
     elif sys.platform == "win32":
         targets = [build_embed(out_dir)]
     else:
-        targets = [build_frozen(out_dir, mysql_dir=mysql_dir, empty_data=args.empty_data)]
+        targets = [build_frozen(out_dir, mysql_dir=mysql_dir, empty_data=args.empty_data, include_data=not args.no_data)]
 
     for target in targets:
         print("✓ 完成：%s" % target)

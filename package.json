@@ -37,6 +37,7 @@
       "index.html",
       "main.js",
       "preload.js",
+      "demo-mode.js",
       "package.json",
       "frontend/vendor/**"
     ],

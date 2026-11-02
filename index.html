@@ -324,6 +324,36 @@
             margin-top: 16px;
         }
 
+        .auth-demo {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            padding: 9px 12px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            background: transparent;
+            color: #64748b;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .auth-demo:hover {
+            border-color: #94a3b8;
+            color: #334155;
+        }
+
+        .auth-demo.is-active {
+            border-style: solid;
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+
+        [data-theme="dark"] .auth-demo {
+            border-color: #334155;
+            color: #94a3b8;
+        }
+
         .auth-error {
             min-height: 20px;
             color: #dc2626;
@@ -3453,6 +3483,7 @@
         }
     </style>
 
+    <script src="demo-mode.js"></script>
     <script>
         // 在頁面渲染前套用已儲存的主題，避免閃爍
         (function() {
@@ -5630,6 +5661,7 @@
             <button class="auth-submit" id="authSubmit" type="submit">登录</button>
         </form>
         <button class="auth-switch" id="authSwitch" type="button">还没有账号？注册</button>
+        <button class="auth-demo" id="authDemo" type="button">无后端演示 · 看样例数据</button>
     </section>
 
     <div class="app-shell">
@@ -6230,6 +6262,7 @@
             const connectionDialogServer = document.getElementById('connectionDialogServer');
             const authScreen = document.getElementById('authScreen');
             const authForm = document.getElementById('authForm');
+            const authDemo = document.getElementById('authDemo');
             const authServerUrl = document.getElementById('authServerUrl');
             const authServerReset = document.getElementById('authServerReset');
             const authUsername = document.getElementById('authUsername');
@@ -6479,8 +6512,13 @@
                 authScreen.style.display = 'none';
                 appContainer.classList.add('authenticated');
                 if (appShell) appShell.classList.add('authenticated');
-                startConnectionMonitor();
-                startEventStream();
+                if (window.DemoMode && window.DemoMode.enabled) {
+                    // 演示模式：不连后端，也就没有健康检查和事件流
+                    setEditorStatus('online');
+                } else {
+                    startConnectionMonitor();
+                    startEventStream();
+                }
                 // 工作區剛顯示，版面量得到寬度了：無過渡地重新定位切換滑塊
                 // 注意：positionWorkspaceSwitch 定義在另一個 script 塊，可能還未就緒，
                 // 這裡做安全調用，避免初始化中斷。
@@ -6682,6 +6720,9 @@
             }
 
             async function apiRequest(path, options = {}, attempts = 8) {
+                if (window.DemoMode && window.DemoMode.enabled) {
+                    return window.DemoMode.request(path, options);
+                }
                 try {
                     const requestHeaders = {
                         'Content-Type': 'application/json',
@@ -7388,6 +7429,9 @@
             }
 
             async function uploadImageFile(file) {
+                if (window.DemoMode && window.DemoMode.enabled) {
+                    return { url: await window.DemoMode.readImage(file) };
+                }
                 const response = await fetch(`${apiBaseUrl}/api/images/upload`, {
                     method: 'POST',
                     headers: {
@@ -7432,7 +7476,7 @@
                         selection.removeAllRanges();
                         if (range) selection.addRange(range);
                     }
-                    const src = `${apiBaseUrl}${result.url}`;
+                    const src = String(result.url).startsWith('data:') ? result.url : `${apiBaseUrl}${result.url}`;
                     const alt = label || '';
                     document.execCommand('insertHTML', false,
                         `<img src="${src.replace(/"/g, '&quot;')}" alt="${alt.replace(/"/g, '&quot;')}" />`);
@@ -8323,6 +8367,15 @@
                 const activeElement = document.activeElement;
                 const editing = activeElement === noteTitleInput || activeElement === noteContent ||
                     (activeElement && activeElement.nodeType === 1 && noteContent.contains(activeElement));
+                if (window.DemoMode && window.DemoMode.enabled) {
+                    renderPresenceRoster([{
+                        username: currentUsername,
+                        displayName: currentDisplayName,
+                        avatarUrl: null,
+                        mode: editing ? 'editing' : 'viewing'
+                    }]);
+                    return;
+                }
                 try {
                     const response = await fetch(`${apiBaseUrl}/api/presence`, {
                         method: 'POST',
@@ -8440,6 +8493,26 @@
                 setAuthMode(authMode === 'login' ? 'register' : 'login');
             });
 
+            authDemo.addEventListener('click', async function() {
+                const running = window.DemoMode && window.DemoMode.enabled;
+                authDemo.disabled = true;
+                authError.textContent = '';
+                try {
+                    const result = running ? window.DemoMode.reset() : window.DemoMode.enter();
+                    authToken = 'demo-token';
+                    currentSid = 'demo-sid';
+                    setCurrentUser(result.username, result.title, null, result.displayName);
+                    showWorkspace();
+                    await loadNotes();
+                    authDemo.classList.add('is-active');
+                    authDemo.textContent = '演示模式进行中 · 点这里重置数据';
+                } catch (error) {
+                    authError.textContent = '演示模式启动失败';
+                } finally {
+                    authDemo.disabled = false;
+                }
+            });
+
             authServerReset.addEventListener('click', function() {
                 authServerUrl.value = DEFAULT_SERVER_URL;
                 authServerUrl.focus();
@@ -8513,6 +8586,13 @@
                 currentSid = '';
                 setCurrentUser('');
                 localStorage.removeItem('collabNoteToken');
+                if (window.DemoMode && window.DemoMode.enabled) {
+                    window.DemoMode.leave();
+                }
+                if (authDemo) {
+                    authDemo.classList.remove('is-active');
+                    authDemo.textContent = '无后端演示 · 看样例数据';
+                }
                 notesData.splice(0, notesData.length);
                 noteList.replaceChildren();
                 renderFriends([]);

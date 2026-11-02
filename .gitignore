@@ -24,6 +24,8 @@ lerna-debug.log*
 /users.json
 # 筆記內文與讀寫權限
 /notes.json
+# 金融帳本資料（JSON 模式）
+/ledgers.json
 # 頭像與筆記圖片（後端上傳目錄）
 /data/
 # 舊版上傳目錄，已搬到 data/（保留規則避免舊版再度寫入）

@@ -64,6 +64,12 @@ python3 -m pip install -r requirements.txt
 - 账本变更通过 `ledger-changed` 事件推给同一账本的在线成员。
 - 存储：MySQL 用 `ledgers` / `ledger_members` / `transactions` / `ledger_history` 四张表；JSON 模式用 `ledgers.json`。
 
+### 演示
+
+- 登录页底部可一键进入「无后端演示」：不连后端、不碰数据库，笔记与账本的增删改都在浏览器里完成。
+- 内置 5 篇笔记、2 个账本、3 位好友的样例数据，字段与真后端一致，界面不用特殊处理。
+- 数据存在 `localStorage`（`collabnote-demo-db`），刷新还在；再点一次按钮就重置。改动只在本地，不会写进真库。
+
 ### 界面
 
 - 深色/浅色主题，登录页与工作区都能切，偏好存本地。
@@ -291,6 +297,7 @@ my-electron-app/
 ├── build-backend.py           免安装后端打包
 ├── start-frontend.js          启动前端：补齐 Electron、清环境变量
 ├── start-collabnote.sh        一键启动
+├── demo-mode.js               无后端演示：假数据 + 接口替身
 ├── .env.example               环境变量模板（密码不写入仓库）
 ├── package.json               npm 脚本与依赖
 ├── build/                     图标（icon.icns / icon.ico）、icon-source.png 源图、make-banner.py

@@ -419,7 +419,8 @@ my-electron-app/
 ├── requirements.txt           Python 依赖
 ├── build/
 │   ├── icon.icns              应用图标（macOS）
-│   └── icon.ico               应用图标（Windows）
+│   ├── icon.ico               应用图标（Windows）
+│   └── icon-source.png        图标源文件（2048×2048）
 ├── notes.json / users.json    JSON 模式运行时数据（默认不纳入版本控制）
 ├── ledgers.json               JSON 模式账本数据（同上）
 ├── monitor-tests.py           本机自测脚本（不纳入版本控制）

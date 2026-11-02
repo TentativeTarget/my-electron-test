@@ -27,7 +27,7 @@
 **好友与社交**
 
 - 好友申请、接受或拒绝，以及双向好友关系。
-- 好友在线/离线状态，每 15 秒刷新一次。
+- 好友在线/离线状态：前端每 15 秒向服务器拉取一次。
 - 单后端多前端：多位使用者以各自账号连接同一台服务器，笔记、好友与在线状态实时共享；登录页可填写服务器地址。
 - 本地多实例：每执行一次 `npm run launcher -- start frontend` 就开启一个客户端，自动分配独立 `userData`（`client-1`、`client-2`…），可在同一台电脑同时开多个窗口并以不同账号登录，启动器分别追踪各实例 PID。
 - 好友栏停靠主窗口右侧，默认收起；圆形切换按钮默认贴在主框架右侧边框线上，展开后滑到好友栏左侧边线。点击时同一颗按钮在两个锚点间以非线性缓动平滑移动、图标同步旋转 180°，不会因按钮切换而闪烁。
@@ -39,19 +39,20 @@
 - 昵称、自定义头衔与 JPG/PNG 头像设置，头像由后端裁剪压缩为 `256x256` JPEG。
 - 后端不可用时显示连接错误窗口，并支持重新连接。
 - 窗口隐藏系统标题栏（macOS 保留红绿灯按钮），App 名称独立居中显示在卡片上方；窗口可拖动，并限制最小尺寸 `1024×660`，避免缩得太小导致布局拥挤。
-- 左侧笔记栏宽度可拖拽调整（240px 至窗口 60%），松手后自动记住；也支持方向键微调。
+- 左侧笔记栏宽度可拖拽调整（220px 至窗口 60%），松手后自动记住；也支持方向键微调。
 - 笔记列表右键弹出菜单，可删除自己建立的笔记（没有删除权限的笔记不弹菜单）。
 - 编辑器顶部同步状态做了防抖：输入时保持安静，真正保存时才显示「保存中…」，成功后「已同步」有最短停留，不再来回闪烁。
 
-**新增功能：金融工作区（P1 本地预览）**
+**金融工作区（已接入后端与数据库）**
 
-- 侧边栏新增「笔记 / 金融」双工作区切换，金融面板作为独立视图显示在同一桌面应用内。
-- 金融页包含：共享账本列表、快速记账输入框、KPI 汇总卡片、收支趋势图、分类占比环形图、最近交易列表、AA 结算、预算占比与提醒。
-- 支持快速记账语法，例如：`午餐 -35 餐饮`、`工资 +9800 工资`，前端会解析金额、类别与备注并写入本地演示数据。
-- 账本头部显示共享成员头像、成员人数、统计周期切换（本月 / 本季 / 今年），方便演示报表看板。
-- 该功能目前为本地预览版本（P1）：数据来自前端内存中的演示数据，不落库、不走后端 API，也不与 `notes.json` / `users.json` 绑定。
-- UI 中已明确标注：`新建账本`、`共用账单` 等能力暂未接入真实后端，当前仅展示占位与提示信息，后续进入 P2 数据阶段再接入真实存储与权限。
-- 测试结论：页面结构、切换入口、统计面板与快速记账解析均已正常渲染；但尚未具备真实财务数据持久化、多人同步与后端联动能力。
+- 侧边栏「笔记 / 金融」双工作区切换，金融面板与笔记编辑器共用同一窗口。
+- 账本：新建、改名、设预算；删除为软删除，数据仍留在库里。
+- 成员与权限：以登录名邀请协作者，分 `owner` / `admin` / `editor` / `viewer` 四档；拥有者与管理员可切换角色或移除成员。
+- 记账：左侧输入内容、右侧输入金额，用「加钱 / 扣钱」两个按钮分别记收入与支出，每笔可带类别，写入当前选中的账本。
+- 报表：KPI 汇总卡片、收支趋势图、分类占比环形图、最近交易列表、AA 结算、预算占比与提醒；统计周期可切「今天 / 本月 / 今年」。
+- 历史：删除交易时会留下快照，拥有者可从历史里按条还原。
+- 多人实时同步：账本变更通过 SSE 的 `ledger-changed` 事件推送给同一账本的其他在线成员。
+- 存储：MySQL 模式落在 `ledgers` / `ledger_members` / `transactions` / `ledger_history` 四张表；JSON 模式落在 `ledgers.json`。
 
 **后端运维**
 
@@ -61,7 +62,7 @@
 
 ## 数据库配置（MySQL）
 
-当前后端默认使用 MySQL 存储用户、笔记、好友关系与笔记权限。数据库密码只从环境变量读取，不要写入仓库。
+当前后端默认使用 MySQL 存储用户、笔记、好友关系、笔记权限与金融账本。数据库密码只从环境变量读取，不要写入仓库。
 
 先创建数据库和账号（示例）：
 
@@ -83,20 +84,20 @@ export COLLABNOTE_DB_USER=collabnote
 export COLLABNOTE_DB_PASSWORD='你的数据库密码'
 ```
 
-首次启动会自动执行 `schema.sql`。旧版 `users.json`、`notes.json` 迁移前先做备份，然后先预览：
+首次启动会自动执行 `schema.sql`。旧版 `users.json`、`notes.json`、`ledgers.json` 迁移前先做备份，然后先预览：
 
 ```bash
 python3 migrate_json_to_mysql.py --dry-run
 python3 migrate_json_to_mysql.py
 ```
 
-迁移脚本不会删除或修改原 JSON 文件。若暂时没有 MySQL，只想继续运行旧版 JSON 存储，显式使用：
+迁移脚本会导入 `users.json`、`notes.json` 和 JSON 模式的 `ledgers.json`（账号、笔记、成员、交易、历史一起搬），不会删除或修改原 JSON 文件。若暂时没有 MySQL，只想继续运行旧版 JSON 存储，显式使用：
 
 ```bash
 COLLABNOTE_STORAGE=json npm run backend
 ```
 
-当前 MySQL 接入是第一阶段兼容层，API 先保持不变；后续还需要把高频的“整批读取再写回”操作改成事务内的按行 SQL，才能充分发挥多人并发能力。
+当前用户与笔记仍是「整批读取再写回」的兼容实现；账本（成员、交易、历史）已经是按行 SQL。后续把笔记与用户也改成按行操作，才能充分发挥多人并发能力。
 
 ## 快速开始
 
@@ -121,7 +122,8 @@ npm run launcher -- status all     # 查看状态
 npm run launcher -- stop all       # 停止
 ```
 
-> 仓库不包含数据库文件、用户数据与打包产物。`users.json`、`notes.json`、`data/`、`dist/` 已在 `.gitignore` 中排除，请勿提交。
+> 仓库不包含数据库文件、用户数据与打包产物。`users.json`、`notes.json`、`ledgers.json`、`data/`、`dist/` 已在 `.gitignore` 中排除，请勿提交。
+
 ### 一键启动
 
 同时启动 Python 后端和 Electron 前端：
@@ -270,7 +272,10 @@ GET /api/events?token=<Bearer Token>
 note-created   { note, sid }     新笔记
 note-updated   { note, sid }     笔记标题或内容变更
 note-deleted   { noteId, sid }   笔记被删除
+note-members   { note, sid }     协作者名单或权限变更
+note-unshared  { noteId, sid }   自己被移出某篇笔记
 presence       { noteId, people } 该笔记的在线名单（依观看者过滤，只含自己与好友）
+ledger-changed { ledgerId, sid }          账本有变更，通知同一账本的在线成员
 ```
 
 设计要点：
@@ -325,7 +330,7 @@ STATIC    静态资源与监控器自身的轮询，默认隐藏，按 a 显示
 
 按键：`q` 离开、`p` 暂停／恢复跟随、`c` 清空画面、`a` 显示／隐藏静态请求、`↑` `↓` `PgUp` `PgDn` `Home` `End` 翻阅历史日志。
 
-日志保存在后端内存的环形缓冲区（最近 500 行），后端重启即清空。监控端两个接口只接受本机（`127.0.0.1`）连线；需要用其他机器查看时，在启动后端前设置 `COLLABNOTE_MONITOR_TOKEN`，并让监控器带上同一个 token：
+日志保存在后端内存的环形缓冲区（最近 500 行），后端重启即清空。监控端两个接口只接受本机回环（`127.0.0.1` / `::1`）连线；需要用其他机器查看时，在启动后端前设置 `COLLABNOTE_MONITOR_TOKEN`，并让监控器带上同一个 token：
 
 ```bash
 COLLABNOTE_MONITOR_TOKEN=secret npm run backend
@@ -340,12 +345,12 @@ python3 monitor.py --host 192.168.1.50 --token secret
 
 ```bash
 npm install
-npm run dist:mac   # macOS：dist/CollabNote-1.0.0.dmg（x64）与 dist/CollabNote-1.0.0-arm64.dmg
-npm run dist:win   # Windows 10/11：dist/CollabNote-Setup-1.0.0-x64.exe（NSIS 安装包）
+npm run dist:mac   # macOS（x64）：dist/CollabNote-0.2.0_Beta-mac-x64.dmg
+npm run dist:win   # Windows 10/11（x64）：dist/CollabNote-0.2.0_Beta-win-x64.exe（NSIS 安装包）
 npm run pack       # 只生成未打包目录 dist/mac、dist/win-unpacked，便于本机试跑
 ```
 
-打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js` 与 `frontend/vendor/**`，不会把 `notes.json`、`users.json`、`data/**` 等本机数据塞进去。产物在 `dist/`（已在 `.gitignore` 中忽略）。
+打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js` 与 `frontend/vendor/**`，不会把 `notes.json`、`users.json`、`ledgers.json`、`data/**` 等本机数据塞进去。产物在 `dist/`（已在 `.gitignore` 中忽略）。
 
 ### 镜像设置不可省略
 
@@ -365,7 +370,7 @@ npm 会把 `config` 里的键暴露成 `npm_package_config_*` 环境变量，ele
 ### 已知限制
 
 - 未做代码签名：macOS 首次打开需右键「打开」，Windows 可能出现 SmartScreen 提示，选择「仍要运行」即可。
-- 未配置应用图标，使用 Electron 默认图标（日志会提示 `default Electron icon is used`）。
+- 已配置应用图标：macOS 用 `build/icon.icns`，Windows 用 `build/icon.ico`。
 - 打包后的客户端仍需要 Python 后端配合，单独发给别人只会得到登录界面。
 
 ### 打包免安装后端（一键运行）
@@ -384,7 +389,7 @@ python3 build-backend.py --out /tmp/backend                 # 指定输出目录
 - `dist/backend/CollabNote-Backend-Windows-x64/`：双击 `启动后端.bat`（Windows 10/11 x64）。内含官方嵌入式 Python 与 Pillow 的官方 wheel，无需安装任何东西。
 - 另附同名 `.zip` 便于传输；zip 解压后仍保留执行权限。
 
-启动后会同时打开后端窗口与监控窗口，关闭后端窗口时监控窗口一起收掉。**整个文件夹就是数据目录**：运行时在文件夹内产生 `users.json`、`notes.json` 与 `data/`，备份或换机器只要复制整个文件夹。
+启动后会同时打开后端窗口与监控窗口，关闭后端窗口时监控窗口一起收掉。**整个文件夹就是数据目录**：JSON 模式运行时会在这里产生 `users.json`、`notes.json`、`ledgers.json` 与 `data/`，备份或换机器只要复制整个文件夹。
 
 各平台细节：
 
@@ -412,7 +417,12 @@ my-electron-app/
 ├── .env.example               数据库环境变量模板（密码不写入仓库）
 ├── package.json               npm 脚本与 Electron 依赖
 ├── requirements.txt           Python 依赖
+├── build/
+│   ├── icon.icns              应用图标（macOS）
+│   └── icon.ico               应用图标（Windows）
 ├── notes.json / users.json    JSON 模式运行时数据（默认不纳入版本控制）
+├── ledgers.json               JSON 模式账本数据（同上）
+├── monitor-tests.py           本机自测脚本（不纳入版本控制）
 ├── data/
 │   ├── avatars/               头像文件（运行时由后端写入）
 │   └── images/                笔记图片文件（运行时由后端写入）
@@ -450,6 +460,15 @@ Electron 与 Python 是两个独立进程，前端不直接读取数据文件，
 8. 笔记中的链接可以直接点击，由系统默认浏览器打开（仅 http/https）。
 9. 其他使用者新增、修改或删除笔记时，清单与内容会即时更新；若你正在编辑同一则笔记，会先显示「其他人已更新」提示，由你决定何时载入远端版本。
 
+### 记账本
+
+1. 点侧边栏顶部切到「金融」工作区，左下角「新建賬本」建立账本。
+2. 选中账本后，左下角分别填「內容」与「金額」，点「加钱」记收入、「扣钱」记支出。
+3. 主面板右上可切「今天 / 本月 / 今年」，下方依次是 KPI 汇总、收支趋势、分类占比、最近交易、AA 结算与本月预算。
+4. 右键某笔交易可编辑或删除；编辑框里能改收入/支出、类别，并勾选一起分摊的成员。
+5. 右键账本可改名、设预算或删除。
+6. AA 结算可以填起止日期只看某一段时间的账，点「全部」清除日期。
+
 ### 添加好友
 
 1. 点击主体与窗口边框之间的圆形箭头展开好友栏；在「好友状态」中输入对方登录名，点击添加按钮发送好友请求。
@@ -472,8 +491,7 @@ Electron 与 Python 是两个独立进程，前端不直接读取数据文件，
 
 ## 数据文件
 
-- `notes.json`：笔记数据（含内文与读写权限）。运行时由后端读写，已在 `.gitignore` 中忽略，不随代码提交；换机器时请自行复制。
-- `users.json`：用户账号、密码哈希、昵称、头衔和好友关系。选项与 `notes.json` 相同，运行时产生、不纳入版本控制；换机器时请自行复制。
+- `users.json`、`notes.json`、`ledgers.json`：JSON 模式（`COLLABNOTE_STORAGE=json`）下的账号、笔记与账本数据，由后端读写，已在 `.gitignore` 中忽略。默认的 MySQL 模式不会生成这三个文件。
 - `data/avatars/`：处理后的头像文件，统一为 `256x256` JPEG，由后端在运行时写入，不纳入版本控制。
 - `data/images/`：笔记中通过「图片」工具上传的图片，由后端在运行时写入，不纳入版本控制。
 - `.collabnote-pids.json`：启动器运行时 PID 文件，不应提交到版本库。
@@ -498,6 +516,28 @@ GET    /api/notes
 POST   /api/notes
 PUT    /api/notes/:id
 DELETE /api/notes/:id
+GET    /api/notes/:id/members
+POST   /api/notes/:id/members
+DELETE /api/notes/:id/members/:username
+```
+
+金融账本：
+
+```text
+GET    /api/ledgers
+POST   /api/ledgers
+PUT    /api/ledgers/:id
+DELETE /api/ledgers/:id
+GET    /api/ledgers/:id/transactions
+POST   /api/ledgers/:id/transactions
+PUT    /api/ledgers/:id/transactions/:txn
+DELETE /api/ledgers/:id/transactions/:txn
+GET    /api/ledgers/:id/members
+POST   /api/ledgers/:id/members
+DELETE /api/ledgers/:id/members/:username
+GET    /api/ledgers/:id/history
+POST   /api/ledgers/:id/restore
+GET    /api/ledgers/:id/settlement
 ```
 
 好友：
@@ -525,7 +565,7 @@ GET /api/monitor/logs     服务器日志串流（SSE，连上时先补发最近
 
 `/api/monitor/logs` 连上时先收到一笔 `{"type": "backlog", "lines": [...]}`，之后每笔为 `{"type": "line", "time", "level", "text"}`；后端正关闭时会送 `{"type": "shutdown"}`，由后端启动的监控器据此立即结束并收掉窗口。
 
-`GET /api/events` 是 SSE 串流，推送 `note-created` / `note-updated` / `note-deleted` / `presence` 事件（详见「笔记即时同步」）。
+`GET /api/events` 是 SSE 串流，推送 `note-created` / `note-updated` / `note-deleted` / `note-members` / `note-unshared` / `presence` / `ledger-changed` 事件（详见「笔记即时同步」与「金融工作区」）。
 
 `POST /api/presence` 请求体为 `{"noteId": <笔记 id>, "mode": "editing" | "viewing"}`，返回该笔记上在线的好友与自己的名单（含显示名、头像与 mode）。连续 12 秒无心跳会自动视为离线；登出或 `noteId: null` 时立即移除，并即时通知同笔记的其他使用者。
 
@@ -547,7 +587,7 @@ GET  /api/images/:file
 
 上传接口需要登录（携带 `Authorization: Bearer <token>`），仅接受 JPG/PNG，单张上限 10MB；图片保存到后端的 `data/images/` 后以 `/api/images/:file` 公开读取。
 
-除 `/api/health`、注册和登录接口外，业务接口需要携带：
+除 `/api/health`、注册、登录、登出、头像读取与图片读取外，业务接口需要携带：
 
 ```text
 Authorization: Bearer <token>
@@ -558,13 +598,14 @@ Authorization: Bearer <token>
 - 密码只保存 PBKDF2-SHA256 哈希和随机盐。
 - 当前会话存储在 Python 内存中，后端重启后失效。
 - JSON 文件和头像目录应定期备份。
-- 账号、笔记、权限与密码哈希都只保存在后端：`users.json`（账号 + PBKDF2-SHA256 哈希）、`notes.json`（笔记内文 + `owner`/`members`/`viewers`）。两者都不纳入版本控制，前端不会留下副本，localStorage 只存主题、服务器地址、最近账号与登录 token。
+- 账号、笔记、权限与密码哈希都只保存在后端：MySQL 模式下在 `users` / `notes` / `note_members` 等表，JSON 模式下在 `users.json`、`notes.json`、`ledgers.json`。这些文件不纳入版本控制，前端不会留下副本，localStorage 只存主题、服务器地址、最近账号与登录 token。
 - `data/avatars/`、`data/images/` 为后端持有的上传文件；旧版放在 `frontend/assets/` 的档案会在后端启动时自动搬移。打包出的客户端不含这些文件。
-- 上述后端运行时数据全部由 `.gitignore` 挡住（`/users.json`、`/notes.json`、`/data/`、`/frontend/assets/`、`/.collabnote-pids.json`，以及写入中断可能留下的 `/tmp*`），`git add` 与 `git add -A` 都不会把它们推上 GitHub。这些文件仍需自行备份，换机器时手动复制。
-- 监控接口 `/api/monitor/status` 与 `/api/monitor/logs` 只接受 `127.0.0.1` 的连线；要让其他机器存取必须设置 `COLLABNOTE_MONITOR_TOKEN` 并携带 `X-Monitor-Token`，否则回 `403`。
+- 上述后端运行时数据全部由 `.gitignore` 挡住（`/users.json`、`/notes.json`、`/ledgers.json`、`/data/`、`/frontend/assets/`、`/.collabnote-pids.json`，以及写入中断可能留下的 `/tmp*`），`git add` 与 `git add -A` 都不会把它们推上 GitHub。这些文件仍需自行备份，换机器时手动复制。
+- 监控接口 `/api/monitor/status` 与 `/api/monitor/logs` 只接受本机回环地址（`127.0.0.1` / `::1`）的连线；要让其他机器存取必须设置 `COLLABNOTE_MONITOR_TOKEN` 并携带 `X-Monitor-Token`，否则回 `403`。
 - 后端默认监听 `0.0.0.0`，同一局域网内的其他设备都能访问；仅在受信任网络中使用，公网部署前应改为 `COLLABNOTE_HOST=127.0.0.1` 并置于反向代理之后。
 - 前端只有在登录页或 `COLLABNOTE_API_URL` 指定地址时才会连接外部服务器，不会主动扫描网络。
 - 当前实现适合本地或受信任局域网；生产部署还应增加 HTTPS、持久化会话、访问控制和更严格的输入限制。
+- 会话 30 天无活动自动失效；同一账号 5 分钟内登录失败 10 次会被暂时限流；单次请求体上限 8MB。
 
 ## 开发备注
 
@@ -577,69 +618,3 @@ Authorization: Bearer <token>
 
 修复好友头像小bug
 增添界面色调预设
-
-## 测试验证记录
-
-本节记录一次面向当前代码状态的功能性验收与 smoke test 结论，重点覆盖新增金融页面和之前的协同笔记功能。
-
-### 1. 启动链路测试
-
-已执行：
-
-```bash
-npm run launcher -- start all
-```
-
-结论：
-
-- 启动器能够正常拉起后端 `server.py` 与前端 Electron 实例。
-- 其中前端展示了工作区切换入口，包括「笔记」和「金融」两个工作区。
-- 项目当前仍然依赖 Electron + Python 运行链路，后端与前端是分离进程。
-
-### 2. 健康检查测试
-
-已执行：
-
-```bash
-python -m py_compile server.py
-```
-
-以及对本地 API 的健康检查，结论：
-
-- Python 后端脚本语法无明显错误。
-- 项目当前后端与入口链路仍处于可运行状态；若启动器/后端出现异常，通常为进程状态、端口占用或环境变量问题。
-
-### 3. 金融页面功能测试
-
-已检查 `index.html` 里新增金融工作区，结论如下：
-
-- 侧边栏中存在「笔记 / 金融」工作区切换按钮，且切换能够正常切换展示区域。
-- 金融工作区由 P1 本地预览数据驱动，支持：
-  - 账本列表
-  - 快速记账输入
-  - KPI 汇总
-  - 收支趋势图
-  - 分类占比环形图
-  - 最近交易列表
-  - AA 结算
-  - 预算占比
-- 快速记账解析已实现，支持 `午餐 -35 餐饮` 这类自然语言输入并生成示例数据。
-- 当前该页面在代码中已明示为 "P1 本地预览"，不是正式生产数据功能。
-
-### 4. 当前已知限制（重要）
-
-- 「新建账本」与「共用账本」等真实数据入口，当前均为占位提示，不连接后端存储。
-- 金融页面没有真实数据库表、没有 API 存储、没有多人同步和权限控制。
-- 该页面仍属于前端演示级能力，适合 UI 评审和交互演示，不适合作为正式金融系统上线依据。
-
-### 5. 建议
-
-后续要把金融功能升级为真实能力，建议按以下顺序推进：
-
-1. 定义真实账本、交易、成员与预算数据模型。
-2. 在 `server.py` 增加 `/api/finance/*` API，并落库到 JSON / SQLite。
-3. 将前端从本地演示数据切换到真实 API 请求。
-4. 补充权限控制、金额校验、导出与回滚能力。
-5. 使用 `monitor-tests.py` 做回归测试，重点验证 API、权限和前端展示一致性。
-
-这一层次的测试结论已写入 README，后续如果要继续完善金融模块，可以按「本地预览 → API 接入 → 实时协同 → 正式上线」的路径推进。

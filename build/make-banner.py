@@ -24,6 +24,19 @@ SEED = 20261015
 
 GLYPHS = list("ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789<>[]{}=+*#$%&@")
 
+# 配色取自 build/icon-source.png：白 / 银灰 / #227afc 蓝
+BG_TOP = (5, 8, 15)
+BG_MID = (6, 12, 22)
+BG_BOTTOM = (2, 3, 6)
+RAIN_NORMAL = (61, 140, 255)
+RAIN_HEAD = (214, 232, 255)
+TITLE_TOP = (247, 249, 255)
+TITLE_BOTTOM = (43, 124, 252)
+SUBTITLE_COLOR = (143, 188, 255)
+TAGLINE_COLOR = (95, 143, 214)
+GLOW_COLOR = (77, 155, 255)
+BAND_COLOR = (5, 11, 20)
+
 FONT_DIR = Path("/System/Library/Fonts")
 MENLO = FONT_DIR / "Menlo.ttc"
 
@@ -60,7 +73,7 @@ def lerp(a, b, t):
 
 
 def make_background():
-    top, mid, bottom = (5, 9, 12), (6, 17, 12), (2, 4, 3)
+    top, mid, bottom = BG_TOP, BG_MID, BG_BOTTOM
     img = Image.new("RGB", (WIDTH, HEIGHT))
     draw = ImageDraw.Draw(img)
     for y in range(HEIGHT):
@@ -83,8 +96,8 @@ def draw_rain(img, rng):
             if y < -20 or y > HEIGHT + 20:
                 continue
             fade = 1 - i / (length + 1)
-            alpha = int(255 * (0.10 + 0.72 * fade ** 1.7))
-            color = (217, 255, 230) if i == 0 else (33, 224, 106)
+            alpha = int(255 * (0.08 + 0.60 * fade ** 1.7))
+            color = RAIN_HEAD if i == 0 else RAIN_NORMAL
             draw.text((x, y), rng.choice(GLYPHS), font=font, fill=color + (alpha,))
     img.paste(layer, (0, 0), layer)
 
@@ -118,23 +131,23 @@ def add_title(img, text, size, y, spacing, top_color, bottom_color, glow=0):
 
     if glow:
         halo = mask.filter(ImageFilter.GaussianBlur(glow))
-        halo_img = Image.new("RGB", (WIDTH, HEIGHT), (60, 255, 130))
-        img.paste(halo_img, (0, 0), halo.point(lambda v: int(v * 0.75)))
+        halo_img = Image.new("RGB", (WIDTH, HEIGHT), GLOW_COLOR)
+        img.paste(halo_img, (0, 0), halo.point(lambda v: int(v * 0.45)))
 
 
 def draw_title_band(img):
     """标题背后的暗带，上下边缘渐变，不留硬边。"""
     height = 150
-    band = Image.new("RGBA", (WIDTH, height), (2, 6, 4, 0))
+    band = Image.new("RGBA", (WIDTH, height), BAND_COLOR + (0,))
     draw = ImageDraw.Draw(band)
     feather = 34
     for i in range(height):
-        alpha = 140
+        alpha = 168
         if i < feather:
             alpha = int(140 * i / feather)
         elif i > height - feather:
             alpha = int(140 * (height - i) / feather)
-        draw.line([(0, i), (WIDTH, i)], fill=(2, 6, 4, alpha))
+        draw.line([(0, i), (WIDTH, i)], fill=BAND_COLOR + (alpha,))
     img.paste(band, (0, 92), band)
 
 
@@ -144,9 +157,11 @@ def draw_vignette(img):
     band = 90
     for i in range(band):
         alpha = int(170 * (1 - i / band))
-        draw.line([(0, HEIGHT - 1 - i), (WIDTH, HEIGHT - 1 - i)], fill=(2, 4, 3, alpha))
-        draw.line([(i, 0), (i, HEIGHT)], fill=(2, 4, 3, int(alpha * 0.55)))
-        draw.line([(WIDTH - 1 - i, 0), (WIDTH - 1 - i, HEIGHT)], fill=(2, 4, 3, int(alpha * 0.55)))
+        edge = BAND_COLOR + (alpha,)
+        soft = BAND_COLOR + (int(alpha * 0.55),)
+        draw.line([(0, HEIGHT - 1 - i), (WIDTH, HEIGHT - 1 - i)], fill=edge)
+        draw.line([(i, 0), (i, HEIGHT)], fill=soft)
+        draw.line([(WIDTH - 1 - i, 0), (WIDTH - 1 - i, HEIGHT)], fill=soft)
     img.paste(overlay, (0, 0), overlay)
 
 
@@ -159,11 +174,11 @@ def main():
     # 标题背后压一块暗带，免得字被字符雨吃掉
     draw_title_band(img)
 
-    add_title(img, TITLE, 88, 146, 8, (216, 255, 230), (11, 191, 82), glow=10)
+    add_title(img, TITLE, 88, 146, 8, TITLE_TOP, TITLE_BOTTOM, glow=9)
 
     draw = ImageDraw.Draw(img)
-    draw_spaced(draw, WIDTH / 2, 200, SUBTITLE, load_font(15), 2, (79, 224, 138))
-    draw_spaced(draw, WIDTH / 2, 232, TAGLINE, load_font(12), 1.5, (74, 205, 132))
+    draw_spaced(draw, WIDTH / 2, 200, SUBTITLE, load_font(15), 2, SUBTITLE_COLOR)
+    draw_spaced(draw, WIDTH / 2, 232, TAGLINE, load_font(12), 1.5, TAGLINE_COLOR)
 
     out = Path(__file__).resolve().parent.parent / "assets" / "banner.png"
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -67,7 +67,7 @@ python3 -m pip install -r requirements.txt
 ### 演示
 
 - 登录页底部可一键进入「无后端演示」：不连后端、不碰数据库，笔记与账本的增删改都在浏览器里完成。
-- 内置 5 篇笔记、2 个账本、3 位好友的样例数据，字段与真后端一致，界面不用特殊处理。
+- 内置 5 篇笔记、2 个账本、3 位好友的样例数据，字段按真后端返回结构造，界面不用特殊处理。
 - 数据存在 `localStorage`（`collabnote-demo-db`），刷新还在；再点一次按钮就重置。改动只在本地，不会写进真库。
 
 ### 界面
@@ -112,7 +112,7 @@ npm run launcher -- stop all       # 全停
 
 ### 无后端演示
 
-登录页最下面有个「无后端演示」按钮。点进去直接用一套编好的样例数据（5 篇笔记、2 个账本），不连后端、不碰数据库；新建、编辑、记账都能点，数据存在 `localStorage`，刷新还在。再点一次按钮就会重置成初始样子。
+登录页最下面有个「无后端演示」按钮。点进去直接用一套编好的样例数据（5 篇笔记、2 个账本、3 位好友），不连后端、不碰数据库；新建、编辑、记账都能点，数据存在 `localStorage`，刷新还在。再点一次按钮就会重置成初始样子。
 
 ### 前端起不来时
 
@@ -241,7 +241,7 @@ npm run dist:win     # dist/CollabNote-0.2.0_Beta-win-x64.exe（NSIS）
 npm run pack         # 只出未打包目录，方便试跑
 ```
 
-打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js`、`package.json` 与 `frontend/vendor/**`，本机数据一律不进包。
+打包内容由 `package.json` 的 `build.files` 决定，只含 `index.html`、`main.js`、`preload.js`、`demo-mode.js`、`package.json` 与 `frontend/vendor/**`，本机数据一律不进包。
 
 ### 镜像别删
 

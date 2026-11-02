@@ -6689,6 +6689,8 @@
 
             async function checkServerHealth() {
                 if (document.hidden) return;
+                // 演示模式没有后端可查，跳过
+                if (window.DemoMode && window.DemoMode.enabled) return;
                 try {
                     const response = await fetch(`${apiBaseUrl}/api/health`, { cache: 'no-store' });
                     if (!response.ok) throw new Error(`health ${response.status}`);
@@ -6797,6 +6799,14 @@
             function saveActiveNoteImmediately() {
                 const data = notesData.find(d => d.id === activeId);
                 if (!data || data.canEdit === false) return;
+                if (window.DemoMode && window.DemoMode.enabled) {
+                    // 演示模式：写回内存库，不要拿 demo 的 id 去碰真后端
+                    window.DemoMode.request(`/api/notes/${data.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ title: data.title, content: data.content })
+                    });
+                    return;
+                }
                 fetch(`${apiBaseUrl}/api/notes/${data.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },

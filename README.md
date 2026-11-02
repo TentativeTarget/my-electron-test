@@ -12,19 +12,7 @@ python3 -m pip install -r requirements.txt
 ./start-collabnote.sh
 ```
 
----
-
-## 目录
-
-- [功能](#功能)
-- [快速开始](#快速开始)
-- [数据库（MySQL）](#数据库mysql)
-- [多人使用](#多人使用)
-- [后端监控器](#后端监控器)
-- [打包](#打包)
-- [项目结构](#项目结构)
-- [API](#api)
-- [安全边界](#安全边界)
+<sub>[功能](#功能) · [快速开始](#快速开始) · [数据库](#数据库mysql) · [多人使用](#多人使用) · [监控器](#后端监控器) · [打包](#打包) · [项目结构](#项目结构) · [API](#api) · [安全边界](#安全边界)</sub>
 
 ---
 
@@ -80,6 +68,8 @@ python3 -m pip install -r requirements.txt
 - 左侧栏宽度可拖 220px 至窗口 60%，松手记住，方向键可微调。
 - 后端连不上时弹「连接失败」，可改服务器地址或重连。
 
+[↑ 回到顶部](#collabnote)
+
 ---
 
 ## 快速开始
@@ -115,6 +105,8 @@ npm run launcher -- stop all       # 全停
 | --- | --- | --- |
 | `Cannot find module 'electron/main'` | 终端带着 `ELECTRON_RUN_AS_NODE=1`（常见于 VS Code 终端） | `npm run frontend` 会自动移除；手动跑用 `env -u ELECTRON_RUN_AS_NODE npm run frontend` |
 | `spawn ... Electron ENOENT` | `node_modules/electron/dist` 不完整 | 脚本会自动重装；也可手动 `node node_modules/electron/install.js` |
+
+[↑ 回到顶部](#collabnote)
 
 ---
 
@@ -163,6 +155,8 @@ python3 migrate_json_to_mysql.py
 
 会一并搬账号、笔记、成员、交易与历史，原 JSON 文件不动。迁移不支持反向（MySQL → JSON）。
 
+[↑ 回到顶部](#collabnote)
+
 ---
 
 ## 多人使用
@@ -196,6 +190,8 @@ npm run launcher -- stop frontend                # 关掉所有前端
 npm run launcher -- stop frontend:client-2       # 只关一个
 ```
 
+[↑ 回到顶部](#collabnote)
+
 ---
 
 ## 后端监控器
@@ -215,6 +211,8 @@ python3 monitor.py --exit-when-offline 4         # 失联 4 秒自退
 日志等级 `INFO` / `HTTP` / `EVENT` / `LIVE` / `WARN` / `STATIC`，缓冲最近 500 行，后端重启清空。两个监控接口默认只接受本机回环；远端查看要先设 `COLLABNOTE_MONITOR_TOKEN`，监控器带上 `--token`。
 
 日志默认同时打印到终端，`COLLABNOTE_LOG_STDOUT=0` 可关。
+
+[↑ 回到顶部](#collabnote)
 
 ---
 
@@ -264,6 +262,8 @@ python3 build-backend.py --out /tmp/backend   # 指定输出目录
 - macOS 版只能在 macOS 上构建，架构跟随构建机的 Python。
 - 客户端单独发给别人只会得到登录界面，还得有后端。
 
+[↑ 回到顶部](#collabnote)
+
 ---
 
 ## 项目结构
@@ -292,6 +292,8 @@ my-electron-app/
 ```
 
 Electron 和 Python 是两个进程，前端不读数据文件。流程：登录拿 Token → 存 `localStorage` → 请求带 `Authorization: Bearer` → 后端查存储 → 写回。后端重启后内存会话清空，要重新登录。
+
+[↑ 回到顶部](#collabnote)
 
 ---
 
@@ -383,6 +385,8 @@ GET  /api/images/:file
 
 除 health、注册、登录、登出、头像和图片读取外，其余都要带 `Authorization: Bearer <token>`。
 
+[↑ 回到顶部](#collabnote)
+
 ---
 
 ## 安全边界
@@ -396,6 +400,8 @@ GET  /api/images/:file
 - 监控接口只收 `127.0.0.1` / `::1`，远端要 token。
 - 后端默认监听 `0.0.0.0`，只在可信局域网用；公网部署请改 `COLLABNOTE_HOST=127.0.0.1` 并套反向代理。
 - 生产环境还缺 HTTPS、持久化会话、更严的输入校验。
+
+[↑ 回到顶部](#collabnote)
 
 ---
 
